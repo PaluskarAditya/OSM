@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from 'next/link';
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -33,10 +34,10 @@ import {
   CirclePlusIcon,
   Eye,
   FileDown,
+  FileUp,
   Pencil,
   Trash2,
   Search,
-  FileUp,
 } from "lucide-react";
 import {
   Dialog,
@@ -68,40 +69,46 @@ export default function CourseManagementPage() {
   const [academicYears, setAcademicYears] = useState([]);
   const [courses, setCourses] = useState([]);
 
+  // Fetch all necessary data on component mount
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`);
-        if (!res.ok) throw new Error("Failed to fetch courses");
-        const data = await res.json();
-        setCourses(data);
+        // Fetch courses
+        const coursesRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`);
+        if (!coursesRes.ok) throw new Error("Failed to fetch courses");
+        const coursesData = await coursesRes.json();
+        setCourses(coursesData);
+
+        // Fetch streams
+        const streamsRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
+        if (!streamsRes.ok) throw new Error("Failed to fetch streams");
+        const streamsData = await streamsRes.json();
+        setStreams(streamsData);
+
+        // Fetch all degrees (since degrees are tied to streams, you may need to fetch all)
+        const degreesRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`);
+        if (!degreesRes.ok) throw new Error("Failed to fetch degrees");
+        const degreesData = await degreesRes.json();
+        setDegrees(degreesData);
+
+        // Fetch all academic years
+        const academicYearsRes = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`
+        );
+        if (!academicYearsRes.ok) throw new Error("Failed to fetch academic years");
+        const academicYearsData = await academicYearsRes.json();
+        setAcademicYears(academicYearsData);
       } catch (err) {
-        toast.error("Error loading courses: " + err.message);
+        toast.error("Error loading data: " + err.message);
       }
     };
 
-    fetchCourses();
+    fetchData();
   }, []);
 
+  // Fetch degrees when a stream is selected (for the dialog)
   useEffect(() => {
-    if (isDialogOpen) {
-      const fetchStreams = async () => {
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
-          if (!res.ok) throw new Error("Failed to fetch streams");
-          const data = await res.json();
-          setStreams(data);
-        } catch (err) {
-          toast.error("Error loading streams: " + err.message);
-        }
-      };
-
-      fetchStreams();
-    }
-  }, [isDialogOpen]);
-
-  useEffect(() => {
-    if (selectedStream) {
+    if (selectedStream && isDialogOpen) {
       const fetchDegrees = async () => {
         try {
           const res = await fetch(
@@ -117,10 +124,11 @@ export default function CourseManagementPage() {
 
       fetchDegrees();
     }
-  }, [selectedStream]);
+  }, [selectedStream, isDialogOpen]);
 
+  // Fetch academic years when a degree is selected (for the dialog)
   useEffect(() => {
-    if (selectedDegree) {
+    if (selectedDegree && isDialogOpen) {
       const fetchAcademicYears = async () => {
         try {
           const res = await fetch(
@@ -136,15 +144,15 @@ export default function CourseManagementPage() {
 
       fetchAcademicYears();
     }
-  }, [selectedDegree]);
+  }, [selectedDegree, isDialogOpen]);
 
   const semesterOptions = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
   const filteredCourses = courses.filter((course) => {
     const matchesSearch =
-      course.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.courseCode.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStream = selectedStream ? course.streamId === selectedStream.uuid : true;
+      course.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.code?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStream = selectedStream ? course.stream === selectedStream.uuid : true;
     const matchesActiveStatus = showDeactivated ? true : course.isActive;
     return matchesSearch && matchesStream && matchesActiveStatus;
   });
@@ -158,7 +166,7 @@ export default function CourseManagementPage() {
       selectedAcademicYear &&
       selectedSemester &&
       numSemesters &&
-      !isNaN(numSemesters) && 
+      !isNaN(numSemesters) &&
       parseInt(numSemesters) > 0
     ) {
       try {
@@ -166,18 +174,22 @@ export default function CourseManagementPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            streamId: selectedStream.uuid,
-            degreeId: selectedDegree.uuid,
-            academicYear: selectedAcademicYear,
+            uuid: [...Array(6)]
+              .map(() => Math.random().toString(36)[2].toUpperCase())
+              .join(""),
+            stream: selectedStream.uuid,
+            degree: selectedDegree.uuid,
+            academicYear: selectedAcademicYear.uuid,
             semester: selectedSemester,
-            courseName: courseName.trim(),
-            courseCode: courseCode.trim(),
+            name: courseName.trim(),
+            code: courseCode.trim(),
             numSemesters: parseInt(numSemesters),
             isActive: true,
           }),
         });
-        if (!res.ok) throw new Error("Failed to create course");
-        const newCourse = await res.json();
+        const response = await res.json();
+        if (!res.ok) throw new Error(response.error || "Failed to create course");
+        const newCourse = response;
         setCourses([...courses, newCourse]);
         setCourseName("");
         setCourseCode("");
@@ -213,12 +225,17 @@ export default function CourseManagementPage() {
     }
   };
 
+  // Map UUIDs to names
   const getStreamName = (streamId) => {
     return streams.find((stream) => stream.uuid === streamId)?.name || "Unknown Stream";
   };
 
   const getDegreeName = (degreeId) => {
     return degrees.find((degree) => degree.uuid === degreeId)?.name || "Unknown Degree";
+  };
+
+  const getAcademicYearName = (academicYearId) => {
+    return academicYears.find((year) => year.uuid === academicYearId)?.year || "Unknown Year";
   };
 
   return (
@@ -252,7 +269,7 @@ export default function CourseManagementPage() {
                           onSelect={() => {
                             setSelectedStream(stream);
                             setSelectedDegree(null);
-                            setAcademicYears([]);
+                            setSelectedAcademicYear("");
                           }}
                         >
                           {stream.name}
@@ -364,7 +381,7 @@ export default function CourseManagementPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="flex justify-between w-full">
-                      {selectedAcademicYear || "Select Academic Year"}
+                      {selectedAcademicYear?.year || "Select Academic Year"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -374,9 +391,9 @@ export default function CourseManagementPage() {
                         academicYears.map((year) => (
                           <DropdownMenuItem
                             key={year.uuid}
-                            onSelect={() => setSelectedAcademicYear(year.name)}
+                            onSelect={() => setSelectedAcademicYear(year)}
                           >
-                            {year.name}
+                            <span>{year.year}</span>
                           </DropdownMenuItem>
                         ))
                       ) : (
@@ -422,10 +439,12 @@ export default function CourseManagementPage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink
-                href="/admin"
+                asChild
                 className="text-sm font-medium text-gray-600 hover:text-blue-600"
               >
-                Home
+                <Link href='/admin'>
+                  Home
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="text-gray-400">
@@ -433,10 +452,12 @@ export default function CourseManagementPage() {
             </BreadcrumbSeparator>
             <BreadcrumbItem>
               <BreadcrumbLink
-                href="/admin/qp"
+                asChild
                 className="text-sm font-medium text-gray-600 hover:text-blue-600"
               >
-                QP Management
+                <Link href='/admin/qp'>
+                  QP Management
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="text-gray-400" />
@@ -531,7 +552,7 @@ export default function CourseManagementPage() {
             <h2 className="text-lg font-semibold">
               Courses{" "}
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({filteredCourses.length} {showDeactivated ? "found" : "active"})
+                ({courses.length} {showDeactivated ? "found" : "active"})
               </span>
             </h2>
           </div>
@@ -542,7 +563,7 @@ export default function CourseManagementPage() {
                   <TableHead className="w-12">
                     <Checkbox />
                   </TableHead>
-                  <TableHead className="font-medium">ID</TableHead>
+                  <TableHead className="font-medium">UUID</TableHead>
                   <TableHead className="font-medium">Course Name</TableHead>
                   <TableHead className="font-medium">Course Code</TableHead>
                   <TableHead className="font-medium">Stream</TableHead>
@@ -553,19 +574,19 @@ export default function CourseManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCourses.length > 0 ? (
-                  filteredCourses.map((course) => (
+                {courses.length > 0 ? (
+                  courses.map((course) => (
                     <TableRow key={course.uuid} className="hover:bg-gray-50">
                       <TableCell>
                         <Checkbox />
                       </TableCell>
                       <TableCell className="font-medium">{course.uuid}</TableCell>
-                      <TableCell>{course.courseName}</TableCell>
-                      <TableCell>{course.courseCode}</TableCell>
-                      <TableCell>{getStreamName(course.streamId)}</TableCell>
-                      <TableCell>{getDegreeName(course.degreeId)}</TableCell>
+                      <TableCell>{course.name}</TableCell>
+                      <TableCell>{course.code}</TableCell>
+                      <TableCell>{getStreamName(course.stream)}</TableCell>
+                      <TableCell>{getDegreeName(course.degree)}</TableCell>
                       <TableCell>{course.semester}</TableCell>
-                      <TableCell>{course.academicYear}</TableCell>
+                      <TableCell>{getAcademicYearName(course.academicYear)}</TableCell>
                       <TableCell className="flex justify-end gap-2">
                         <Button
                           size="sm"
@@ -577,12 +598,11 @@ export default function CourseManagementPage() {
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className={`h-8 gap-1 ${
-                            course.isActive
-                              ? "text-red-600 hover:bg-red-50"
-                              : "text-green-600 hover:bg-green-50"
-                          }`}
+                          variant={'outline'}
+                          className={`h-8 gap-1 ${course.isActive
+                            ? "text-red-600 hover:bg-red-50"
+                            : "text-green-600 hover:bg-green-50"
+                            }`}
                           onClick={() => handleToggleCourseStatus(course.uuid)}
                         >
                           {course.isActive ? (

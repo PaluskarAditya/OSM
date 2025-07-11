@@ -57,6 +57,49 @@ export default function CourseManagementPage() {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
   const [selectedSemester, setSelectedSemester] = useState("");
   const [showDeactivated, setShowDeactivated] = useState(false);
+  const [specializationName, setSpecializationName] = useState("");
+  const [selectedStream, setSelectedStream] = useState(null);
+  const [selectedDegree, setSelectedDegree] = useState(null);
+
+  const handleAddSpecialization = async () => {
+    if (
+      selectedStream &&
+      courseName &&
+      selectedDegree &&
+      specializationName.trim() &&
+      selectedAcademicYear
+    ) {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/specializations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uuid: [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join(""),
+            stream: selectedStream.uuid,
+            course: courses.find((c) => c.name === courseName)?.uuid, // Adjust based on your data structure
+            degree: selectedDegree.uuid,
+            academicYear: selectedAcademicYear.uuid,
+            specializationName: specializationName.trim(),
+            isActive: true,
+          }),
+        });
+        const response = await res.json();
+        if (!res.ok) throw new Error(response.error || "Failed to create specialization");
+        // Update state or fetch updated list if needed
+        setSpecializationName("");
+        setSelectedStream(null);
+        setCourseName("");
+        setSelectedDegree(null);
+        setSelectedAcademicYear("");
+        setIsDialogOpen(false);
+        toast.success("Specialization created successfully");
+      } catch (err) {
+        toast.error("Error creating specialization: " + err.message);
+      }
+    } else {
+      toast.error("Please fill all required fields");
+    }
+  };
 
   // Form state
   const [courseName, setCourseName] = useState("");
@@ -191,30 +234,21 @@ export default function CourseManagementPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">
-              Create New Specialization
-            </DialogTitle>
+            <DialogTitle className="text-lg font-semibold">Create New Specialization</DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
               Add a new specialization to the system
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-6 py-4">
-            {/* First Column */}
+          <div className="grid grid-cols-1 gap-6 py-4">
             <div className="space-y-4">
-              {/* Stream */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Stream <span className="text-red-500">*</span>
                 </Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex justify-between w-full"
-                    >
-                      {selectedStreamId
-                        ? streams.find((s) => s.id === selectedStreamId)?.name
-                        : "Select Stream"}
+                    <Button variant="outline" className="flex justify-between w-full">
+                      {selectedStream ? selectedStream.name : "Select Stream"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -222,10 +256,10 @@ export default function CourseManagementPage() {
                     <DropdownMenuGroup>
                       {streams.map((stream) => (
                         <DropdownMenuItem
-                          key={stream.id}
+                          key={stream.uuid}
                           onSelect={() => {
-                            setSelectedStreamId(stream.id);
-                            setSelectedDegreeId(null);
+                            setSelectedStream(stream);
+                            setSelectedDegree(null); // Reset degree when stream changes
                           }}
                         >
                           {stream.name}
@@ -235,69 +269,6 @@ export default function CourseManagementPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
-              {/* No. Of Semester/Trimester */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  No. Of Semester/Trimester{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter number of semesters"
-                  value={numSemesters}
-                  onChange={(e) => setNumSemesters(e.target.value)}
-                  className="focus-visible:ring-1 focus-visible:ring-blue-500"
-                />
-              </div>
-
-              {/* Course Code */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Course Code <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter course code"
-                  value={courseCode}
-                  onChange={(e) => setCourseCode(e.target.value)}
-                  className="focus-visible:ring-1 focus-visible:ring-blue-500"
-                />
-              </div>
-
-              {/* Select Semester/Trimester */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Select Semester/Trimester{" "}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex justify-between w-full"
-                    >
-                      {selectedSemester || "Select Semester"}
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-full">
-                    <DropdownMenuGroup>
-                      {semesterOptions.map((semester) => (
-                        <DropdownMenuItem
-                          key={semester}
-                          onSelect={() => setSelectedSemester(semester)}
-                        >
-                          {semester}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {/* Second Column */}
-            <div className="space-y-4">
-              {/* Degree Name */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Degree Name <span className="text-red-500">*</span>
@@ -307,77 +278,96 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
-                      disabled={!selectedStreamId}
+                      disabled={!selectedStream}
                     >
-                      {selectedDegreeId
-                        ? degrees.find((d) => d.id === selectedDegreeId)?.name
-                        : "Select Degree"}
+                      {selectedDegree ? selectedDegree.name : "Select Degree"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
-                      {selectedStreamId ? (
-                        getDegreesByStream(selectedStreamId).map((degree) => (
+                      {degrees.length > 0 ? (
+                        degrees.map((degree) => (
                           <DropdownMenuItem
-                            key={degree.id}
-                            onSelect={() => setSelectedDegreeId(degree.id)}
+                            key={degree.uuid}
+                            onSelect={() => setSelectedDegree(degree)}
                           >
                             {degree.name}
                           </DropdownMenuItem>
                         ))
                       ) : (
-                        <DropdownMenuItem disabled>
-                          Select a stream first
-                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>No degrees available</DropdownMenuItem>
                       )}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
-              {/* Course Name */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  Course Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter course name"
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
-                  className="focus-visible:ring-1 focus-visible:ring-blue-500"
-                />
-              </div>
-
-              {/* Academic Year */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Academic Year <span className="text-red-500">*</span>
+                  Course <span className="text-red-500">*</span>
                 </Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex justify-between w-full"
-                    >
-                      {selectedAcademicYear || "Select Academic Year"}
+                    <Button variant="outline" className="flex justify-between w-full">
+                      {courseName || "Select Course"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
-                      {academicYears.map((year) => (
+                      {courses.map((course) => (
                         <DropdownMenuItem
-                          key={year.id}
-                          onSelect={() => setSelectedAcademicYear(year.name)}
+                          key={course.uuid}
+                          onSelect={() => setCourseName(course.name)}
                         >
-                          {year.name}
+                          {course.name} ({course.code})
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Academic Year <span className="text-red-500">*</span>
+                </Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="flex justify-between w-full">
+                      {selectedAcademicYear?.year || "Select Academic Year"}
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-full">
+                    <DropdownMenuGroup>
+                      {academicYears.length > 0 ? (
+                        academicYears.map((year) => (
+                          <DropdownMenuItem
+                            key={year.uuid}
+                            onSelect={() => setSelectedAcademicYear(year)}
+                          >
+                            <span>{year.year}</span>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled>No academic years available</DropdownMenuItem>
+                      )}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Specialization Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Enter specialization name"
+                  value={specializationName || ""}
+                  onChange={(e) => setSpecializationName(e.target.value)}
+                  className="focus-visible:ring-1 focus-visible:ring-blue-500"
+                />
+              </div>
+
             </div>
           </div>
           <DialogFooter>
@@ -388,19 +378,17 @@ export default function CourseManagementPage() {
             </DialogClose>
             <Button
               type="button"
-              onClick={handleAddCourse}
+              onClick={handleAddSpecialization}
               className="bg-blue-600 hover:bg-blue-700"
               disabled={
-                !courseName.trim() ||
-                !courseCode.trim() ||
-                !selectedStreamId ||
-                !selectedDegreeId ||
-                !selectedAcademicYear ||
-                !selectedSemester ||
-                !numSemesters
+                !selectedStream ||
+                !courseName ||
+                !selectedDegree ||
+                !specializationName?.trim() ||
+                !selectedAcademicYear
               }
             >
-              Create Specialization
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -581,11 +569,10 @@ export default function CourseManagementPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className={`h-8 gap-1 ${
-                            course.isActive
-                              ? "text-red-600 hover:bg-red-50"
-                              : "text-green-600 hover:bg-green-50"
-                          }`}
+                          className={`h-8 gap-1 ${course.isActive
+                            ? "text-red-600 hover:bg-red-50"
+                            : "text-green-600 hover:bg-green-50"
+                            }`}
                           onClick={() => handleToggleCourseStatus(course.id)}
                         >
                           {course.isActive ? (

@@ -30,10 +30,10 @@ const Subject = require("./models/subjectModel");
 
 // Validation middleware
 const validateCourse = [
-  body("courseName").trim().notEmpty().withMessage("Course name is required"),
-  body("courseCode").trim().notEmpty().withMessage("Course code is required"),
-  body("streamId").notEmpty().withMessage("Stream ID is required"),
-  body("degreeId").notEmpty().withMessage("Degree ID is required"),
+  body("name").trim().notEmpty().withMessage("Course name is required"),
+  body("code").trim().notEmpty().withMessage("Course code is required"),
+  body("stream").notEmpty().withMessage("Stream is required"),
+  body("degree").notEmpty().withMessage("Degree is required"),
   body("academicYear").notEmpty().withMessage("Academic year is required"),
   body("semester").notEmpty().withMessage("Semester is required"),
   body("numSemesters")
@@ -50,9 +50,11 @@ const sendError = (res, status, message) => {
 app.get("/api/v1/streams/:uuid/degrees", async (req, res) => {
   try {
     const stream = await Stream.findOne({ uuid: req.params.uuid });
+    console.log(stream, req.params.uuid);
     if (!stream) return sendError(res, 404, "Stream not found");
 
-    const degrees = await Degree.find({ streamId: stream.uuid });
+    const degrees = await Degree.find({ stream: stream.uuid });
+    console.log(degrees, req.params.uuid);
     res.status(200).json(degrees);
   } catch (err) {
     sendError(res, 500, err.message);
@@ -65,7 +67,7 @@ app.get("/api/v1/degrees/:uuid/academic-years", async (req, res) => {
     const degree = await Degree.findOne({ uuid: req.params.uuid });
     if (!degree) return sendError(res, 404, "Degree not found");
 
-    const academicYears = await AcademicYear.find({ degreeId: degree.uuid });
+    const academicYears = await AcademicYear.find({ degree: degree.uuid });
     res.status(200).json(academicYears);
   } catch (err) {
     sendError(res, 500, err.message);
@@ -80,6 +82,7 @@ function crudRoutes(app, path, Model, validation = []) {
       if (!errors.isEmpty()) {
         return sendError(res, 400, errors.array()[0].msg);
       }
+      console.log(req.body);
       const doc = new Model(req.body);
       await doc.save();
       res.status(201).json(doc);
