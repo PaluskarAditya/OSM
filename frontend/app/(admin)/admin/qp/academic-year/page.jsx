@@ -38,6 +38,7 @@ import {
   Search,
   FileUp,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogTrigger,
@@ -60,7 +61,6 @@ export default function AcademicYearManagementPage() {
   const [showDeactivated, setShowDeactivated] = useState(false);
   const [streams, setStreams] = useState([]);
   const [degrees, setDegrees] = useState([]);
-
   const [academicYears, setAcademicYears] = useState([
     {
       id: 1,
@@ -118,6 +118,26 @@ export default function AcademicYearManagementPage() {
 
     fetchAcademicYears();
   }, []);
+
+  useEffect(() => {
+    const getDegreesByStream = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${selectedStream.uuid}/degrees`
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log(data);
+          setDegrees(data);
+        }
+      } catch (error) {
+        toast.error(error.message);
+      }
+    };
+
+    getDegreesByStream();
+  }, [selectedStream]);
 
   // Filter academic years based on search term, selected stream, and active status
   const filteredAcademicYears = academicYears.filter((academicYear) => {
@@ -312,9 +332,7 @@ export default function AcademicYearManagementPage() {
               type="button"
               onClick={handleAddAcademicYear}
               className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
-              disabled={
-                !newYear.trim() || !selectedStream || !selectedDegree
-              }
+              disabled={!newYear.trim() || !selectedStream || !selectedDegree}
             >
               Create Academic Year
             </Button>
