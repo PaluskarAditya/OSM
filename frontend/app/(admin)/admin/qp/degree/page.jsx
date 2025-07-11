@@ -208,49 +208,49 @@ export default function DegreeManagementPage() {
     XLSX.writeFile(workbook, "Degrees.xlsx");
   };
 
-  // const handleImportExcel = async (event) => {
-  //   const file = event.target.files[0];
-  //   if (!file) return;
+  const handleImportExcel = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  //   const reader = new FileReader();
+    const reader = new FileReader();
 
-  //   reader.onload = async (e) => {
-  //     const data = new Uint8Array(e.target.result);
-  //     const workbook = XLSX.read(data, { type: "array" });
+    reader.onload = async (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
 
-  //     const sheetName = workbook.SheetNames[0];
-  //     const worksheet = workbook.Sheets[sheetName];
-  //     const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-  //     // Transform imported data to match your schema
-  //     const transformedData = jsonData.map((row) => ({
-  //       name: row["Degree Name"],
-  //       streamName: row["Stream Name"],
-  //       isActive: row["Status"]?.toLowerCase() === "active",
-  //     }));
+      // Transform imported data to match your schema
+      const transformedData = jsonData.map((row) => ({
+        name: row["Degree Name"],
+        streamName: row["Stream Name"],
+        isActive: row["Status"]?.toLowerCase() === "active",
+      }));
 
-  //     // Map stream name to stream ID if needed (optional logic)
-  //     const nameToIdMap = {};
-  //     fetchStreams.forEach((stream) => {
-  //       nameToIdMap[stream.name] = stream.stream || stream._id;
-  //     });
+      // Map stream name to stream ID if needed (optional logic)
+      const nameToIdMap = {};
+      fetchStreams.forEach((stream) => {
+        nameToIdMap[stream.name] = stream.stream || stream._id;
+      });
 
-  //     const degreesReady = transformedData.map((row) => ({
-  //       name: row.name,
-  //       stream: nameToIdMap[row.streamName] || "unknown",
-  //       isActive: row.isActive,
-  //       uuid: [...Array(6)]
-  //         .map(() => Math.random().toString(36)[2].toUpperCase())
-  //         .join(""),
-  //     }));
+      const degreesReady = transformedData.map((row) => ({
+        name: row.name,
+        stream: nameToIdMap[row.streamName] || "unknown",
+        isActive: row.isActive,
+        uuid: [...Array(6)]
+          .map(() => Math.random().toString(36)[2].toUpperCase())
+          .join(""),
+      }));
 
-  //     // Add to frontend table (UI only)
-  //     setDegrees((prev) => [...prev, ...degreesReady]);
-  //     toast.success("Excel imported successfully");
-  //   };
+      // Add to frontend table (UI only)
+      setDegrees((prev) => [...prev, ...degreesReady]);
+      toast.success("Excel imported successfully");
+    };
 
-  //   reader.readAsArrayBuffer(file);
-  // };
+    reader.readAsArrayBuffer(file);
+  };
 
   return (
     <div className="flex p-6 h-full flex-col gap-5 bg-gray-100/50 w-full">

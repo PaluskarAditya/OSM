@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -52,8 +52,8 @@ import {
 export default function CourseManagementPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStreamId, setSelectedStreamId] = useState(null);
-  const [selectedDegreeId, setSelectedDegreeId] = useState(null);
+  const [selectedStream, setSelectedStream] = useState(null);
+  const [selectedDegree, setSelectedDegree] = useState(null);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
   const [selectedSemester, setSelectedSemester] = useState("");
   const [showDeactivated, setShowDeactivated] = useState(false);
@@ -62,33 +62,36 @@ export default function CourseManagementPage() {
   const [courseName, setCourseName] = useState("");
   const [courseCode, setCourseCode] = useState("");
   const [numSemesters, setNumSemesters] = useState("");
+  const [streams, setStreams] = useState([]);
+  const [degrees, setDegrees] = useState([]);
+  const [academicYears, setAcademic] = useState([]);
 
-  // Sample data
-  const [streams] = useState([
-    { id: 1, name: "March 2025 Exams" },
-    { id: 2, name: "July 2025 Exams" },
-    { id: 3, name: "August 2025 Exams" },
-  ]);
+  useEffect(() => {
+    if (isDialogOpen === true) {
+      const fetchStreams = async () => {
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`
+          );
+          if (!res.ok) throw new Error("Failed to fetch streams");
+          const data = await res.json();
+          setStreams(data);
+        } catch (err) {
+          console.error("Error loading streams:", err);
+        }
+      };
 
-  const [degrees] = useState([
-    { id: 1, streamId: 1, name: "BCA 1st Year" },
-    { id: 2, streamId: 2, name: "BBA 2nd Year" },
-    { id: 3, streamId: 3, name: "MBA 1st Year" },
-  ]);
-
-  const [academicYears] = useState([
-    { id: 1, name: "2023-24" },
-    { id: 2, name: "2024-25" },
-    { id: 3, name: "2025-26" },
-  ]);
+      fetchStreams();
+    }
+  }, [isDialogOpen]);
 
   const semesterOptions = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
   const [courses, setCourses] = useState([
     {
       id: 1,
-      streamId: 1,
-      degreeId: 1,
+      stream: 1,
+      degree: 1,
       academicYear: "2024-25",
       semester: "1",
       courseName: "Introduction to Programming",
@@ -98,8 +101,8 @@ export default function CourseManagementPage() {
     },
     {
       id: 2,
-      streamId: 2,
-      degreeId: 2,
+      stream: 2,
+      degree: 2,
       academicYear: "2024-25",
       semester: "2",
       courseName: "Business Management",
@@ -114,8 +117,8 @@ export default function CourseManagementPage() {
     const matchesSearch =
       course.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.courseCode.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStream = selectedStreamId
-      ? course.streamId === selectedStreamId
+    const matchesStream = selectedStream
+      ? course.streamId === selectedStream
       : true;
     const matchesActiveStatus = showDeactivated ? true : course.isActive;
     return matchesSearch && matchesStream && matchesActiveStatus;
@@ -125,8 +128,8 @@ export default function CourseManagementPage() {
     if (
       courseName.trim() &&
       courseCode.trim() &&
-      selectedStreamId &&
-      selectedDegreeId &&
+      selectedStream &&
+      selectedDegree &&
       selectedAcademicYear &&
       selectedSemester &&
       numSemesters
@@ -137,8 +140,8 @@ export default function CourseManagementPage() {
         ...courses,
         {
           id: newId,
-          streamId: selectedStreamId,
-          degreeId: selectedDegreeId,
+          streamId: selectedStream,
+          degreeId: selectedDegree,
           academicYear: selectedAcademicYear,
           semester: selectedSemester,
           courseName: courseName.trim(),
@@ -212,9 +215,7 @@ export default function CourseManagementPage() {
                       variant="outline"
                       className="flex justify-between w-full"
                     >
-                      {selectedStreamId
-                        ? streams.find((s) => s.id === selectedStreamId)?.name
-                        : "Select Stream"}
+                      {selectedStream ? selectedStream.name : "Select Stream"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -222,10 +223,10 @@ export default function CourseManagementPage() {
                     <DropdownMenuGroup>
                       {streams.map((stream) => (
                         <DropdownMenuItem
-                          key={stream.id}
+                          key={stream.uuid}
                           onSelect={() => {
-                            setSelectedStreamId(stream.id);
-                            setSelectedDegreeId(null);
+                            setSelectedStream(stream);
+                            setSelectedDegree(null);
                           }}
                         >
                           {stream.name}
@@ -307,18 +308,18 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
-                      disabled={!selectedStreamId}
+                      disabled={!selectedStream}
                     >
-                      {selectedDegreeId
-                        ? degrees.find((d) => d.id === selectedDegreeId)?.name
+                      {selectedDegree
+                        ? degrees.find((d) => d.id === selectedDegree)?.name
                         : "Select Degree"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
-                      {selectedStreamId ? (
-                        getDegreesByStream(selectedStreamId).map((degree) => (
+                      {selectedStream ? (
+                        getDegreesByStream(selectedStream).map((degree) => (
                           <DropdownMenuItem
                             key={degree.id}
                             onSelect={() => setSelectedDegreeId(degree.id)}
@@ -393,8 +394,8 @@ export default function CourseManagementPage() {
               disabled={
                 !courseName.trim() ||
                 !courseCode.trim() ||
-                !selectedStreamId ||
-                !selectedDegreeId ||
+                !selectedStream ||
+                !selectedDegree ||
                 !selectedAcademicYear ||
                 !selectedSemester ||
                 !numSemesters
@@ -452,8 +453,8 @@ export default function CourseManagementPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full justify-between">
-                  {selectedStreamId
-                    ? streams.find((s) => s.id === selectedStreamId)?.name
+                  {selectedStream
+                    ? streams.find((s) => s.id === selectedStream)?.name
                     : "All Streams"}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>

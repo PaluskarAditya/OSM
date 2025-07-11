@@ -21,6 +21,20 @@ const Course = require("./models/courseModel");
 const Specialization = require("./models/specializationModel");
 const Subject = require("./models/subjectModel");
 
+// @GET - Custom Route to get degrees by stream
+app.get("/api/v1/streams/:uuid/degrees", async (req, res) => {
+  try {
+    const stream = await Stream.findOne({ uuid: req.params.uuid });
+    console.log(req.params.uuid, stream);
+    if (!stream) return res.status(404).json({ message: "Stream not found" });
+
+    const degrees = await Degree.find({ stream: stream.uuid });
+    res.status(200).json(degrees);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ----- Generic CRUD Factory -----
 function crudRoutes(app, path, Model) {
   app.post(`/api/v1/${path}`, async (req, res) => {

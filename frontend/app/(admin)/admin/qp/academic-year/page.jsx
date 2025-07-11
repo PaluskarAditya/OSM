@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -55,44 +55,69 @@ export default function AcademicYearManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStreamId, setSelectedStreamId] = useState(null);
   const [selectedDegreeId, setSelectedDegreeId] = useState(null);
+  const [selectedStream, setSelectedStream] = useState(null);
+  const [selectedDegree, setSelectedDegree] = useState(null);
   const [showDeactivated, setShowDeactivated] = useState(false);
-
-  // Sample data for streams and degrees
-  const [streams] = useState([
-    { id: 1, name: "March 2025 Exams" },
-    { id: 2, name: "July 2025 Exams" },
-    { id: 3, name: "August 2025 Exams" },
-  ]);
-
-  const [degrees] = useState([
-    { id: 1, streamId: 1, name: "BCA 1st Year" },
-    { id: 2, streamId: 2, name: "BBA 2nd Year" },
-    { id: 3, streamId: 3, name: "MBA 1st Year" },
-  ]);
+  const [streams, setStreams] = useState([]);
+  const [degrees, setDegrees] = useState([]);
 
   const [academicYears, setAcademicYears] = useState([
     {
       id: 1,
-      streamId: 1,
-      degreeId: 1,
+      stream: 1,
+      degree: 1,
       year: "2024-25",
       isActive: true,
     },
     {
       id: 2,
-      streamId: 2,
-      degreeId: 2,
+      stream: 2,
+      degree: 2,
       year: "2024-25",
       isActive: true,
     },
     {
       id: 3,
-      streamId: 3,
-      degreeId: 3,
+      stream: 3,
+      degree: 3,
       year: "2024-25",
       isActive: true,
     },
   ]);
+
+  useEffect(() => {
+    const fetchStreams = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`
+        );
+        if (!res.ok) throw new Error("Failed to fetch streams");
+        const data = await res.json();
+        setStreams(data);
+      } catch (err) {
+        console.error("Error loading streams:", err);
+      }
+    };
+
+    fetchStreams();
+  }, []);
+
+  useEffect(() => {
+    const fetchAcademicYears = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`
+        );
+        if (!res.ok) throw new Error("Failed to fetch academic years");
+        const data = await res.json();
+        setAcademicYears(data); // assuming API returns array of academic years
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchAcademicYears();
+  }, []);
 
   // Filter academic years based on search term, selected stream, and active status
   const filteredAcademicYears = academicYears.filter((academicYear) => {
@@ -100,32 +125,43 @@ export default function AcademicYearManagementPage() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesStream = selectedStreamId
-      ? academicYear.streamId === selectedStreamId
+      ? academicYear.stream === selectedStreamId
       : true;
     const matchesActiveStatus = showDeactivated ? true : academicYear.isActive;
     return matchesSearch && matchesStream && matchesActiveStatus;
   });
 
-  const handleAddAcademicYear = () => {
-    if (newYear.trim() && selectedStreamId && selectedDegreeId) {
-      const newId =
-        academicYears.length > 0
-          ? Math.max(...academicYears.map((y) => y.id)) + 1
-          : 1;
-      setAcademicYears([
-        ...academicYears,
+  const handleAddAcademicYear = async () => {
+    if (!newYear.trim() || !selectedStream || !selectedDegree) return;
+
+    const payload = {
+      year: newYear.trim(),
+      stream: selectedStream.uuid,
+      degree: selectedDegree.uuid,
+      uuid: [...Array(6)]
+        .map(() => Math.random().toString(36)[2].toUpperCase())
+        .join(""),
+    };
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`,
         {
-          id: newId,
-          streamId: selectedStreamId,
-          degreeId: selectedDegreeId,
-          year: newYear.trim(),
-          isActive: true,
-        },
-      ]);
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to create academic year");
+      const created = await res.json();
+      setAcademicYears((prev) => [...prev, created]);
       setNewYear("");
       setSelectedStreamId(null);
       setSelectedDegreeId(null);
       setIsDialogOpen(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -177,9 +213,7 @@ export default function AcademicYearManagementPage() {
                     variant="outline"
                     className="flex justify-between w-full"
                   >
-                    {selectedStreamId
-                      ? streams.find((s) => s.id === selectedStreamId)?.name
-                      : "Select Stream"}
+                    {selectedStream ? selectedStream.name : "Select Stream"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -188,9 +222,23 @@ export default function AcademicYearManagementPage() {
                     {streams.map((stream) => (
                       <DropdownMenuItem
                         key={stream.id}
-                        onSelect={() => {
-                          setSelectedStreamId(stream.id);
-                          setSelectedDegreeId(null); // Reset degree selection when stream changes
+                        onSelect={async () => {
+                          // setSelectedStreamId(stream.id);
+                          // setSelectedDegreeId(null);
+                          setSelectedStream(stream);
+                          try {
+                            const res = await fetch(
+                              `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${stream.uuid}/degrees`
+                            );
+                            if (!res.ok)
+                              throw new Error("Failed to fetch degrees");
+                            const data = await res.json();
+                            setDegrees(data);
+                            console.log(degrees);
+                          } catch (err) {
+                            console.error("Error loading degrees:", err);
+                            setDegrees([]);
+                          }
                         }}
                       >
                         {stream.name}
@@ -210,25 +258,27 @@ export default function AcademicYearManagementPage() {
                   <Button
                     variant="outline"
                     className="flex justify-between w-full"
-                    disabled={!selectedStreamId}
+                    disabled={!selectedStream}
                   >
-                    {selectedDegreeId
-                      ? degrees.find((d) => d.id === selectedDegreeId)?.name
-                      : "Select Degree"}
+                    {selectedDegree ? selectedDegree.name : "Select Degree"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full">
                   <DropdownMenuGroup>
-                    {selectedStreamId ? (
-                      getDegreesByStream(selectedStreamId).map((degree) => (
-                        <DropdownMenuItem
-                          key={degree.id}
-                          onSelect={() => setSelectedDegreeId(degree.id)}
-                        >
-                          {degree.name}
-                        </DropdownMenuItem>
-                      ))
+                    {selectedStream ? (
+                      degrees
+                        .filter(
+                          (degree) => degree.stream === selectedStream.uuid
+                        )
+                        .map((degree) => (
+                          <DropdownMenuItem
+                            key={degree.id}
+                            onSelect={() => setSelectedDegree(degree)}
+                          >
+                            {degree.name}
+                          </DropdownMenuItem>
+                        ))
                     ) : (
                       <DropdownMenuItem disabled>
                         Select a stream first
@@ -261,9 +311,9 @@ export default function AcademicYearManagementPage() {
             <Button
               type="button"
               onClick={handleAddAcademicYear}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
               disabled={
-                !newYear.trim() || !selectedStreamId || !selectedDegreeId
+                !newYear.trim() || !selectedStream || !selectedDegree
               }
             >
               Create Academic Year
@@ -341,31 +391,35 @@ export default function AcademicYearManagementPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          {selectedStreamId && <div className="w-full sm:w-64">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
-                  All Degrees
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onSelect={() => setSelectedDegreeId(null)}>
+          {selectedStreamId && (
+            <div className="w-full sm:w-64">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
                     All Degrees
-                  </DropdownMenuItem>
-                  {degrees.map((stream) => (
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                  <DropdownMenuGroup>
                     <DropdownMenuItem
-                      key={stream.id}
-                      onSelect={() => setSelectedDegreeId(stream.id)}
+                      onSelect={() => setSelectedDegreeId(null)}
                     >
-                      {stream.name}
+                      All Degrees
                     </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>}
+                    {degrees.map((stream) => (
+                      <DropdownMenuItem
+                        key={stream.id}
+                        onSelect={() => setSelectedDegreeId(stream.id)}
+                      >
+                        {stream.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -454,7 +508,7 @@ export default function AcademicYearManagementPage() {
                         <Checkbox />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {academicYear.id}
+                        {academicYear.uuid}
                       </TableCell>
                       <TableCell>{academicYear.year}</TableCell>
                       <TableCell>
