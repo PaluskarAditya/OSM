@@ -23,7 +23,6 @@ import {
   FileUp,
   Search,
   Pencil,
-  Trash,
   Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -96,7 +95,7 @@ export default function DegreeManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (isDialogOpen === true) {
+    if (isDialogOpen) {
       const getStreams = async () => {
         try {
           const res = await fetch(
@@ -116,7 +115,7 @@ export default function DegreeManagementPage() {
     }
   }, [isDialogOpen]);
 
-  // Update handler (open modal or inline editor)
+  // Update handler
   const handleUpdate = (degreeId) => {
     toast.info(`Update clicked for degree ID: ${degreeId}`);
     // Implement actual update logic or show a modal
@@ -193,18 +192,15 @@ export default function DegreeManagementPage() {
   };
 
   const exportToExcel = () => {
-    // Prepare data
     const dataToExport = filteredDegrees.map((deg) => ({
       "Degree Name": deg.name,
       "Stream Name": streams[deg.stream] || "Unknown",
+      "Created At": new Date(deg.createdAt).toLocaleDateString(),
     }));
 
-    // Create worksheet and workbook
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Degrees");
-
-    // Download file
     XLSX.writeFile(workbook, "Degrees.xlsx");
   };
 
@@ -215,38 +211,67 @@ export default function DegreeManagementPage() {
     const reader = new FileReader();
 
     reader.onload = async (e) => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        // Validate required fields (Status removed)
+        const requiredFields = ['Subject Name', 'Code', 'Type', 'Semester', 'Exam Date', 'Course', 'Combined'];
+        const missingFields = [];
 
-      // Transform imported data to match your schema
-      const transformedData = jsonData.map((row) => ({
-        name: row["Degree Name"],
-        streamName: row["Stream Name"],
-        isActive: row["Status"]?.toLowerCase() === "active",
-      }));
+        jsonData.forEach((row, index) => {
+          requiredFields.forEach(field => {
+            if (!row[field] && row[field] !== 0) {
+              missingFields.push(`Row ${index + 2}: Missing ${field}`);
+            }
+          });
+        });
 
-      // Map stream name to stream ID if needed (optional logic)
-      const nameToIdMap = {};
-      fetchStreams.forEach((stream) => {
-        nameToIdMap[stream.name] = stream.stream || stream._id;
-      });
+        if (missingFields.length > 0) {
+          toast.error(`Missing required fields:\n${missingFields.join('\n')}`);
+          return;
+        }
 
-      const degreesReady = transformedData.map((row) => ({
-        name: row.name,
-        stream: nameToIdMap[row.streamName] || "unknown",
-        isActive: row.isActive,
-        uuid: [...Array(6)]
-          .map(() => Math.random().toString(36)[2].toUpperCase())
-          .join(""),
-      }));
+        // Transform imported data
+        const subjectsReady = jsonData.map((row) => {
+          const uuid = [...Array(6)]
+            .map(() => Math.random().toString(36)[2].toUpperCase())
+            .join("");
 
-      // Add to frontend table (UI only)
-      setDegrees((prev) => [...prev, ...degreesReady]);
-      toast.success("Excel imported successfully");
+          let examDate;
+          if (typeof row['Exam Date'] === 'number') {
+            examDate = new Date((row['Exam Date'] - 25569) * 86400 * 1000);
+          } else {
+            examDate = new Date(row['Exam Date']);
+          }
+
+          return {
+            name: row['Subject Name'],
+            code: row['Code'],
+            type: row['Type'],
+            semester: row['Semester'].toString(),
+            exam: examDate.toISOString(),
+            course: "unknown",
+            courseName: row['Course'],
+            combined: "unknown",
+            combinedName: row['Combined'],
+            uuid,
+            isActive: row['Status']?.toLowerCase() === 'active' ? true : false, // Default to false if Status is missing
+            createdAt: new Date().toISOString(),
+            __isImported: true
+          };
+        });
+
+        setDegrees(prev => [...prev, ...subjectsReady]); // Changed to setDegrees to align with state
+        toast.success(`${subjectsReady.length} subjects imported successfully (frontend only)`);
+
+      } catch (error) {
+        toast.error("Error importing file: " + error.message);
+        console.error("Import error:", error);
+      }
     };
 
     reader.readAsArrayBuffer(file);
@@ -277,16 +302,11 @@ export default function DegreeManagementPage() {
                     <ChevronDown />
                   </Button>
                 </DropdownMenuTrigger>
-
                 <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] p-0">
                   <DropdownMenuGroup>
                     {fetchStreams.map((el) => (
                       <DropdownMenuItem
-                        className={`w-full cursor-pointer ${
-                          selectedStream?.name === el.name
-                            ? "bg-gray-100 font-semibold"
-                            : ""
-                        }`}
+                        className={`w-full cursor-pointer ${selectedStream?.name === el.name ? "bg-gray-100 font-semibold" : ""}`}
                         key={el._id || el.name}
                         onClick={() =>
                           setSelectedStream((prev) =>
@@ -301,14 +321,14 @@ export default function DegreeManagementPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Degree Name</Label>
-            <Input
-              placeholder="BCA 1st Year"
-              value={degreeName}
-              onChange={(e) => setDegreeName(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label>Degree Name</Label>
+              <Input
+                placeholder="BCA 1st Year"
+                value={degreeName}
+                onChange={(e) => setDegreeName(e.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -336,7 +356,7 @@ export default function DegreeManagementPage() {
             </DialogDescription>
           </DialogHeader>
           <div>
-            <Input type="file" />
+            <Input type="file" onChange={handleImportExcel} />
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -346,7 +366,7 @@ export default function DegreeManagementPage() {
             </DialogClose>
             <Button
               type="button"
-              onClick={handleImportExcel}
+              onClick={() => setInputDialog(false)} // Close dialog after import
               className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
             >
               Import Data
@@ -354,6 +374,7 @@ export default function DegreeManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-medium">Question Paper Management</h1>
         <Breadcrumb>
@@ -376,6 +397,7 @@ export default function DegreeManagementPage() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -425,6 +447,7 @@ export default function DegreeManagementPage() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
       <Card className="flex-1 overflow-hidden">
         <div className="p-6 py-0 rounded-md">
           <div className="flex justify-between items-center mb-6">
@@ -440,8 +463,7 @@ export default function DegreeManagementPage() {
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead className="w-12">
-                    <Checkbox disabled />{" "}
-                    {/* Master checkbox, for future multi-select */}
+                    <Checkbox disabled />
                   </TableHead>
                   <TableHead className="font-medium">Degree Name</TableHead>
                   <TableHead className="font-medium">Stream Name</TableHead>
@@ -451,22 +473,19 @@ export default function DegreeManagementPage() {
                   </TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {filteredDegrees.length > 0 ? (
                   filteredDegrees.map((deg) => (
                     <TableRow
-                      key={deg._id}
-                      className={`hover:bg-gray-50 ${
-                        !deg.isActive ? "bg-red-50 text-gray-500" : ""
-                      }`}
+                      key={deg._id || deg.uuid}
+                      className={`hover:bg-gray-50 ${!deg.isActive ? "bg-red-50 text-gray-500" : ""}`}
                     >
                       <TableCell>
                         <Checkbox />
                       </TableCell>
                       <TableCell className="font-medium">{deg.name}</TableCell>
                       <TableCell>
-                        {streams[deg.stream] || "Loading..."}
+                        {streams[deg.stream] || deg.courseName || "Loading..."}
                       </TableCell>
                       <TableCell>
                         {deg.isActive ? (
@@ -484,7 +503,7 @@ export default function DegreeManagementPage() {
                           size="sm"
                           variant="outline"
                           className="h-8 gap-1 text-gray-700 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleUpdate(deg._id)}
+                          onClick={() => handleUpdate(deg._id || deg.uuid)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                           <span>Edit</span>
@@ -494,7 +513,7 @@ export default function DegreeManagementPage() {
                           variant="outline"
                           className="h-8 gap-1 text-red-600 hover:bg-red-50 cursor-pointer"
                           disabled={!deg.isActive}
-                          onClick={() => handleDeactivate(deg._id)}
+                          onClick={() => handleDeactivate(deg._id || deg.uuid)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           <span>Deactivate</span>

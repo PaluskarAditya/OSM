@@ -47,8 +47,8 @@ export default function QPManagementPage() {
         <div className="p-2 py-2 -mt-5 bg-white">
           <Link href="/admin/qp/stream" className="group">
             <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-blue-50 group-hover:shadow-xs">
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors duration-200"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -64,8 +64,8 @@ export default function QPManagementPage() {
         <div className="p-2 -mt-10 bg-white">
           <Link href="/admin/qp/degree" className="group">
             <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs">
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -81,8 +81,8 @@ export default function QPManagementPage() {
         <div className="p-2 -mt-10 bg-white">
           <Link href="/admin/qp/academic-year" className="group">
             <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-red-50 group-hover:shadow-xs">
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="h-12 w-12 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -98,8 +98,8 @@ export default function QPManagementPage() {
         <div className="p-2 -mt-10 bg-white">
           <Link href="/admin/qp/course" className="group">
             <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-indigo-50 group-hover:shadow-xs">
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors duration-200"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -115,8 +115,8 @@ export default function QPManagementPage() {
         <div className="p-2 -mt-10 bg-white">
           <Link href="/admin/qp/specialization" className="group">
             <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs">
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -124,6 +124,23 @@ export default function QPManagementPage() {
               <div className="flex flex-col">
                 <h3 className="text-md font-medium text-gray-800">Specialization</h3>
                 <p className="text-xs text-gray-500">Create and manage specialization</p>
+              </div>
+              <ChevronRight className="ml-auto h-5 w-5 text-green-400 group-hover:text-green-600 transition-colors duration-200" />
+            </div>
+          </Link>
+        </div>
+        <div className="p-2 -mt-10 bg-white">
+          <Link href="/admin/qp/subject" className="group">
+            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs">
+              <Button
+                size="icon"
+                className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
+              >
+                <PlusIcon className="h-5 w-5" />
+              </Button>
+              <div className="flex flex-col">
+                <h3 className="text-md font-medium text-gray-800">Subjects</h3>
+                <p className="text-xs text-gray-500">Create and manage subject's</p>
               </div>
               <ChevronRight className="ml-auto h-5 w-5 text-green-400 group-hover:text-green-600 transition-colors duration-200" />
             </div>
@@ -142,6 +159,6 @@ export default function QPManagementPage() {
           <p className="text-sm text-gray-500">Access frequent operations</p>
         </Card>
       </div>
-    </div>
+    </div >
   );
 }

@@ -27,6 +27,7 @@ const AcademicYear = require("./models/academicyearModel");
 const Course = require("./models/courseModel");
 const Specialization = require("./models/specializationModel");
 const Subject = require("./models/subjectModel");
+const Combined = require("./models/combinedModel");
 
 // Validation middleware
 const validateCourse = [
@@ -74,6 +75,18 @@ app.get("/api/v1/degrees/:uuid/academic-years", async (req, res) => {
   }
 });
 
+// @GET - Coustom Route to get courses by combined 
+app.get('/api/v1/courses/:uuid/combineds', async (req, res) => {
+  try {
+    const course = await Course.findOne({ uuid: req.params.uuid });
+    if (!course) return sendError(res, 404, "Course not found");
+
+    res.status(200).json([course]);
+  } catch (error) {
+    sendError(res, 500, err.message);
+  }
+})
+
 // ----- Generic CRUD Factory -----
 function crudRoutes(app, path, Model, validation = []) {
   app.post(`/api/v1/${path}`, validation, async (req, res) => {
@@ -83,6 +96,23 @@ function crudRoutes(app, path, Model, validation = []) {
         return sendError(res, 400, errors.array()[0].msg);
       }
       console.log(req.body);
+
+      if (path === 'courses') {
+        const doc = new Model(req.body);
+        await doc.save();
+
+        const stream = await Stream.findOne({ uuid: doc.stream })
+        const degree = await Degree.findOne({ uuid: doc.degree })
+        const year = await AcademicYear.findOne({ uuid: doc.academicYear })
+        const combined = new Combined({
+          name: `${stream.name} | ${degree.name} | ${year.year}`, course: doc.uuid, uuid: [...Array(6)]
+            .map(() => Math.random().toString(36)[2].toUpperCase())
+            .join("")
+        })
+        await combined.save();
+        res.status(201).json(doc);
+      }
+
       const doc = new Model(req.body);
       await doc.save();
       res.status(201).json(doc);
@@ -146,6 +176,7 @@ crudRoutes(app, "academic-years", AcademicYear);
 crudRoutes(app, "courses", Course, validateCourse);
 crudRoutes(app, "specializations", Specialization);
 crudRoutes(app, "subjects", Subject);
+crudRoutes(app, "combineds", Combined);
 
 // Server start
 const PORT = process.env.NODE_PORT || 5000;
