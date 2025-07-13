@@ -519,7 +519,7 @@ export default function AcademicYearManagementPage() {
                 {filteredAcademicYears.length > 0 ? (
                   filteredAcademicYears.map((academicYear) => (
                     <TableRow
-                      key={academicYear.id}
+                      key={academicYear.uuid}
                       className="hover:bg-gray-50"
                     >
                       <TableCell>
