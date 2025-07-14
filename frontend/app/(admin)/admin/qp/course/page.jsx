@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -52,194 +53,321 @@ import {
 import { toast } from "sonner";
 
 export default function CourseManagementPage() {
+  // State management
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [inputDialog, setInputDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStream, setSelectedStream] = useState(null);
   const [selectedDegree, setSelectedDegree] = useState(null);
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
   const [showDeactivated, setShowDeactivated] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Form state
   const [courseName, setCourseName] = useState("");
   const [courseCode, setCourseCode] = useState("");
   const [numSemesters, setNumSemesters] = useState("");
+
+  // Data state
   const [streams, setStreams] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
+
+  // Helper functions
+  const generateUUID = useCallback(() => {
+    return [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
+  }, []);
 
   // Fetch all necessary data on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch courses
-        const coursesRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`);
-        if (!coursesRes.ok) throw new Error("Failed to fetch courses");
-        const coursesData = await coursesRes.json();
+        setIsLoading(true);
+        const [coursesRes, streamsRes, degreesRes, academicYearsRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`)
+        ]);
+
+        if (!coursesRes.ok || !streamsRes.ok || !degreesRes.ok || !academicYearsRes.ok) {
+          throw new Error("Failed to fetch data");
+        }
+
+        const [coursesData, streamsData, degreesData, academicYearsData] = await Promise.all([
+          coursesRes.json(),
+          streamsRes.json(),
+          degreesRes.json(),
+          academicYearsRes.json()
+        ]);
+
         setCourses(coursesData);
-
-        // Fetch streams
-        const streamsRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
-        if (!streamsRes.ok) throw new Error("Failed to fetch streams");
-        const streamsData = await streamsRes.json();
         setStreams(streamsData);
-
-        // Fetch all degrees (since degrees are tied to streams, you may need to fetch all)
-        const degreesRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`);
-        if (!degreesRes.ok) throw new Error("Failed to fetch degrees");
-        const degreesData = await degreesRes.json();
         setDegrees(degreesData);
-
-        // Fetch all academic years
-        const academicYearsRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`
-        );
-        if (!academicYearsRes.ok) throw new Error("Failed to fetch academic years");
-        const academicYearsData = await academicYearsRes.json();
         setAcademicYears(academicYearsData);
+        setFilteredCourses(coursesData);
       } catch (err) {
         toast.error("Error loading data: " + err.message);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
   }, []);
 
-  // Fetch degrees when a stream is selected (for the dialog)
+  // Apply filters whenever dependencies change
   useEffect(() => {
-    if (selectedStream && isDialogOpen) {
-      const fetchDegrees = async () => {
-        try {
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${selectedStream.uuid}/degrees`
-          );
-          if (!res.ok) throw new Error("Failed to fetch degrees");
-          const data = await res.json();
-          setDegrees(data);
-        } catch (err) {
-          toast.error("Error loading degrees: " + err.message);
-        }
-      };
+    let results = courses.filter(course =>
+      showDeactivated ? true : course.isActive !== false
+    );
 
-      fetchDegrees();
+    if (searchTerm) {
+      results = results.filter(course =>
+        course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.code.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  }, [selectedStream, isDialogOpen]);
 
-  // Fetch academic years when a degree is selected (for the dialog)
-  useEffect(() => {
-    if (selectedDegree && isDialogOpen) {
-      const fetchAcademicYears = async () => {
-        try {
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${selectedDegree.uuid}/academic-years`
-          );
-          if (!res.ok) throw new Error("Failed to fetch academic years");
-          const data = await res.json();
-          setAcademicYears(data);
-        } catch (err) {
-          toast.error("Error loading academic years: " + err.message);
-        }
-      };
-
-      fetchAcademicYears();
+    if (selectedStream) {
+      results = results.filter(course => course.stream === selectedStream.uuid);
     }
-  }, [selectedDegree, isDialogOpen]);
 
-  const semesterOptions = ["1", "2", "3", "4", "5", "6", "7", "8"];
+    setFilteredCourses(results);
+  }, [courses, searchTerm, selectedStream, showDeactivated]);
 
-  const filteredCourses = courses.filter((course) => {
-    const matchesSearch =
-      course.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.code?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStream = selectedStream ? course.stream === selectedStream.uuid : true;
-    const matchesActiveStatus = showDeactivated ? true : course.isActive;
-    return matchesSearch && matchesStream && matchesActiveStatus;
-  });
+  // Fetch degrees when stream is selected
+  const fetchDegrees = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${selectedStream.uuid}/degrees`
+      );
+      if (!res.ok) throw new Error("Failed to fetch degrees");
+      const data = await res.json();
+      setDegrees(data);
+    } catch (err) {
+      toast.error("Error loading degrees: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedStream]);
+
+  // Fetch academic years when degree is selected
+  const fetchAcademicYears = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${selectedAcademicYear.uuid}/academic-years`
+      );
+      if (!res.ok) throw new Error("Failed to fetch academic years");
+      const data = await res.json();
+      setAcademicYears(data);
+    } catch (err) {
+      toast.error("Error loading academic years: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedDegree]);
 
   const handleAddCourse = async () => {
-    if (
-      courseName.trim() &&
-      courseCode.trim() &&
-      selectedStream &&
-      selectedDegree &&
-      selectedAcademicYear &&
-      selectedSemester &&
-      numSemesters &&
-      !isNaN(numSemesters) &&
-      parseInt(numSemesters) > 0
-    ) {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            uuid: [...Array(6)]
-              .map(() => Math.random().toString(36)[2].toUpperCase())
-              .join(""),
-            stream: selectedStream.uuid,
-            degree: selectedDegree.uuid,
-            academicYear: selectedAcademicYear.uuid,
-            semester: selectedSemester,
-            name: courseName.trim(),
-            code: courseCode.trim(),
-            numSemesters: parseInt(numSemesters),
-            isActive: true,
-          }),
-        });
-        const response = await res.json();
-        if (!res.ok) throw new Error(response.error || "Failed to create course");
-        const newCourse = response;
-        setCourses([...courses, newCourse]);
-        setCourseName("");
-        setCourseCode("");
-        setSelectedStream(null);
-        setSelectedDegree(null);
-        setSelectedAcademicYear("");
-        setSelectedSemester("");
-        setNumSemesters("");
-        setIsDialogOpen(false);
-        toast.success("Course created successfully");
-      } catch (err) {
-        toast.error("Error creating course: " + err.message);
+    if (!courseName.trim() || !courseCode.trim() || !selectedStream ||
+      !selectedDegree || !selectedAcademicYear || !selectedSemester ||
+      !numSemesters || isNaN(numSemesters) || parseInt(numSemesters) <= 0) {
+      return toast.error("Please fill all required fields with valid data");
+    }
+
+    try {
+      setIsLoading(true);
+      const newCourse = {
+        name: courseName.trim(),
+        code: courseCode.trim(),
+        stream: selectedStream.uuid,
+        degree: selectedDegree.uuid,
+        academicYear: selectedAcademicYear.uuid,
+        semester: selectedSemester,
+        numSemesters: parseInt(numSemesters),
+        uuid: generateUUID(),
+        isActive: true
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCourse)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create course");
       }
-    } else {
-      toast.error("Please fill all required fields with valid data");
+
+      const createdCourse = await res.json();
+      setCourses(prev => [...prev, createdCourse]);
+      resetForm();
+      setIsDialogOpen(false);
+      toast.success("Course created successfully");
+    } catch (err) {
+      toast.error("Error creating course: " + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleToggleCourseStatus = async (courseUuid) => {
     try {
-      const course = courses.find((c) => c.uuid === courseUuid);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}`, {
-        method: "PUT",
+      setIsLoading(true);
+      const course = courses.find(c => c.uuid === courseUuid);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}/status`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...course, isActive: !course.isActive }),
+        body: JSON.stringify({ isActive: !course.isActive })
       });
+
       if (!res.ok) throw new Error("Failed to update course status");
+
       const updatedCourse = await res.json();
-      setCourses(courses.map((c) => (c.uuid === courseUuid ? updatedCourse : c)));
+      setCourses(prev => prev.map(c => c.uuid === courseUuid ? updatedCourse : c));
       toast.success(`Course ${updatedCourse.isActive ? "activated" : "deactivated"} successfully`);
     } catch (err) {
       toast.error("Error updating course status: " + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Map UUIDs to names
+  // Excel Import/Export Functions
+  const downloadTemplate = () => {
+    const template = [{
+      'Course Name': '',
+      'Code': '',
+      'Stream': '',
+      'Degree': '',
+      'Academic Year': '',
+      'Semester': '',
+      'Number of Semesters': '1-8'
+    }];
+
+    const worksheet = XLSX.utils.json_to_sheet(template);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    XLSX.writeFile(workbook, "Course_Template.xlsx");
+  };
+
+  const importToExcel = async () => {
+    if (!selectedFile) {
+      toast.error("No file selected");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const data = await selectedFile.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) {
+        toast.error("The file is empty");
+        return;
+      }
+
+      // Prepare data for backend
+      const importedCourses = jsonData.map(row => ({
+        name: row['Course Name']?.toString().trim() || '',
+        code: row['Code']?.toString().trim() || '',
+        stream: row['Stream']?.toString().trim() || '',
+        degree: row['Degree']?.toString().trim() || '',
+        academicYear: row['Academic Year']?.toString().trim() || '',
+        semester: row['Semester']?.toString().trim() || '',
+        numSemesters: parseInt(row['Number of Semesters']) || 1,
+        uuid: generateUUID(),
+        isActive: true
+      }));
+
+      // Send to backend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(importedCourses)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Import failed');
+      }
+
+      // Refresh courses after import
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`);
+      const newCourses = await res.json();
+      setCourses(newCourses);
+
+      toast.success(`Imported ${result.created} courses`);
+      setInputDialog(false);
+      setSelectedFile(null);
+    } catch (error) {
+      toast.error(`Import failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const exportToExcel = () => {
+    const dataToExport = filteredCourses.map(course => {
+      const stream = streams.find(s => s.uuid === course.stream)?.name || 'Unknown';
+      const degree = degrees.find(d => d.uuid === course.degree)?.name || 'Unknown';
+      const year = academicYears.find(y => y.uuid === course.academicYear)?.year || 'Unknown';
+
+      return {
+        'Course Name': course.name,
+        'Code': course.code,
+        'Stream': stream,
+        'Degree': degree,
+        'Academic Year': year,
+        'Semester': course.semester,
+        'Number of Semesters': course.numSemesters,
+        'Status': course.isActive ? 'Active' : 'Inactive'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Courses");
+    XLSX.writeFile(workbook, "Courses.xlsx");
+  };
+
+  const resetForm = () => {
+    setCourseName('');
+    setCourseCode('');
+    setNumSemesters('');
+    setSelectedStream(null);
+    setSelectedDegree(null);
+    setSelectedAcademicYear(null);
+    setSelectedSemester('');
+  };
+
   const getStreamName = (streamId) => {
-    return streams.find((stream) => stream.uuid === streamId)?.name || "Unknown Stream";
+    return streams.find(s => s.uuid === streamId)?.name || 'Unknown';
   };
 
   const getDegreeName = (degreeId) => {
-    return degrees.find((degree) => degree.uuid === degreeId)?.name || "Unknown Degree";
+    return degrees.find(d => d.uuid === degreeId)?.name || 'Unknown';
   };
 
-  const getAcademicYearName = (academicYearId) => {
-    return academicYears.find((year) => year.uuid === academicYearId)?.year || "Unknown Year";
+  const getAcademicYearName = (yearId) => {
+    return academicYears.find(y => y.uuid === yearId)?.year || 'Unknown';
   };
+
+  const semesterOptions = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
   return (
     <div className="flex flex-col h-screen w-full gap-6 bg-gray-50 p-6">
+      {/* Create Course Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -269,7 +397,8 @@ export default function CourseManagementPage() {
                           onSelect={() => {
                             setSelectedStream(stream);
                             setSelectedDegree(null);
-                            setSelectedAcademicYear("");
+                            setSelectedAcademicYear(null);
+                            fetchDegrees(stream.uuid);
                           }}
                         >
                           {stream.name}
@@ -290,6 +419,7 @@ export default function CourseManagementPage() {
                   className="focus-visible:ring-1 focus-visible:ring-blue-500"
                   type="number"
                   min="1"
+                  max="8"
                 />
               </div>
               <div className="space-y-2">
@@ -351,7 +481,10 @@ export default function CourseManagementPage() {
                         degrees.map((degree) => (
                           <DropdownMenuItem
                             key={degree.uuid}
-                            onSelect={() => setSelectedDegree(degree)}
+                            onSelect={() => {
+                              setSelectedDegree(degree);
+                              fetchAcademicYears(degree.uuid);
+                            }}
                           >
                             {degree.name}
                           </DropdownMenuItem>
@@ -380,8 +513,12 @@ export default function CourseManagementPage() {
                 </Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex justify-between w-full">
-                      {selectedAcademicYear?.year || "Select Academic Year"}
+                    <Button
+                      variant="outline"
+                      className="flex justify-between w-full"
+                      disabled={!selectedDegree}
+                    >
+                      {selectedAcademicYear ? selectedAcademicYear.year : "Select Academic Year"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -407,7 +544,7 @@ export default function CourseManagementPage() {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" className="hover:bg-gray-100">
+              <Button variant="outline" className="hover:bg-gray-100" disabled={isLoading}>
                 Cancel
               </Button>
             </DialogClose>
@@ -416,6 +553,7 @@ export default function CourseManagementPage() {
               onClick={handleAddCourse}
               className="bg-blue-600 hover:bg-blue-700"
               disabled={
+                isLoading ||
                 !courseName.trim() ||
                 !courseCode.trim() ||
                 !selectedStream ||
@@ -427,12 +565,61 @@ export default function CourseManagementPage() {
                 parseInt(numSemesters) <= 0
               }
             >
-              Create Course
+              {isLoading ? "Creating..." : "Create Course"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Import Dialog */}
+      <Dialog open={inputDialog} onOpenChange={setInputDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Courses</DialogTitle>
+            <DialogDescription>
+              Upload an Excel file to import courses
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Button
+              variant="outline"
+              onClick={downloadTemplate}
+              className="w-full gap-2"
+              disabled={isLoading}
+            >
+              <FileDown className="h-4 w-4" />
+              Download Template
+            </Button>
+            <div className="space-y-2">
+              <Label>Select Excel File</Label>
+              <Input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+                id="file-upload"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setInputDialog(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={importToExcel}
+              disabled={!selectedFile || isLoading}
+            >
+              {isLoading ? "Importing..." : "Import Excel"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Header */}
       <div className="flex flex-col space-y-2">
         <h1 className="text-2xl font-semibold text-gray-800">Question Paper Management</h1>
         <Breadcrumb>
@@ -473,8 +660,19 @@ export default function CourseManagementPage() {
         </Breadcrumb>
       </div>
 
+      {/* Filters and Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search courses..."
+              className="pl-9 bg-white focus-visible:ring-1 focus-visible:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
           <div className="w-full sm:w-64">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -500,19 +698,60 @@ export default function CourseManagementPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search courses..."
-              className="pl-9 bg-white focus-visible:ring-1 focus-visible:ring-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          {selectedStream && <div className="w-full sm:w-64">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  {selectedDegree ? selectedDegree.name : "All Degrees"}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onSelect={() => setSelectedStream(null)}>
+                    All Degrees
+                  </DropdownMenuItem>
+                  {degrees.map((degree) => (
+                    <DropdownMenuItem
+                      key={degree.uuid}
+                      onSelect={() => setSelectedDegree(degree)}
+                    >
+                      {degree.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>}
+          {selectedDegree && <div className="w-full sm:w-64">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  {selectedAcademicYear ? selectedAcademicYear.year : "All Academic Years"}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onSelect={() => setSelectedStream(null)}>
+                    All Academic Years
+                  </DropdownMenuItem>
+                  {academicYears.map((year) => (
+                    <DropdownMenuItem
+                      key={year.uuid}
+                      onSelect={() => setSelectedAcademicYear(year)}
+                    >
+                      {year.year}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" disabled={isLoading}>
               Actions
               <ChevronDown className="h-4 w-4" />
             </Button>
@@ -522,21 +761,31 @@ export default function CourseManagementPage() {
               <DropdownMenuItem
                 onClick={() => setIsDialogOpen(true)}
                 className="flex items-center gap-2 cursor-pointer"
+                disabled={isLoading}
               >
                 <CirclePlusIcon className="h-4 w-4" />
                 <span>New Course</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+              <DropdownMenuItem
+                onClick={() => setInputDialog(true)}
+                className="flex items-center gap-2 cursor-pointer"
+                disabled={isLoading}
+              >
                 <FileUp className="h-4 w-4" />
                 <span>Import</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+              <DropdownMenuItem
+                onClick={exportToExcel}
+                className="flex items-center gap-2 cursor-pointer"
+                disabled={isLoading || filteredCourses.length === 0}
+              >
                 <FileDown className="h-4 w-4" />
                 <span>Export</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setShowDeactivated(!showDeactivated)}
                 className="flex items-center gap-2 cursor-pointer"
+                disabled={isLoading}
               >
                 <Eye className="h-4 w-4" />
                 <span>{showDeactivated ? "Hide" : "View"} Deactivated</span>
@@ -546,13 +795,14 @@ export default function CourseManagementPage() {
         </DropdownMenu>
       </div>
 
+      {/* Courses Table */}
       <Card className="flex-1 overflow-hidden">
         <div className="p-6 py-0">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">
               Courses{" "}
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({courses.length} {showDeactivated ? "found" : "active"})
+                ({filteredCourses.length} {showDeactivated ? "found" : "active"})
               </span>
             </h2>
           </div>
@@ -561,7 +811,7 @@ export default function CourseManagementPage() {
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead className="w-12">
-                    <Checkbox />
+                    <Checkbox disabled={isLoading} />
                   </TableHead>
                   <TableHead className="font-medium">UUID</TableHead>
                   <TableHead className="font-medium">Course Name</TableHead>
@@ -570,15 +820,22 @@ export default function CourseManagementPage() {
                   <TableHead className="font-medium">Degree</TableHead>
                   <TableHead className="font-medium">Semester</TableHead>
                   <TableHead className="font-medium">Year</TableHead>
+                  <TableHead className="font-medium">Status</TableHead>
                   <TableHead className="font-medium text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {courses.length > 0 ? (
-                  courses.map((course) => (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-24 text-center">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredCourses.length > 0 ? (
+                  filteredCourses.map((course) => (
                     <TableRow key={course.uuid} className="hover:bg-gray-50">
                       <TableCell>
-                        <Checkbox />
+                        <Checkbox disabled={isLoading} />
                       </TableCell>
                       <TableCell className="font-medium">{course.uuid}</TableCell>
                       <TableCell>{course.name}</TableCell>
@@ -587,11 +844,20 @@ export default function CourseManagementPage() {
                       <TableCell>{getDegreeName(course.degree)}</TableCell>
                       <TableCell>{course.semester}</TableCell>
                       <TableCell>{getAcademicYearName(course.academicYear)}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs ${course.isActive === false
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-green-100 text-green-800'
+                          }`}>
+                          {course.isActive === false ? 'Deactivated' : 'Active'}
+                        </span>
+                      </TableCell>
                       <TableCell className="flex justify-end gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-8 gap-1 text-gray-700 hover:bg-gray-100"
+                          disabled={isLoading}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                           <span>Edit</span>
@@ -604,6 +870,7 @@ export default function CourseManagementPage() {
                             : "text-green-600 hover:bg-green-50"
                             }`}
                           onClick={() => handleToggleCourseStatus(course.uuid)}
+                          disabled={isLoading}
                         >
                           {course.isActive ? (
                             <>
@@ -622,7 +889,7 @@ export default function CourseManagementPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={10} className="h-24 text-center">
                       No courses found
                     </TableCell>
                   </TableRow>

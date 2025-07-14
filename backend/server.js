@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
@@ -41,6 +41,9 @@ const validateCourse = [
     .isInt({ min: 1 })
     .withMessage("Number of semesters must be a positive integer"),
 ];
+
+// @GET - Test Route
+app.get('/foo', (req, res) => res.send('bar'));
 
 // Error response formatter
 const sendError = (res, status, message) => {
@@ -79,6 +82,7 @@ app.get("/api/v1/degrees/:uuid/academic-years", async (req, res) => {
 app.get('/api/v1/courses/:uuid/combineds', async (req, res) => {
   try {
     const course = await Course.findOne({ uuid: req.params.uuid });
+    console.log("Courses:", course);
     if (!course) return sendError(res, 404, "Course not found");
 
     res.status(200).json([course]);

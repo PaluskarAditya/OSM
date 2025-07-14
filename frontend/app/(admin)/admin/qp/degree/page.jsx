@@ -1,6 +1,7 @@
 "use client";
 
 import * as XLSX from "xlsx";
+import Link from 'next/link'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -55,7 +56,7 @@ export default function DegreeManagementPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [degrees, setDegrees] = useState([]);
   const [streams, setStreams] = useState({});
-  const [fetchStreams, setFetchStreams] = useState([]);
+  const [fetchedStreams, setFetchedStreams] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStream, setSelectedStream] = useState(null);
   const [degreeName, setDegreeName] = useState("");
@@ -94,6 +95,24 @@ export default function DegreeManagementPage() {
     getDegrees();
   }, []);
 
+  // Fetch streams
+  useEffect(() => {
+    const getStreams = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
+        
+        if (res.ok) {
+          const data = await res.json();
+          setFetchedStreams(data);
+        }
+      } catch (error) {
+        toast.error(error.message);
+      }
+    }
+
+    getStreams();
+  }, [])
+
   useEffect(() => {
     if (isDialogOpen) {
       const getStreams = async () => {
@@ -104,7 +123,7 @@ export default function DegreeManagementPage() {
 
           if (res.ok) {
             const data = await res.json();
-            setFetchStreams(data);
+            setFetchedStreams(data);
           }
         } catch (error) {
           toast.error(error.message);
@@ -304,10 +323,10 @@ export default function DegreeManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] p-0">
                   <DropdownMenuGroup>
-                    {fetchStreams.map((el) => (
+                    {fetchedStreams.map((el) => (
                       <DropdownMenuItem
                         className={`w-full cursor-pointer ${selectedStream?.name === el.name ? "bg-gray-100 font-semibold" : ""}`}
-                        key={el._id || el.name}
+                        key={el.id || el.name}
                         onClick={() =>
                           setSelectedStream((prev) =>
                             prev?.name === el.name ? null : el
@@ -380,18 +399,26 @@ export default function DegreeManagementPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/admin">Home</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/admin/qp">
-                Streams & Subjects
+              <BreadcrumbLink asChild>
+                <Link href={'/admin'}>
+                  Home
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink className="text-muted-foreground">
-                Degree
+              <BreadcrumbLink asChild>
+                <Link href={'/admin/qp'}>
+                  Streams & Subjects
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild className="text-muted-foreground">
+                <Link href={'/admin/qp/degree'}>
+                  Degree
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -443,6 +470,21 @@ export default function DegreeManagementPage() {
                 <Eye className="h-4 w-4" />
                 View deactivated
               </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="relative w-full w-64 sm:w-64">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="flex justify-between items-center" variant={'outline'}><span>All Streams</span><ChevronDown /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuGroup>
+              {
+                fetchedStreams.length > 0 && fetchedStreams?.map(el => <DropdownMenuItem key={el._id}>{el}</DropdownMenuItem>)
+              }
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

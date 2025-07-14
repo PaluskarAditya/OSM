@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { v4 as uuid } from "uuid";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -103,6 +104,23 @@ export default function AcademicYearManagementPage() {
   }, []);
 
   useEffect(() => {
+    const fetchDegree = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`
+        );
+        if (!res.ok) throw new Error("Failed to fetch degrees");
+        const data = await res.json();
+        setDegrees(data);
+      } catch (err) {
+        console.error("Error loading streams:", err);
+      }
+    };
+
+    fetchDegree();
+  }, []);
+
+  useEffect(() => {
     const fetchAcademicYears = async () => {
       try {
         const res = await fetch(
@@ -193,15 +211,23 @@ export default function AcademicYearManagementPage() {
     );
   };
 
-  const getStreamName = (streamId) => {
+  const getStreamName = (id) => {
+    const stream = streams.find(str => str.uuid === id);
+
+    // Debug Log
+    console.log(stream?.name);
     return (
-      streams.find((stream) => stream.id === streamId)?.name || "Unknown Stream"
+      stream?.name
     );
   };
 
-  const getDegreeName = (degreeId) => {
+  const getDegreeName = (id) => {
+    const degree = degrees.find(degree => degree?.uuid === id);
+
+    // Debug Log
+    console.log(degree?.name);
     return (
-      degrees.find((degree) => degree.id === degreeId)?.name || "Unknown Degree"
+      degree?.name
     );
   };
 
@@ -516,10 +542,10 @@ export default function AcademicYearManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAcademicYears.length > 0 ? (
-                  filteredAcademicYears.map((academicYear) => (
+                {academicYears.length > 0 ? (
+                  academicYears.map(academicYear => (
                     <TableRow
-                      key={academicYear.uuid}
+                      key={uuid()}
                       className="hover:bg-gray-50"
                     >
                       <TableCell>
@@ -530,10 +556,10 @@ export default function AcademicYearManagementPage() {
                       </TableCell>
                       <TableCell>{academicYear.year}</TableCell>
                       <TableCell>
-                        {getStreamName(academicYear.streamId)}
+                        {getStreamName(academicYear.stream)}
                       </TableCell>
                       <TableCell>
-                        {getDegreeName(academicYear.degreeId)}
+                        {getDegreeName(academicYear.degree)}
                       </TableCell>
                       <TableCell className="flex justify-end gap-2">
                         <Button
@@ -547,11 +573,10 @@ export default function AcademicYearManagementPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className={`h-8 gap-1 ${
-                            academicYear.isActive
-                              ? "text-red-600 hover:bg-red-50"
-                              : "text-green-600 hover:bg-green-50"
-                          }`}
+                          className={`h-8 gap-1 ${academicYear.isActive
+                            ? "text-red-600 hover:bg-red-50"
+                            : "text-green-600 hover:bg-green-50"
+                            }`}
                           onClick={() =>
                             handleToggleAcademicYearStatus(academicYear.id)
                           }

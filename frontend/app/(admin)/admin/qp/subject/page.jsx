@@ -162,7 +162,7 @@ export default function SubjectManagementPage() {
 			if (!selectedCombined?.course) return;
 
 			try {
-				const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${selectedCombined.uuid}/combineds`);
+				const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${selectedCombined.course}/combineds`);
 				if (res.ok) {
 					const data = await res.json();
 					setCourses(Array.isArray(data) ? data : []);
@@ -567,7 +567,14 @@ export default function SubjectManagementPage() {
 								type="number"
 								placeholder="e.g 1"
 								value={semester}
-								onChange={e => setSemester(e.target.value)}
+								min={1}
+								max={selectedCourse?.semester}
+								onChange={e => {
+									const value = parseInt(e.target.value, 10);
+									if (value <= 8) {
+										setSemester(e.target.value);
+									}
+								}}
 							/>
 						</div>
 
@@ -839,7 +846,7 @@ export default function SubjectManagementPage() {
 						</h2>
 					</div>
 
-					<div className="rounded-md border">
+					<div className="rounded-md border overflow-y-scroll max-h-1/2">
 						<Table>
 							<TableHeader className="bg-gray-50">
 								<TableRow>
