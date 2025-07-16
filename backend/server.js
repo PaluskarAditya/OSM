@@ -250,6 +250,116 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
   }
 });
 
+// POST /api/v1/academic-years/bulk
+app.post("/api/v1/academic-years/bulk", async (req, res) => {
+  try {
+    console.log("Received payload:", JSON.stringify(req.body, null, 2));
+
+    if (!Array.isArray(req.body)) {
+      return sendError(res, 400, "Expected an array of academic years");
+    }
+
+    const createdAcademicYears = [];
+    const errors = [];
+
+    for (const [index, academicYearData] of req.body.entries()) {
+      try {
+        console.log(
+          `Processing academic year ${index}:`,
+          JSON.stringify(academicYearData, null, 2)
+        );
+
+        const {
+          year,
+          stream,
+          degree,
+          isActive = true,
+          uuid,
+        } = academicYearData;
+
+        // Validate required fields
+        if (!year || !stream || !degree) {
+          errors.push({ index, error: "Missing required fields (year, stream, degree)", academicYearData });
+          continue;
+        }
+
+        // Validate year format (YYYY-YY)
+        if (!/^\d{4}-\d{2}$/.test(year)) {
+          errors.push({ index, error: "Invalid year format (use YYYY-YY)", academicYearData });
+          continue;
+        }
+
+        // Process Stream
+        let streamDoc = await Stream.findOne({ name: stream });
+        if (!streamDoc) {
+          streamDoc = new Stream({
+            name: stream,
+            uuid: generateUUID(),
+            isActive: true,
+          });
+          await streamDoc.save();
+          console.log("Created new stream:", streamDoc.name);
+        }
+
+        // Process Degree
+        let degreeDoc = await Degree.findOne({ name: degree, stream: streamDoc.uuid });
+        if (!degreeDoc) {
+          degreeDoc = new Degree({
+            name: degree,
+            stream: streamDoc.uuid,
+            uuid: generateUUID(),
+            isActive: true,
+          });
+          await degreeDoc.save();
+          console.log("Created new degree:", degreeDoc.name);
+        }
+
+        // Check for existing academic year
+        const existingAcademicYear = await AcademicYear.findOne({
+          year,
+          stream: streamDoc.uuid,
+          degree: degreeDoc.uuid,
+        });
+
+        if (existingAcademicYear) {
+          console.log(`Skipping duplicate academic year ${year} for stream ${stream} and degree ${degree}`);
+          continue;
+        }
+
+        // Create Academic Year
+        const newAcademicYear = new AcademicYear({
+          year,
+          stream: streamDoc.uuid,
+          degree: degreeDoc.uuid,
+          uuid: uuid || generateUUID(),
+          isActive,
+        });
+
+        await newAcademicYear.save();
+        createdAcademicYears.push(newAcademicYear);
+        console.log("Created new academic year:", newAcademicYear.year);
+      } catch (error) {
+        console.error(`Error processing academic year ${index}:`, error);
+        errors.push({ index, error: error.message, academicYearData });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      created: createdAcademicYears.length,
+      data: createdAcademicYears,
+      errors,
+      totalProcessed: req.body.length,
+    });
+  } catch (error) {
+    console.error("Bulk import error:", error);
+    if (error.code === 11000) {
+      return sendError(res, 400, "One or more academic years already exist");
+    }
+    sendError(res, 500, error.message);
+  }
+});
+
 // ----- Generic CRUD Factory -----
 function crudRoutes(app, path, Model, validation = []) {
   app.post(`/api/v1/${path}`, validation, async (req, res) => {

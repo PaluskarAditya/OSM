@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { v4 as uuid } from "uuid";
+import React, { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
+import Link from "next/link";
+import { toast } from "sonner";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -36,13 +38,12 @@ import {
   FileDown,
   FileUp,
   Pencil,
-  Trash2,
+  CheckCircle2,
   Search,
+  Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -53,12 +54,11 @@ import {
 
 export default function AcademicYearManagementPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState("add"); // "add" or "edit"
   const [editingYear, setEditingYear] = useState(null);
   const [newYear, setNewYear] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStreamId, setSelectedStreamId] = useState(null);
-  const [selectedDegreeId, setSelectedDegreeId] = useState(null);
   const [selectedStream, setSelectedStream] = useState(null);
   const [selectedDegree, setSelectedDegree] = useState(null);
   const [showDeactivated, setShowDeactivated] = useState(false);
@@ -66,74 +66,84 @@ export default function AcademicYearManagementPage() {
   const [degrees, setDegrees] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Generate UUID (consistent with previous implementation)
+  const generateUUID = () => [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
+
+  // Validate year format (YYYY-YY)
+  const isValidYearFormat = (year) => {
+    const regex = /^\d{4}-\d{2}$/;
+    return regex.test(year);
+  };
 
   // Fetch streams
-  const fetchStreams = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
-      if (!res.ok) throw new Error("Failed to fetch streams");
-      const data = await res.json();
-      setStreams(data);
-    } catch (err) {
-      toast.error("Error loading streams: " + err.message);
-    } finally {
-      setIsLoading(false);
-    }
+  useEffect(() => {
+    const fetchStreams = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
+        if (!res.ok) throw new Error("Failed to fetch streams");
+        const data = await res.json();
+        setStreams(data);
+      } catch (err) {
+        toast.error("Error loading streams: " + err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStreams();
   }, []);
 
   // Fetch degrees by stream
-  const fetchDegrees = useCallback(async (streamId = null) => {
-    setIsLoading(true);
-    try {
-      const url = streamId
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamId}/degrees`
-        : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch degrees");
-      const data = await res.json();
-      setDegrees(data);
-    } catch (err) {
-      toast.error("Error loading degrees: " + err.message);
-      setDegrees([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    const fetchDegrees = async () => {
+      try {
+        setIsLoading(true);
+        const url = selectedStream
+          ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${selectedStream.uuid}/degrees`
+          : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch degrees");
+        const data = await res.json();
+        setDegrees(data);
+      } catch (err) {
+        toast.error("Error loading degrees: " + err.message);
+        setDegrees([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDegrees();
+  }, [selectedStream]);
 
   // Fetch academic years
-  const fetchAcademicYears = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`);
-      if (!res.ok) throw new Error("Failed to fetch academic years");
-      const data = await res.json();
-      setAcademicYears(data);
-    } catch (err) {
-      toast.error("Error loading academic years: " + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchStreams();
+    const fetchAcademicYears = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`);
+        if (!res.ok) throw new Error("Failed to fetch academic years");
+        const data = await res.json();
+        setAcademicYears(data);
+      } catch (err) {
+        toast.error("Error loading academic years: " + err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchAcademicYears();
-  }, [fetchStreams, fetchAcademicYears]);
-
-  useEffect(() => {
-    if (selectedStream) {
-      fetchDegrees(selectedStream.uuid);
-    } else {
-      fetchDegrees();
-    }
-  }, [selectedStream, fetchDegrees]);
+  }, []);
 
   // Filter academic years
   const filteredAcademicYears = academicYears.filter((academicYear) => {
-    const matchesSearch = academicYear.year.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStream = selectedStreamId ? academicYear.stream === selectedStreamId : true;
-    const matchesDegree = selectedDegreeId ? academicYear.degree === selectedDegreeId : true;
+    const matchesSearch = academicYear.year?.toLowerCase().includes(searchTerm?.toLowerCase() || "");
+    const matchesStream = selectedStream ? academicYear.stream === selectedStream.uuid : true;
+    const matchesDegree = selectedDegree ? academicYear.degree === selectedDegree.uuid : true;
     const matchesActiveStatus = showDeactivated ? true : academicYear.isActive;
     return matchesSearch && matchesStream && matchesDegree && matchesActiveStatus;
   });
@@ -144,30 +154,41 @@ export default function AcademicYearManagementPage() {
       toast.error("Please fill all required fields");
       return;
     }
+    if (!isValidYearFormat(newYear.trim())) {
+      toast.error("Academic year must be in YYYY-YY format (e.g., 2024-25)");
+      return;
+    }
 
     const payload = {
       year: newYear.trim(),
       stream: selectedStream.uuid,
       degree: selectedDegree.uuid,
-      uuid: [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join(""),
+      uuid: generateUUID(),
       isActive: true,
     };
 
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to create academic year");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to create academic year");
+      }
       const created = await res.json();
       setAcademicYears((prev) => [...prev, created]);
       toast.success("Academic year created successfully");
       resetForm();
     } catch (err) {
-      toast.error("Error creating academic year: " + err.message);
+      if (err.message.includes("E11000")) {
+        toast.error("An academic year with this stream, degree, and year already exists");
+      } else {
+        toast.error("Error creating academic year: " + err.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -179,6 +200,10 @@ export default function AcademicYearManagementPage() {
       toast.error("Please fill all required fields");
       return;
     }
+    if (!isValidYearFormat(newYear.trim())) {
+      toast.error("Academic year must be in YYYY-YY format (e.g., 2024-25)");
+      return;
+    }
 
     const payload = {
       year: newYear.trim(),
@@ -187,8 +212,8 @@ export default function AcademicYearManagementPage() {
       isActive: editingYear.isActive,
     };
 
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${editingYear.uuid}`,
         {
@@ -198,7 +223,10 @@ export default function AcademicYearManagementPage() {
         }
       );
 
-      if (!res.ok) throw new Error("Failed to update academic year");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to update academic year");
+      }
       const updated = await res.json();
       setAcademicYears((prev) =>
         prev.map((year) => (year.uuid === updated.uuid ? updated : year))
@@ -206,7 +234,11 @@ export default function AcademicYearManagementPage() {
       toast.success("Academic year updated successfully");
       resetForm();
     } catch (err) {
-      toast.error("Error updating academic year: " + err.message);
+      if (err.message.includes("E11000")) {
+        toast.error("An academic year with this stream, degree, and year already exists");
+      } else {
+        toast.error("Error updating academic year: " + err.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -214,8 +246,8 @@ export default function AcademicYearManagementPage() {
 
   // Toggle academic year status
   const handleToggleAcademicYearStatus = async (year) => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${year.uuid}`,
         {
@@ -225,7 +257,10 @@ export default function AcademicYearManagementPage() {
         }
       );
 
-      if (!res.ok) throw new Error("Failed to update status");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to update status");
+      }
       setAcademicYears((prev) =>
         prev.map((y) => (y.uuid === year.uuid ? { ...y, isActive: !y.isActive } : y))
       );
@@ -237,25 +272,110 @@ export default function AcademicYearManagementPage() {
     }
   };
 
-  // Get stream name by ID
-  const getStreamName = (id) => {
-    const stream = streams.find((str) => str.uuid === id);
-    return stream?.name || "Unknown";
+  // Export to Excel
+  const handleExport = () => {
+    const exportData = filteredAcademicYears.map((year) => ({
+      "Academic Year": year.year,
+      "Stream Name": streams.find((s) => s.uuid === year.stream)?.name || "Unknown",
+      "Degree Name": degrees.find((d) => d.uuid === year.degree)?.name || "Unknown",
+      Status: year.isActive ? "Active" : "Inactive",
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "AcademicYears");
+    XLSX.writeFile(workbook, "AcademicYears.xlsx");
   };
 
-  // Get degree name by ID
-  const getDegreeName = (id) => {
-    const degree = degrees.find((deg) => deg.uuid === id);
-    return degree?.name || "Unknown";
+  // Import from Excel
+  const handleImportExcel = async () => {
+    if (!selectedFile) {
+      toast.error("No file selected");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const data = await selectedFile.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!jsonData.length) {
+        toast.error("The file is empty");
+        return;
+      }
+
+      const payload = jsonData.map((row) => ({
+        year: row["Academic Year"]?.toString().trim() || "",
+        stream: row["Stream Name"]?.toString().trim() || "",
+        degree: row["Degree Name"]?.toString().trim() || "",
+        isActive: row["Status"]?.toString().trim().toLowerCase() === "active" ? true : false,
+        uuid: generateUUID(),
+      }));
+
+      // Validate required fields and year format
+      const requiredFields = ["Academic Year", "Stream Name", "Degree Name"];
+      const missingFields = [];
+      jsonData.forEach((row, index) => {
+        requiredFields.forEach((field) => {
+          if (!row[field]) {
+            missingFields.push(`Row ${index + 2}: Missing ${field}`);
+          }
+        });
+        if (row["Academic Year"] && !isValidYearFormat(row["Academic Year"])) {
+          missingFields.push(`Row ${index + 2}: Invalid Academic Year format (use YYYY-YY)`);
+        }
+      });
+
+      if (missingFields.length > 0) {
+        toast.error(`Invalid file data:\n${missingFields.join("\n")}`);
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Import failed");
+      }
+
+      if (result.created > 0) {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`);
+        const newAcademicYears = await res.json();
+        setAcademicYears(newAcademicYears);
+        toast.success(`Imported ${result.created} academic years`);
+      }
+
+      if (result.errors.length > 0) {
+        toast.info(`Skipped ${result.errors.length} existing or invalid academic years`);
+      }
+
+      setIsImportDialogOpen(false);
+      setSelectedFile(null);
+    } catch (error) {
+      toast.error(`Import failed: ${error.message}`);
+      console.error("Import error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Get stream name by ID
+  const getStreamName = (id) => streams.find((str) => str.uuid === id)?.name || "Unknown";
+
+  // Get degree name by ID
+  const getDegreeName = (id) => degrees.find((deg) => deg.uuid === id)?.name || "Unknown";
 
   // Reset form state
   const resetForm = () => {
     setNewYear("");
     setSelectedStream(null);
     setSelectedDegree(null);
-    setSelectedStreamId(null);
-    setSelectedDegreeId(null);
     setIsDialogOpen(false);
     setDialogMode("add");
     setEditingYear(null);
@@ -271,6 +391,28 @@ export default function AcademicYearManagementPage() {
     setIsDialogOpen(true);
   };
 
+  // Toggle row selection
+  const toggleRowSelection = (uuid) => {
+    setSelectedRows((prev) => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(uuid)) {
+        newSelection.delete(uuid);
+      } else {
+        newSelection.add(uuid);
+      }
+      return newSelection;
+    });
+  };
+
+  // Toggle all rows selection
+  const toggleAllRowsSelection = () => {
+    if (selectedRows.size === filteredAcademicYears.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredAcademicYears.map((year) => year.uuid)));
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-full gap-6 bg-gray-50 p-6">
       {/* Dialog for adding/editing academic year */}
@@ -284,9 +426,7 @@ export default function AcademicYearManagementPage() {
               {dialogMode === "add" ? "Create New Academic Year" : "Edit Academic Year"}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              {dialogMode === "add" 
-                ? "Add a new academic year to the system" 
-                : "Update the selected academic year"}
+              {dialogMode === "add" ? "Add a new academic year to the system" : "Update the selected academic year"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -309,8 +449,8 @@ export default function AcademicYearManagementPage() {
                         onSelect={() => {
                           setSelectedStream(stream);
                           setSelectedDegree(null);
-                          fetchDegrees(stream.uuid);
                         }}
+                        className={selectedStream?.uuid === stream.uuid ? "bg-gray-100 font-semibold" : ""}
                       >
                         {stream.name}
                       </DropdownMenuItem>
@@ -341,6 +481,7 @@ export default function AcademicYearManagementPage() {
                         <DropdownMenuItem
                           key={degree.uuid}
                           onSelect={() => setSelectedDegree(degree)}
+                          className={selectedDegree?.uuid === degree.uuid ? "bg-gray-100 font-semibold" : ""}
                         >
                           {degree.name}
                         </DropdownMenuItem>
@@ -363,6 +504,7 @@ export default function AcademicYearManagementPage() {
                 placeholder="e.g. 2024-25"
                 value={newYear}
                 onChange={(e) => setNewYear(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (dialogMode === "add" ? handleAddAcademicYear() : handleEditAcademicYear())}
                 className="focus-visible:ring-1 focus-visible:ring-blue-500"
               />
             </div>
@@ -374,9 +516,8 @@ export default function AcademicYearManagementPage() {
               </Button>
             </DialogClose>
             <Button
-              type="button"
               onClick={dialogMode === "add" ? handleAddAcademicYear : handleEditAcademicYear}
-              className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-700"
               disabled={!newYear.trim() || !selectedStream || !selectedDegree || isLoading}
             >
               {isLoading ? "Processing..." : dialogMode === "add" ? "Create" : "Update"}
@@ -385,39 +526,67 @@ export default function AcademicYearManagementPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={(open) => {
+        if (!open) setSelectedFile(null);
+        setIsImportDialogOpen(open);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Academic Years</DialogTitle>
+            <DialogDescription className="flex flex-col gap-0">
+              Upload an Excel file to import academic years
+              <span className="text-xs text-red-500 mt-2">
+                File should contain columns: Academic Year, Stream Name, Degree Name, Status
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => setSelectedFile(e.target.files[0])}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={handleImportExcel}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={!selectedFile || isLoading}
+            >
+              {isLoading ? "Processing..." : "Import"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header Section */}
       <div className="flex flex-col space-y-2">
-        <h1 className="text-2xl font-semibold text-gray-800">
-          Question Paper Management
-        </h1>
+        <h1 className="text-2xl font-semibold text-gray-800">Academic Year Management</h1>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink
-                href="/admin"
-                className="text-sm font-medium text-gray-600 hover:text-blue-600"
-              >
-                Home
+              <BreadcrumbLink asChild>
+                <Link href="/admin" className="text-sm font-medium text-gray-600 hover:text-blue-600">
+                  Home
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-gray-400">
-              <ChevronDown className="h-3 w-3 rotate-90" />
-            </BreadcrumbSeparator>
+            <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink
-                href="/admin/qp"
-                className="text-sm font-medium text-gray-600 hover:text-blue-600"
-              >
-                QP Management
+              <BreadcrumbLink asChild>
+                <Link href="/admin/qp" className="text-sm font-medium text-gray-600 hover:text-blue-600">
+                  Streams & Subjects
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-gray-400" />
+            <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink
-                href="/admin/qp/academic-year"
-                className="text-sm font-medium text-blue-600"
-              >
-                Academic Year
+              <BreadcrumbLink asChild className="text-sm font-medium text-muted-foreground">
+                <Link href="/admin/qp/academic-year">Academic Years</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -431,29 +600,29 @@ export default function AcademicYearManagementPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full justify-between">
-                  {selectedStreamId
-                    ? streams.find((s) => s.uuid === selectedStreamId)?.name
-                    : "All Streams"}
+                  {selectedStream ? selectedStream.name : "All Streams"}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onSelect={() => {
-                    setSelectedStreamId(null);
-                    setSelectedDegreeId(null);
-                    fetchDegrees();
-                  }}>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setSelectedStream(null);
+                      setSelectedDegree(null);
+                    }}
+                    className={!selectedStream ? "bg-gray-100 font-semibold" : ""}
+                  >
                     All Streams
                   </DropdownMenuItem>
                   {streams.map((stream) => (
                     <DropdownMenuItem
                       key={stream.uuid}
                       onSelect={() => {
-                        setSelectedStreamId(stream.uuid);
-                        setSelectedDegreeId(null);
-                        fetchDegrees(stream.uuid);
+                        setSelectedStream(stream);
+                        setSelectedDegree(null);
                       }}
+                      className={selectedStream?.uuid === stream.uuid ? "bg-gray-100 font-semibold" : ""}
                     >
                       {stream.name}
                     </DropdownMenuItem>
@@ -462,35 +631,39 @@ export default function AcademicYearManagementPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          {selectedStreamId && (
-            <div className="w-full sm:w-64">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
-                    {selectedDegreeId
-                      ? degrees.find((d) => d.uuid === selectedDegreeId)?.name
-                      : "All Degrees"}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onSelect={() => setSelectedDegreeId(null)}>
-                      All Degrees
+          <div className="w-full sm:w-64">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  disabled={!selectedStream}
+                >
+                  {selectedDegree ? selectedDegree.name : "All Degrees"}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onSelect={() => setSelectedDegree(null)}
+                    className={!selectedDegree ? "bg-gray-100 font-semibold" : ""}
+                  >
+                    All Degrees
+                  </DropdownMenuItem>
+                  {degrees.map((degree) => (
+                    <DropdownMenuItem
+                      key={degree.uuid}
+                      onSelect={() => setSelectedDegree(degree)}
+                      className={selectedDegree?.uuid === degree.uuid ? "bg-gray-100 font-semibold" : ""}
+                    >
+                      {degree.name}
                     </DropdownMenuItem>
-                    {degrees.map((degree) => (
-                      <DropdownMenuItem
-                        key={degree.uuid}
-                        onSelect={() => setSelectedDegreeId(degree.uuid)}
-                      >
-                        {degree.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -501,48 +674,61 @@ export default function AcademicYearManagementPage() {
             />
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              Actions
-              <ChevronDown className="h-4 w-4" />
+        <div className="flex gap-2">
+          {(selectedStream || selectedDegree || showDeactivated) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSelectedStream(null);
+                setSelectedDegree(null);
+                setShowDeactivated(false);
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Clear Filters
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48">
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => {
-                  setDialogMode("add");
-                  setIsDialogOpen(true);
-                }}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <CirclePlusIcon className="h-4 w-4" />
-                <span>New Year</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                <FileUp className="h-4 w-4" />
-                <span>Import</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                <FileDown className="h-4 w-4" />
-                <span>Export</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setShowDeactivated(!showDeactivated)}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Eye className="h-4 w-4" />
-                <span>{showDeactivated ? "Hide" : "View"} Deactivated</span>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                Actions <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDialogMode("add");
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <CirclePlusIcon className="h-4 w-4 mr-2" />
+                  New Year
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleExport}
+                  disabled={filteredAcademicYears.length === 0}
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
+                  <FileUp className="h-4 w-4 mr-2" />
+                  Import
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowDeactivated(!showDeactivated)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  {showDeactivated ? "Show Active Only" : "View Deactivated"}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Main Content Card */}
       <Card className="flex-1 overflow-hidden">
-        <div className="p-6 py-0">
+        <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">
               Academic Years{" "}
@@ -555,39 +741,61 @@ export default function AcademicYearManagementPage() {
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox />
+                  <TableHead className="w-16">
+                    <Checkbox
+                      checked={selectedRows.size === filteredAcademicYears.length && filteredAcademicYears.length > 0}
+                      onCheckedChange={toggleAllRowsSelection}
+                    />
                   </TableHead>
                   <TableHead className="font-medium">ID</TableHead>
                   <TableHead className="font-medium">Year</TableHead>
                   <TableHead className="font-medium">Stream</TableHead>
                   <TableHead className="font-medium">Degree</TableHead>
+                  <TableHead className="font-medium">Status</TableHead>
                   <TableHead className="font-medium text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center text-gray-500">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredAcademicYears.length > 0 ? (
                   filteredAcademicYears.map((academicYear) => (
-                    <TableRow key={academicYear.uuid} className="hover:bg-gray-50">
+                    <TableRow
+                      key={academicYear.uuid}
+                      className={`hover:bg-gray-50 ${!academicYear.isActive ? "bg-red-50 text-gray-500" : ""}`}
+                    >
                       <TableCell>
-                        <Checkbox />
+                        <Checkbox
+                          checked={selectedRows.has(academicYear.uuid)}
+                          onCheckedChange={() => toggleRowSelection(academicYear.uuid)}
+                        />
                       </TableCell>
                       <TableCell className="font-medium">{academicYear.uuid}</TableCell>
                       <TableCell>{academicYear.year}</TableCell>
                       <TableCell>{getStreamName(academicYear.stream)}</TableCell>
                       <TableCell>{getDegreeName(academicYear.degree)}</TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            academicYear.isActive
+                              ? "text-green-600 font-semibold"
+                              : "text-red-500 font-medium"
+                          }
+                        >
+                          {academicYear.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </TableCell>
                       <TableCell className="flex justify-end gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-8 gap-1 text-gray-700 hover:bg-gray-100"
                           onClick={() => openEditDialog(academicYear)}
+                          disabled={isLoading}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                           <span>Edit</span>
@@ -610,7 +818,7 @@ export default function AcademicYearManagementPage() {
                             </>
                           ) : (
                             <>
-                              <CirclePlusIcon className="h-3.5 w-3.5" />
+                              <CheckCircle2 className="h-3.5 w-3.5" />
                               <span>Activate</span>
                             </>
                           )}
@@ -620,7 +828,7 @@ export default function AcademicYearManagementPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center text-gray-500">
                       No academic years found
                     </TableCell>
                   </TableRow>
