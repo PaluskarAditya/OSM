@@ -331,6 +331,7 @@ function crudRoutes(app, path, Model, validation = []) {
         return sendError(res, 400, errors.array()[0].msg);
       }
 
+<<<<<<< HEAD
       // Handle updates for other paths
       const updated = await Model.findOneAndUpdate(
         { uuid: req.params.uuid },
@@ -349,8 +350,48 @@ function crudRoutes(app, path, Model, validation = []) {
         return res.status(200).json(updated);
       }
 
+=======
+      // Start a MongoDB session for transaction
+      const session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        // Update the main document (Stream or other model)
+        const updated = await Model.findOneAndUpdate(
+          { uuid: req.params.uuid },
+          { $set: req.body },
+          { new: true, session }
+        );
+
+        if (!updated) {
+          throw new Error("Not found");
+        }
+
+        // Handle stream-specific updates for Combined collection
+        if (path === 'streams' && req.body.name) {
+          // Find all Combined documents referencing this stream
+          const combinedDocs = await Combined.find({
+            name: { $regex: new RegExp(`^${updated.name}\\|`, 'i') }
+          }).session(session);
+
+          // Update each Combined document with the new stream name
+          for (const combinedDoc of combinedDocs) {
+            const [_, degree, year] = combinedDoc.name.split('|').map(s => s.trim());
+            const newCombinedName = `${req.body.name} | ${degree} | ${year}`;
+
+            await Combined.findByIdAndUpdate(
+              combinedDoc._id,
+              { $set: { name: newCombinedName } },
+              { session }
+            );
+          }
+        }
+
+        res.status(200).json(updated);
+      });
+
+      session.endSession();
+>>>>>>> 1a0c944 (Degree Module working properly)
     } catch (err) {
-      sendError(res, 500, err.message);
+      sendError(res, err.message === "Not found" ? 404 : 500, err.message);
     }
   });
 

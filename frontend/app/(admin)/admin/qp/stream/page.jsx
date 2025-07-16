@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import React, { useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
@@ -60,7 +60,11 @@ import {
 export default function StreamManagementPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+<<<<<<< HEAD
   const [currentStream, setCurrentStream] = useState(null);
+=======
+  const [editingStream, setEditingStream] = useState(null);
+>>>>>>> 1a0c944 (Degree Module working properly)
   const [newStreamName, setNewStreamName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [streams, setStreams] = useState([]);
@@ -68,9 +72,14 @@ export default function StreamManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRows, setSelectedRows] = useState(new Set());
 
+<<<<<<< HEAD
   // Fetch all streams with error handling and loading state
   const fetchStreams = useCallback(async () => {
     setIsLoading(true);
+=======
+  // Fetch all streams
+  const fetchStreams = async () => {
+>>>>>>> 1a0c944 (Degree Module working properly)
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
       if (!res.ok) throw new Error("Failed to fetch streams");
@@ -93,6 +102,7 @@ export default function StreamManagementPage() {
     (showOnlyDeactivated ? !stream.isActive : stream.isActive !== false)
   );
 
+<<<<<<< HEAD
   // Open edit dialog
   const handleEditClick = (stream) => {
     setCurrentStream(stream);
@@ -104,6 +114,12 @@ export default function StreamManagementPage() {
   const handleAddStream = async () => {
     if (!newStreamName.trim()) {
       toast.error("Stream name cannot be empty");
+=======
+  // Add new stream
+  const handleAddStream = async () => {
+    if (!newStreamName.trim()) {
+      toast.error("Stream name is required");
+>>>>>>> 1a0c944 (Degree Module working properly)
       return;
     }
 
@@ -128,6 +144,7 @@ export default function StreamManagementPage() {
     }
   };
 
+<<<<<<< HEAD
   // Update existing stream
   const handleUpdateStream = async () => {
     if (!newStreamName.trim()) {
@@ -142,10 +159,31 @@ export default function StreamManagementPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newStreamName.trim() }),
+=======
+  // Edit stream
+  const handleEditStream = async () => {
+    if (!editingStream) return;
+    if (!newStreamName.trim()) {
+      toast.error("Stream name is required");
+      return;
+    }
+
+    try {
+      const updatedStream = {
+        name: newStreamName,
+        isActive: editingStream.isActive
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${editingStream.uuid}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedStream),
+>>>>>>> 1a0c944 (Degree Module working properly)
       });
 
       if (!res.ok) throw new Error("Failed to update stream");
       const data = await res.json();
+<<<<<<< HEAD
       
       setStreams((prev) =>
         prev.map((s) =>
@@ -157,11 +195,30 @@ export default function StreamManagementPage() {
       setNewStreamName("");
       setIsEditDialogOpen(false);
       setCurrentStream(null);
+=======
+      setStreams((prev) =>
+        prev.map((s) => (s.uuid === editingStream.uuid ? { ...s, ...data } : s))
+      );
+      toast.success("Stream updated successfully");
+      setNewStreamName("");
+      setIsEditDialogOpen(false);
+      setEditingStream(null);
+>>>>>>> 1a0c944 (Degree Module working properly)
     } catch (err) {
       toast.error(err.message);
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Handle edit button click
+  const handleEditButtonClick = (stream) => {
+    setEditingStream(stream);
+    setNewStreamName(stream.name);
+    setIsEditDialogOpen(true);
+  };
+
+>>>>>>> 1a0c944 (Degree Module working properly)
   // Export to Excel
   const handleExport = () => {
     const exportData = filteredStreams.map(({ uuid, name, isActive }) => ({
@@ -229,10 +286,14 @@ export default function StreamManagementPage() {
   return (
     <div className="flex flex-col h-screen w-full gap-6 bg-gray-50 p-6">
       {/* Create Stream Dialog */}
+<<<<<<< HEAD
       <Dialog open={isDialogOpen} onOpenChange={(open) => {
         setIsDialogOpen(open);
         if (!open) clearDialogStates();
       }}>
+=======
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+>>>>>>> 1a0c944 (Degree Module working properly)
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Stream</DialogTitle>
@@ -260,6 +321,7 @@ export default function StreamManagementPage() {
       </Dialog>
 
       {/* Edit Stream Dialog */}
+<<<<<<< HEAD
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
         setIsEditDialogOpen(open);
         if (!open) clearDialogStates();
@@ -268,6 +330,13 @@ export default function StreamManagementPage() {
           <DialogHeader>
             <DialogTitle>Edit Stream</DialogTitle>
             <DialogDescription>Update the stream details</DialogDescription>
+=======
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Stream</DialogTitle>
+            <DialogDescription>Update stream details</DialogDescription>
+>>>>>>> 1a0c944 (Degree Module working properly)
           </DialogHeader>
           <div className="space-y-2 py-4">
             <Label htmlFor="edit-stream-name">Stream Name</Label>
@@ -276,14 +345,21 @@ export default function StreamManagementPage() {
               placeholder="e.g. July 2025"
               value={newStreamName}
               onChange={(e) => setNewStreamName(e.target.value)}
+<<<<<<< HEAD
               onKeyDown={(e) => e.key === "Enter" && handleUpdateStream()}
+=======
+>>>>>>> 1a0c944 (Degree Module working properly)
             />
           </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
+<<<<<<< HEAD
             <Button onClick={handleUpdateStream} className="bg-blue-600 hover:bg-blue-700">
+=======
+            <Button onClick={handleEditStream} className="bg-blue-600 hover:bg-blue-700">
+>>>>>>> 1a0c944 (Degree Module working properly)
               Update Stream
             </Button>
           </DialogFooter>
@@ -359,6 +435,7 @@ export default function StreamManagementPage() {
             </h2>
           </div>
           <div className="rounded-md border">
+<<<<<<< HEAD
             {isLoading ? (
               <div className="flex justify-center items-center p-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
@@ -387,6 +464,50 @@ export default function StreamManagementPage() {
                     <TableHead>Stream Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
+=======
+            <Table className="max-h-2/3 overflow-y-scroll">
+              <TableHeader className="bg-gray-50">
+                <TableRow>
+                  <TableHead className="w-12"><Checkbox /></TableHead>
+                  <TableHead>UUID</TableHead>
+                  <TableHead>Stream Name</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStreams.map((stream) => (
+                  <TableRow key={stream.uuid} className="hover:bg-gray-50">
+                    <TableCell><Checkbox /></TableCell>
+                    <TableCell className="font-medium">{stream.uuid}</TableCell>
+                    <TableCell>{stream.name}</TableCell>
+                    <TableCell className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1"
+                        onClick={() => handleEditButtonClick(stream)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`h-8 gap-1 ${stream.isActive ? "text-red-600 hover:bg-red-50" : "text-green-600 hover:bg-green-50"}`}
+                        onClick={() => toggleStreamStatus(stream.uuid, !stream.isActive)}
+                      >
+                        {stream.isActive ? (
+                          <>
+                            <Trash2 className="h-4 w-4" /> Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <CirclePlusIcon className="h-4 w-4" /> Activate
+                          </>
+                        )}
+                      </Button>
+                    </TableCell>
+>>>>>>> 1a0c944 (Degree Module working properly)
                   </TableRow>
                 </TableHeader>
                 <TableBody>
