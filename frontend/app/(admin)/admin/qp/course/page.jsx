@@ -73,6 +73,12 @@ export default function CourseManagementPage() {
   const [academicYears, setAcademicYears] = useState([]);
   const [courses, setCourses] = useState([]);
 
+  // Helper function for UUID generation
+  const generateUUID = () =>
+    [...Array(6)]
+      .map(() => Math.random().toString(36)[2].toUpperCase())
+      .join("");
+
   // Fetch initial data
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -181,8 +187,8 @@ export default function CourseManagementPage() {
   // Filter courses
   const filteredCourses = courses.filter((course) => {
     const matchesSearch =
-      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.code.toLowerCase().includes(searchTerm.toLowerCase());
+      course.name?.toLowerCase().includes(searchTerm?.toLowerCase()) ||
+      course.code?.toLowerCase().includes(searchTerm?.toLowerCase());
     const matchesStream = selectedStream
       ? course.stream === selectedStream.uuid
       : true;
@@ -321,30 +327,23 @@ export default function CourseManagementPage() {
     }
   };
 
-  // Toggle course status
-  const handleToggleCourseStatus = async (courseUuid) => {
+  // Toggle deactivate status
+  const handleDeactivate = async (courseUuid) => {
     setIsLoading(true);
     try {
-      const course = courses.find((c) => c.uuid === courseUuid);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}/status`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}`,
         {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: !course.isActive }),
+          method: "PUT",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ isActive: false }),
         }
       );
-
-      if (!res.ok) throw new Error("Failed to update course status");
-      const updatedCourse = await res.json();
-      setCourses((prev) =>
-        prev.map((c) => (c.uuid === courseUuid ? updatedCourse : c))
-      );
-      toast.success(
-        `Course ${
-          updatedCourse.isActive ? "activated" : "deactivated"
-        } successfully`
-      );
+      const data = await res.json();
+      setCourses((prev) => prev.map((c) => (c.uuid === courseUuid ? data : c)));
+      toast.success("Course deactivated successfully");
     } catch (err) {
       toast.error("Error updating course status: " + err.message);
     } finally {
@@ -352,7 +351,31 @@ export default function CourseManagementPage() {
     }
   };
 
-  // Excel import
+  // Toggle course status
+  const handleActivate = async (courseUuid) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ isActive: true }),
+        }
+      );
+      const data = await res.json();
+      setCourses((prev) => prev.map((c) => (c.uuid === courseUuid ? data : c)));
+      toast.success("Course activated successfully");
+    } catch (err) {
+      toast.error("Error updating course status: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // New Import to Excel
   const importToExcel = async () => {
     if (!selectedFile) {
       toast.error("No file selected");
@@ -361,64 +384,87 @@ export default function CourseManagementPage() {
 
     try {
       setIsLoading(true);
+
       const data = await selectedFile.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      if (jsonData.length === 0) {
-        throw new Error("The file is empty");
+      if (!jsonData.length) {
+        toast.error("The file is empty");
+        return;
       }
 
-      const importedCourses = await Promise.all(
-        jsonData.map(async (row) => {
-          const stream = streams.find(
-            (s) =>
-              s.name.toLowerCase() === row["Stream"]?.toString().toLowerCase()
-          );
-          const degree = degrees.find(
-            (d) =>
-              d.name.toLowerCase() === row["Degree"]?.toString().toLowerCase()
-          );
-          const academicYear = academicYears.find(
-            (y) => y.year === row["Academic Year"]?.toString()
-          );
-
-          return {
-            name: row["Course Name"]?.toString().trim() || "",
-            code: row["Code"]?.toString().trim() || "",
-            stream: stream?.uuid || "",
-            degree: degree?.uuid || "",
-            academicYear: academicYear?.uuid || "",
-            semester: row["Semester"]?.toString().trim() || "",
-            numSemesters: parseInt(row["Number of Semesters"]) || 1,
-            uuid: uuid(),
-            isActive: true,
-          };
-        })
+      // Validate Excel headers
+      const requiredHeaders = [
+        "Course Name",
+        "Code",
+        "Stream",
+        "Degree",
+        "Academic Year",
+        "Semester",
+        "Number of Semesters",
+      ];
+      const headers = Object.keys(jsonData[0]);
+      const missingHeaders = requiredHeaders.filter(
+        (h) => !headers.includes(h)
       );
+      if (missingHeaders.length > 0) {
+        toast.error(`Missing required headers: ${missingHeaders.join(", ")}`);
+        return;
+      }
+
+      const payload = jsonData.map((row, index) => {
+        const numSemesters = parseInt(row["Number of Semesters"]);
+        if (isNaN(numSemesters) || numSemesters <= 0 || numSemesters > 8) {
+          throw new Error(
+            `Invalid number of semesters at row ${
+              index + 2
+            }: must be a number between 1 and 8`
+          );
+        }
+        return {
+          name: row["Course Name"]?.toString().trim() || "",
+          code: row["Code"]?.toString().trim() || "",
+          stream: row["Stream"]?.toString().trim() || "",
+          degree: row["Degree"]?.toString().trim() || "",
+          academicYear: row["Academic Year"]?.toString().trim() || "",
+          semester: row["Semester"]?.toString().trim() || "",
+          numSemesters: numSemesters,
+          uuid: generateUUID(),
+          isActive: true,
+        };
+      });
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/bulk`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(importedCourses),
+          body: JSON.stringify(payload),
         }
       );
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Import failed");
+        throw new Error(result.error || "Import failed");
       }
 
-      const result = await response.json();
-      await fetchData(); // Refresh courses
-      toast.success(`Imported ${result.created} courses`);
+      if (result.created > 0) {
+        await fetchData(); // Refresh courses
+        toast.success(`Imported ${result.created} courses`);
+      }
+
+      if (result.skipped > 0) {
+        toast.info(`Skipped ${result.skipped} existing courses`);
+      }
+
       setInputDialog(false);
       setSelectedFile(null);
     } catch (error) {
       toast.error(`Import failed: ${error.message}`);
+      console.error("Import error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -434,7 +480,6 @@ export default function CourseManagementPage() {
       "Academic Year": getAcademicYearName(course.academicYear),
       Semester: course.semester,
       "Number of Semesters": course.numSemesters,
-      Status: course.isActive ? "Active" : "Inactive",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -1050,29 +1095,29 @@ export default function CourseManagementPage() {
                           <Pencil className="h-3.5 w-3.5" />
                           <span>Edit</span>
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`h-8 gap-1 ${
-                            course.isActive
-                              ? "text-red-600 hover:bg-red-50"
-                              : "text-green-600 hover:bg-green-50"
-                          }`}
-                          onClick={() => handleToggleCourseStatus(course.uuid)}
-                          disabled={isLoading}
-                        >
-                          {course.isActive ? (
-                            <>
-                              <Trash2 className="h-3.5 w-3.5" />
-                              <span>Deactivate</span>
-                            </>
-                          ) : (
-                            <>
-                              <CirclePlusIcon className="h-3.5 w-3.5" />
-                              <span>Activate</span>
-                            </>
-                          )}
-                        </Button>
+                        {course.isActive ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`h-8 gap-1 text-red-600 hover:bg-red-50`}
+                            onClick={() => handleDeactivate(course.uuid)}
+                            disabled={isLoading}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Deactivate</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`h-8 gap-1 text-green-600 hover:bg-green-50`}
+                            onClick={() => handleActivate(course.uuid)}
+                            disabled={isLoading}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Activate</span>
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

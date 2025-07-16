@@ -1,18 +1,48 @@
-## Streams
-- [x] Stream Creation
-- [x] Stream Editing
-- [x] Stream Deactivation
+# 📊 OSM Platform - Feature Completion Tracker
 
-## Degrees
-- [x] Degrees Creation
-- [x] Degrees Editing
-- [x] Degrees Deactivation
-- [x] Degrees Import
-- [x] Degrees Export
+## 🌊 Streams
+| Feature            | Status |
+|--------------------|--------|
+| Creation           | ✅ Done |
+| Editing            | ✅ Done |
+| Deactivation       | ✅ Done |
 
-## Academic Years
-- [x] Academic Years Creation
-- [x] Academic Years Editing
-- [x] Academic Years Deactivation
-- [x] Academic Years Import
-- [x] Academic Years Export
+---
+
+## 🎓 Degrees
+| Feature            | Status |
+|--------------------|--------|
+| Creation           | ✅ Done |
+| Editing            | ✅ Done |
+| Deactivation       | ✅ Done |
+| Import             | ✅ Done |
+| Export             | ✅ Done |
+
+---
+
+## 📅 Academic Years
+| Feature            | Status |
+|--------------------|--------|
+| Creation           | ✅ Done |
+| Editing            | ✅ Done |
+| Deactivation       | ✅ Done |
+| Import             | ✅ Done |
+| Export             | ✅ Done |
+
+---
+
+## 📅 Courses
+| Feature            | Status |
+|--------------------|--------|
+| Creation           | ✅ Done |
+| Editing            | ✅ Done |
+| Deactivation       | ✅ Done |
+| Import             | ✅ Done |
+| Export             | ✅ Done |
+
+---
+
+### Legend:
+✅ - Completed  
+🔄 - In Progress  
+❌ - Not Started

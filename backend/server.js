@@ -78,6 +78,10 @@ app.get("/api/v1/degrees/:uuid/academic-years", async (req, res) => {
   }
 });
 
+// Helper function for UUID generation
+const generateUUID = () =>
+  [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
+
 // @GET - Coustom Route to get courses by combined
 app.get("/api/v1/courses/:uuid/combineds", async (req, res) => {
   try {
@@ -90,10 +94,6 @@ app.get("/api/v1/courses/:uuid/combineds", async (req, res) => {
     sendError(res, 500, err.message);
   }
 });
-
-// Helper function for UUID generation
-const generateUUID = () =>
-  [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
 
 // @POST - Custom Route for creating Subject Data in bulk
 app.post("/api/v1/subjects/bulk", async (req, res) => {
@@ -279,13 +279,21 @@ app.post("/api/v1/academic-years/bulk", async (req, res) => {
 
         // Validate required fields
         if (!year || !stream || !degree) {
-          errors.push({ index, error: "Missing required fields (year, stream, degree)", academicYearData });
+          errors.push({
+            index,
+            error: "Missing required fields (year, stream, degree)",
+            academicYearData,
+          });
           continue;
         }
 
         // Validate year format (YYYY-YY)
         if (!/^\d{4}-\d{2}$/.test(year)) {
-          errors.push({ index, error: "Invalid year format (use YYYY-YY)", academicYearData });
+          errors.push({
+            index,
+            error: "Invalid year format (use YYYY-YY)",
+            academicYearData,
+          });
           continue;
         }
 
@@ -302,7 +310,10 @@ app.post("/api/v1/academic-years/bulk", async (req, res) => {
         }
 
         // Process Degree
-        let degreeDoc = await Degree.findOne({ name: degree, stream: streamDoc.uuid });
+        let degreeDoc = await Degree.findOne({
+          name: degree,
+          stream: streamDoc.uuid,
+        });
         if (!degreeDoc) {
           degreeDoc = new Degree({
             name: degree,
@@ -322,7 +333,9 @@ app.post("/api/v1/academic-years/bulk", async (req, res) => {
         });
 
         if (existingAcademicYear) {
-          console.log(`Skipping duplicate academic year ${year} for stream ${stream} and degree ${degree}`);
+          console.log(
+            `Skipping duplicate academic year ${year} for stream ${stream} and degree ${degree}`
+          );
           continue;
         }
 
@@ -356,6 +369,156 @@ app.post("/api/v1/academic-years/bulk", async (req, res) => {
     if (error.code === 11000) {
       return sendError(res, 400, "One or more academic years already exist");
     }
+    sendError(res, 500, error.message);
+  }
+});
+
+// @POST - Custom Route for creating Course Data in bulk
+app.post("/api/v1/courses/bulk", async (req, res) => {
+  try {
+    console.log("Received payload:", JSON.stringify(req.body, null, 2));
+
+    if (!Array.isArray(req.body)) {
+      return sendError(res, 400, "Expected an array of courses");
+    }
+
+    const createdCourses = [];
+    const errors = [];
+    let skipped = 0;
+
+    for (const [index, courseData] of req.body.entries()) {
+      try {
+        console.log(
+          `Processing course ${index}:`,
+          JSON.stringify(courseData, null, 2)
+        );
+
+        const {
+          name,
+          code,
+          stream,
+          degree,
+          academicYear,
+          semester,
+          numSemesters,
+          uuid,
+        } = courseData;
+
+        // Validate required fields
+        if (
+          !name ||
+          !code ||
+          !stream ||
+          !degree ||
+          !academicYear ||
+          !semester ||
+          !numSemesters
+        ) {
+          errors.push({ index, error: "Missing required fields", courseData });
+          continue;
+        }
+
+        // Validate numSemesters
+        if (isNaN(numSemesters) || numSemesters <= 0 || numSemesters > 8) {
+          errors.push({
+            index,
+            error: "Number of semesters must be between 1 and 8",
+            courseData,
+          });
+          continue;
+        }
+
+        // Check for existing course (case insensitive)
+        const existingCourse = await Course.findOne({
+          $or: [
+            { code: { $regex: new RegExp(`^${code}$`, "i") } },
+            { name: { $regex: new RegExp(`^${name}$`, "i") } },
+          ],
+        });
+
+        if (existingCourse) {
+          console.log(`Skipping duplicate course ${code} - ${name}`);
+          skipped++;
+          continue;
+        }
+
+        // Process Stream
+        let streamDoc = await Stream.findOne({
+          name: { $regex: new RegExp(`^${stream}$`, "i") },
+        });
+        if (!streamDoc) {
+          streamDoc = new Stream({
+            name: stream,
+            uuid: generateUUID(),
+          });
+          await streamDoc.save();
+          console.log("Created new stream:", streamDoc.name);
+        }
+
+        // Process Degree
+        let degreeDoc = await Degree.findOne({
+          name: { $regex: new RegExp(`^${degree}$`, "i") },
+          stream: streamDoc.uuid,
+        });
+        if (!degreeDoc) {
+          degreeDoc = new Degree({
+            name: degree,
+            stream: streamDoc.uuid,
+            uuid: generateUUID(),
+          });
+          await degreeDoc.save();
+          console.log("Created new degree:", degreeDoc.name);
+        }
+
+        // Process Academic Year
+        let yearDoc = await AcademicYear.findOne({
+          year: academicYear,
+          degree: degreeDoc.uuid,
+          stream: streamDoc.uuid,
+        });
+        if (!yearDoc) {
+          yearDoc = new AcademicYear({
+            year: academicYear,
+            degree: degreeDoc.uuid,
+            stream: streamDoc.uuid,
+            uuid: generateUUID(),
+          });
+          await yearDoc.save();
+          console.log("Created new academic year:", yearDoc.year);
+        }
+
+        // Create Course
+        const newCourse = new Course({
+          name,
+          code,
+          stream: streamDoc.uuid,
+          degree: degreeDoc.uuid,
+          academicYear: yearDoc.uuid,
+          semester,
+          numSemesters,
+          uuid: uuid || generateUUID(),
+          isActive: true,
+        });
+
+        await newCourse.save();
+        createdCourses.push(newCourse);
+        console.log("Created new course:", newCourse.code);
+      } catch (error) {
+        console.error(`Error processing course ${index}:`, error);
+        errors.push({ index, error: error.message, courseData });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      created: createdCourses.length,
+      skipped,
+      data: createdCourses,
+      errors,
+      totalProcessed: req.body.length,
+    });
+  } catch (error) {
+    console.error("Bulk import error:", error);
     sendError(res, 500, error.message);
   }
 });
@@ -456,15 +619,17 @@ function crudRoutes(app, path, Model, validation = []) {
         }
 
         // Handle stream-specific updates for Combined collection
-        if (path === 'streams' && req.body.name) {
+        if (path === "streams" && req.body.name) {
           // Find all Combined documents referencing this stream
           const combinedDocs = await Combined.find({
-            name: { $regex: new RegExp(`^${updated.name}\\|`, 'i') }
+            name: { $regex: new RegExp(`^${updated.name}\\|`, "i") },
           }).session(session);
 
           // Update each Combined document with the new stream name
           for (const combinedDoc of combinedDocs) {
-            const [_, degree, year] = combinedDoc.name.split('|').map(s => s.trim());
+            const [_, degree, year] = combinedDoc.name
+              .split("|")
+              .map((s) => s.trim());
             const newCombinedName = `${req.body.name} | ${degree} | ${year}`;
 
             await Combined.findByIdAndUpdate(
@@ -499,7 +664,7 @@ function crudRoutes(app, path, Model, validation = []) {
 crudRoutes(app, "streams", Stream);
 crudRoutes(app, "degrees", Degree);
 crudRoutes(app, "academic-years", AcademicYear);
-crudRoutes(app, "courses", Course, validateCourse);
+crudRoutes(app, "courses", Course);
 crudRoutes(app, "specializations", Specialization);
 crudRoutes(app, "subjects", Subject);
 crudRoutes(app, "combineds", Combined);
