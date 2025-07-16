@@ -43,7 +43,7 @@ const validateCourse = [
 ];
 
 // @GET - Test Route
-app.get('/foo', (req, res) => res.send('bar'));
+app.get("/foo", (req, res) => res.send("bar"));
 
 // Error response formatter
 const sendError = (res, status, message) => {
@@ -78,8 +78,8 @@ app.get("/api/v1/degrees/:uuid/academic-years", async (req, res) => {
   }
 });
 
-// @GET - Coustom Route to get courses by combined 
-app.get('/api/v1/courses/:uuid/combineds', async (req, res) => {
+// @GET - Coustom Route to get courses by combined
+app.get("/api/v1/courses/:uuid/combineds", async (req, res) => {
   try {
     const course = await Course.findOne({ uuid: req.params.uuid });
     console.log("Courses:", course);
@@ -89,15 +89,16 @@ app.get('/api/v1/courses/:uuid/combineds', async (req, res) => {
   } catch (error) {
     sendError(res, 500, err.message);
   }
-})
+});
 
 // Helper function for UUID generation
-const generateUUID = () => [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
+const generateUUID = () =>
+  [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
 
 // @POST - Custom Route for creating Subject Data in bulk
-app.post('/api/v1/subjects/bulk', async (req, res) => {
+app.post("/api/v1/subjects/bulk", async (req, res) => {
   try {
-    console.log('Received payload:', JSON.stringify(req.body, null, 2));
+    console.log("Received payload:", JSON.stringify(req.body, null, 2));
 
     if (!Array.isArray(req.body)) {
       return sendError(res, 400, "Expected an array of subjects");
@@ -108,22 +109,36 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
 
     for (const [index, subjectData] of req.body.entries()) {
       try {
-        console.log(`Processing subject ${index}:`, JSON.stringify(subjectData, null, 2));
+        console.log(
+          `Processing subject ${index}:`,
+          JSON.stringify(subjectData, null, 2)
+        );
 
-        const { name, code, type = 'Compulsory', semester, exam, course, stream, degree, year, uuid } = subjectData;
+        const {
+          name,
+          code,
+          type = "Compulsory",
+          semester,
+          exam,
+          course,
+          stream,
+          degree,
+          year,
+          uuid,
+        } = subjectData;
 
         // Validate required fields
         if (!name || !code || !course || !stream || !degree || !year) {
-          errors.push({ index, error: 'Missing required fields', subjectData });
+          errors.push({ index, error: "Missing required fields", subjectData });
           continue;
         }
 
         // Check for existing subject (case insensitive)
         const existingSubject = await Subject.findOne({
           $or: [
-            { code: { $regex: new RegExp(`^${code}$`, 'i') } },
-            { name: { $regex: new RegExp(`^${name}$`, 'i') } }
-          ]
+            { code: { $regex: new RegExp(`^${code}$`, "i") } },
+            { name: { $regex: new RegExp(`^${name}$`, "i") } },
+          ],
         });
 
         if (existingSubject) {
@@ -136,10 +151,10 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
         if (!streamDoc) {
           streamDoc = new Stream({
             name: stream,
-            uuid: generateUUID()
+            uuid: generateUUID(),
           });
           await streamDoc.save();
-          console.log('Created new stream:', streamDoc.name);
+          console.log("Created new stream:", streamDoc.name);
         }
 
         // Process Degree
@@ -148,10 +163,10 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
           degreeDoc = new Degree({
             name: degree,
             stream: streamDoc.uuid,
-            uuid: generateUUID()
+            uuid: generateUUID(),
           });
           await degreeDoc.save();
-          console.log('Created new degree:', degreeDoc.name);
+          console.log("Created new degree:", degreeDoc.name);
         }
 
         // Process Academic Year
@@ -161,18 +176,15 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
             year,
             degree: degreeDoc.uuid,
             stream: streamDoc.uuid,
-            uuid: generateUUID()
+            uuid: generateUUID(),
           });
           await yearDoc.save();
-          console.log('Created new academic year:', yearDoc.year);
+          console.log("Created new academic year:", yearDoc.year);
         }
 
         // Process Course
         let courseDoc = await Course.findOne({
-          $or: [
-            { name: course },
-            { code: subjectData.courseCode }
-          ]
+          $or: [{ name: course }, { code: subjectData.courseCode }],
         });
 
         if (!courseDoc) {
@@ -183,21 +195,23 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
             degree: degreeDoc.uuid,
             academicYear: yearDoc.uuid,
             semester: semester,
-            uuid: generateUUID()
+            uuid: generateUUID(),
           });
           await courseDoc.save();
-          console.log('Created new course:', courseDoc.name);
+          console.log("Created new course:", courseDoc.name);
         }
 
-        // Create Combined Data 
-        let combinedDoc = await Combined.findOne({ name: `${stream} | ${degree} | ${year}` });
+        // Create Combined Data
+        let combinedDoc = await Combined.findOne({
+          name: `${stream} | ${degree} | ${year}`,
+        });
 
         if (!combinedDoc) {
           combinedDoc = new Combined({
             name: `${stream} | ${degree} | ${year}`,
             course,
-            uuid: generateUUID()
-          })
+            uuid: generateUUID(),
+          });
           await combinedDoc.save();
         }
 
@@ -216,8 +230,7 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
 
         await newSubject.save();
         createdSubjects.push(newSubject);
-        console.log('Created new subject:', newSubject.code);
-
+        console.log("Created new subject:", newSubject.code);
       } catch (error) {
         console.error(`Error processing subject ${index}:`, error);
         errors.push({ index, error: error.message, subjectData });
@@ -229,11 +242,10 @@ app.post('/api/v1/subjects/bulk', async (req, res) => {
       created: createdSubjects.length,
       data: createdSubjects,
       errors,
-      totalProcessed: req.body.length
+      totalProcessed: req.body.length,
     });
-
   } catch (error) {
-    console.error('Bulk import error:', error);
+    console.error("Bulk import error:", error);
     sendError(res, 500, error.message);
   }
 });
@@ -247,18 +259,22 @@ function crudRoutes(app, path, Model, validation = []) {
         return sendError(res, 400, errors.array()[0].msg);
       }
 
-      if (path === 'courses') {
+      if (path === "courses") {
         const doc = new Model(req.body);
         await doc.save();
 
         const [stream, degree, year] = await Promise.all([
           Stream.findOne({ uuid: doc.stream }),
           Degree.findOne({ uuid: doc.degree }),
-          AcademicYear.findOne({ uuid: doc.academicYear })
+          AcademicYear.findOne({ uuid: doc.academicYear }),
         ]);
 
         if (!stream || !degree || !year) {
-          return sendError(res, 400, "Invalid stream, degree or year reference");
+          return sendError(
+            res,
+            400,
+            "Invalid stream, degree or year reference"
+          );
         }
 
         const combinedName = `${stream.name} | ${degree.name} | ${year.year}`;
@@ -268,8 +284,13 @@ function crudRoutes(app, path, Model, validation = []) {
           combined = new Combined({
             name: combinedName,
             course: doc.uuid,
-            uuid: generateUUID()
+            uuid: generateUUID(),
+            stream: stream.uuid,
+            degree: degree.uuid,
+            year: year.uuid,
           });
+
+          console.log(combined);
           await combined.save();
         }
 
@@ -309,13 +330,25 @@ function crudRoutes(app, path, Model, validation = []) {
       if (!errors.isEmpty()) {
         return sendError(res, 400, errors.array()[0].msg);
       }
+
+      // Handle updates for other paths
       const updated = await Model.findOneAndUpdate(
         { uuid: req.params.uuid },
         req.body,
         { new: true }
       );
-      if (!updated) return sendError(res, 404, "Not found");
-      res.status(200).json(updated);
+
+      if (path === 'streams') {
+        const combined = await Combined.findOne({ stream: req.params.uuid });
+        console.log(combined?.name);
+
+        if (!updated) {
+          return sendError(res, 404, "Document not found");
+        }
+  
+        return res.status(200).json(updated);
+      }
+
     } catch (err) {
       sendError(res, 500, err.message);
     }
