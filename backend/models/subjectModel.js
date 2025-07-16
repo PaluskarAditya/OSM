@@ -11,6 +11,7 @@ const subjectSchema = new mongoose.Schema({
   exam: { type: String, required: true },
   semester: { type: String, required: true },
   type: { type: String, required: true, enum: ['Compulsory', 'Elective / Optional'] },
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Subject', subjectSchema)

@@ -522,7 +522,7 @@ app.post("/api/v1/courses/bulk", async (req, res) => {
     sendError(res, 500, error.message);
   }
 });
-
+  
 // ----- Generic CRUD Factory -----
 function crudRoutes(app, path, Model, validation = []) {
   app.post(`/api/v1/${path}`, validation, async (req, res) => {

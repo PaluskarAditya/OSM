@@ -57,7 +57,7 @@ export default function DegreeManagementPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingDegree, setEditingDegree] = useState(null);
   const [degrees, setDegrees] = useState([]);
-  const [streams, setStreams] = useState({});
+  const [streams, setStreams] = useState({}); // { [streamUuid]: { name, isActive } }
   const [fetchedStreams, setFetchedStreams] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStream, setSelectedStream] = useState(null);
@@ -67,52 +67,43 @@ export default function DegreeManagementPage() {
   const [showOnlyActive, setShowOnlyActive] = useState(true);
 
   // Fetch degrees and streams
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch degrees and streams concurrently
+      const [degreesRes, streamsRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
+      ]);
+
+      if (!degreesRes.ok) throw new Error("Failed to fetch degrees");
+      if (!streamsRes.ok) throw new Error("Failed to fetch streams");
+
+      const degreesData = await degreesRes.json();
+      const streamsData = await streamsRes.json();
+
+      // Create stream map with name and isActive
+      const streamMap = {};
+      streamsData.forEach((stream) => {
+        streamMap[stream.uuid] = {
+          name: stream.name || "Unknown",
+          isActive: stream.isActive !== false,
+        };
+      });
+
+      setDegrees(degreesData);
+      setStreams(streamMap);
+      setFetchedStreams(streamsData);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch degrees
-        const degreesRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`
-        );
-        if (!degreesRes.ok) throw new Error("Failed to fetch degrees");
-        const degreesData = await degreesRes.json();
-
-        // Map streams
-        const streamMap = {};
-        await Promise.all(
-          degreesData.map(async (deg) => {
-            if (!streamMap[deg.stream]) {
-              const streamRes = await fetch(
-                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${deg.stream}`
-              );
-              if (streamRes.ok) {
-                const streamData = await streamRes.json();
-                streamMap[deg.stream] = streamData.name || "Unknown";
-              }
-            }
-          })
-        );
-
-        // Fetch streams
-        const streamsRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`
-        );
-        if (!streamsRes.ok) throw new Error("Failed to fetch streams");
-        const streamsData = await streamsRes.json();
-
-        setDegrees(degreesData);
-        setStreams(streamMap);
-        setFetchedStreams(streamsData);
-      } catch (error) {
-        toast.error(error.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchData();
-  }, []);
+  }, [showOnlyActive]);
 
   // Add degree
   const handleAddDegree = async () => {
@@ -146,7 +137,10 @@ export default function DegreeManagementPage() {
         setDegrees([...degrees, data]);
         setStreams((prev) => ({
           ...prev,
-          [data.stream]: selectedStream.name,
+          [data.stream]: {
+            name: selectedStream.name,
+            isActive: selectedStream.isActive !== false,
+          },
         }));
         toast.success("Degree added successfully");
         resetForm();
@@ -188,7 +182,10 @@ export default function DegreeManagementPage() {
         );
         setStreams((prev) => ({
           ...prev,
-          [updatedDegree.stream]: selectedStream.name,
+          [updatedDegree.stream]: {
+            name: selectedStream.name,
+            isActive: selectedStream.isActive !== false,
+          },
         }));
         toast.success("Degree updated successfully");
         resetForm();
@@ -216,14 +213,17 @@ export default function DegreeManagementPage() {
       if (res.ok) {
         const updatedDegree = await res.json();
         setDegrees((prev) =>
-          prev.map((deg) =>
-            deg.uuid === degreeId ? updatedDegree : deg
-          )
+          prev.map((deg) => (deg.uuid === degreeId ? updatedDegree : deg))
         );
-        toast.success(`Degree ${isActive ? "deactivated" : "activated"} successfully`);
+        toast.success(
+          `Degree ${isActive ? "deactivated" : "activated"} successfully`
+        );
       } else {
         const errorData = await res.json();
-        toast.error(errorData.message || `Failed to ${isActive ? "deactivate" : "activate"} degree`);
+        toast.error(
+          errorData.message ||
+            `Failed to ${isActive ? "deactivate" : "activate"} degree`
+        );
       }
     } catch (err) {
       toast.error(err.message);
@@ -242,7 +242,7 @@ export default function DegreeManagementPage() {
   const exportToExcel = () => {
     const dataToExport = filteredDegrees.map((deg) => ({
       "Degree Name": deg.name,
-      "Stream Name": streams[deg.stream] || "Unknown",
+      "Stream Name": streams[deg.stream]?.name || "Unknown",
       Status: deg.isActive ? "Active" : "Inactive",
     }));
 
@@ -285,20 +285,30 @@ export default function DegreeManagementPage() {
 
         // Transform and validate imported data
         const degreesReady = await Promise.all(
-          jsonData.map(async (row) => {
+          jsonData.map(async (row, index) => {
             const uuid = [...Array(6)]
               .map(() => Math.random().toString(36)[2].toUpperCase())
               .join("");
-            const stream = fetchedStreams.find((s) => s.name === row["Stream Name"]);
+            const stream = fetchedStreams.find(
+              (s) => s.name === row["Stream Name"]
+            );
             if (!stream) {
-              throw new Error(`Stream "${row["Stream Name"]}" not found`);
+              throw new Error(
+                `Row ${index + 2}: Stream "${row["Stream Name"]}" not found`
+              );
+            }
+            if (!stream.isActive) {
+              throw new Error(
+                `Row ${index + 2}: Stream "${row["Stream Name"]}" is inactive`
+              );
             }
 
             return {
               name: row["Degree Name"],
               stream: stream.uuid,
               uuid,
-              isActive: row["Status"]?.toLowerCase() === "active" ? true : false,
+              isActive:
+                row["Status"]?.toLowerCase() === "active" ? true : false,
               createdAt: new Date().toISOString(),
             };
           })
@@ -315,11 +325,30 @@ export default function DegreeManagementPage() {
           )
         );
 
-        const newDegrees = await Promise.all(responses.map((res) => res.json()));
+        const newDegrees = await Promise.all(
+          responses.map((res) => res.json())
+        );
         const successfulImports = newDegrees.filter((deg) => !deg.error);
         if (successfulImports.length > 0) {
           setDegrees((prev) => [...prev, ...successfulImports]);
-          toast.success(`${successfulImports.length} degrees imported successfully`);
+          setStreams((prev) => {
+            const updatedStreams = { ...prev };
+            successfulImports.forEach((deg) => {
+              if (!updatedStreams[deg.stream]) {
+                const stream = fetchedStreams.find(
+                  (s) => s.uuid === deg.stream
+                );
+                updatedStreams[deg.stream] = {
+                  name: stream?.name || "Unknown",
+                  isActive: stream?.isActive !== false,
+                };
+              }
+            });
+            return updatedStreams;
+          });
+          toast.success(
+            `${successfulImports.length} degrees imported successfully`
+          );
         } else {
           toast.error("No degrees were imported successfully");
         }
@@ -343,12 +372,259 @@ export default function DegreeManagementPage() {
 
   // Filter degrees
   const filteredDegrees = degrees
-    .filter((deg) => deg.name?.toLowerCase().includes(searchTerm?.toLowerCase() || ""))
+    .filter((deg) =>
+      deg.name?.toLowerCase().includes(searchTerm?.toLowerCase() || "")
+    )
     .filter((deg) => !selectedStream || deg.stream === selectedStream.uuid)
-    .filter((deg) => !showOnlyActive || deg.isActive);
+    .filter(
+      (deg) =>
+        !showOnlyActive || (deg.isActive && streams[deg.stream]?.isActive)
+    );
 
   return (
     <div className="flex p-6 h-full flex-col gap-5 bg-gray-100/50 w-full">
+      {/* Breadcrumb */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-medium">Degree Management</h1>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/admin">Home</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/admin/qp">Streams & Degrees</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild className="text-muted-foreground">
+                <Link href="/admin/qp/degree">Degree</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      {/* Action Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search degrees..."
+            className="pl-9 bg-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-2">
+          {(selectedStream || !showOnlyActive) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSelectedStream(null);
+                setShowOnlyActive(true);
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Clear filters
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => fetchData()}
+          >
+            Refresh
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                Actions <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setIsDialogOpen(true)}>
+                  <CirclePlusIcon className="h-4 w-4 mr-2" /> New Degree
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={exportToExcel}
+                  disabled={filteredDegrees.length === 0}
+                >
+                  <FileDown className="h-4 w-4 mr-2" /> Export
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setInputDialog(true)}>
+                  <FileUp className="h-4 w-4 mr-2" /> Import
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setShowOnlyActive(!showOnlyActive)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  {showOnlyActive ? "Show All" : "Show Active Only"}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Stream Filter */}
+      <div className="relative w-full sm:w-64">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="flex justify-between items-center"
+            >
+              <span>{selectedStream?.name || "All Streams"}</span>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() => setSelectedStream(null)}
+                className="cursor-pointer"
+              >
+                All Streams
+              </DropdownMenuItem>
+              {fetchedStreams
+                .filter((stream) => stream.isActive !== false)
+                .map((stream) => (
+                  <DropdownMenuItem
+                    key={stream.uuid}
+                    onClick={() => setSelectedStream(stream)}
+                    className="cursor-pointer"
+                  >
+                    {stream.name}
+                  </DropdownMenuItem>
+                ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Degrees Table */}
+      <Card className="flex-1 overflow-hidden">
+        <div className="p-6 py-0 rounded-md">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold">
+              Degrees{" "}
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                ({filteredDegrees.length} total)
+              </span>
+            </h2>
+          </div>
+          <div className="rounded-md">
+            <Table className="bg-white border shadow-sm rounded-md">
+              <TableHeader className="bg-gray-50">
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox disabled />
+                  </TableHead>
+                  <TableHead className="font-medium">Degree Name</TableHead>
+                  <TableHead className="font-medium">Stream Name</TableHead>
+                  <TableHead className="font-medium">Status</TableHead>
+                  <TableHead className="text-right font-medium">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-4 text-gray-500"
+                    >
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredDegrees.length > 0 ? (
+                  filteredDegrees.map((deg) => {
+                    console.log(
+                      "Stream for degree",
+                      deg.uuid,
+                      streams[deg.stream]
+                    );
+                    return (
+                      <TableRow
+                        key={deg.uuid}
+                        className={`hover:bg-gray-50 ${
+                          !deg.isActive ? "bg-red-50 text-gray-500" : ""
+                        }`}
+                      >
+                        <TableCell>
+                          <Checkbox />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {deg.name}
+                        </TableCell>
+                        <TableCell>
+                          {streams[deg.stream]?.name || "Unknown"}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={
+                              deg.isActive
+                                ? "text-green-600 font-semibold"
+                                : "text-red-500 font-medium"
+                            }
+                          >
+                            {deg.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 text-gray-700 hover:bg-gray-100"
+                            onClick={() => handleEditClick(deg)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`h-8 gap-1 ${
+                              deg.isActive
+                                ? "text-red-600 hover:bg-red-50"
+                                : "text-green-600 hover:bg-green-50"
+                            }`}
+                            onClick={() =>
+                              handleStatusToggle(deg.uuid, deg.isActive)
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>
+                              {deg.isActive ? "Deactivate" : "Activate"}
+                            </span>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-4 text-gray-500"
+                    >
+                      No degrees found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </Card>
+
       {/* Add Degree Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
@@ -375,21 +651,25 @@ export default function DegreeManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full">
                   <DropdownMenuGroup>
-                    {fetchedStreams.map((stream) => (
-                      <DropdownMenuItem
-                        className={`w-full cursor-pointer ${
-                          selectedStream?.uuid === stream.uuid ? "bg-gray-100 font-semibold" : ""
-                        }`}
-                        key={stream.uuid}
-                        onClick={() =>
-                          setSelectedStream((prev) =>
-                            prev?.uuid === stream.uuid ? null : stream
-                          )
-                        }
-                      >
-                        {stream.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {fetchedStreams
+                      .filter((stream) => stream.isActive !== false)
+                      .map((stream) => (
+                        <DropdownMenuItem
+                          className={`w-full cursor-pointer ${
+                            selectedStream?.uuid === stream.uuid
+                              ? "bg-gray-100 font-semibold"
+                              : ""
+                          }`}
+                          key={stream.uuid}
+                          onClick={() =>
+                            setSelectedStream((prev) =>
+                              prev?.uuid === stream.uuid ? null : stream
+                            )
+                          }
+                        >
+                          {stream.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -444,21 +724,25 @@ export default function DegreeManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full">
                   <DropdownMenuGroup>
-                    {fetchedStreams.map((stream) => (
-                      <DropdownMenuItem
-                        className={`w-full cursor-pointer ${
-                          selectedStream?.uuid === stream.uuid ? "bg-gray-100 font-semibold" : ""
-                        }`}
-                        key={stream.uuid}
-                        onClick={() =>
-                          setSelectedStream((prev) =>
-                            prev?.uuid === stream.uuid ? null : stream
-                          )
-                        }
-                      >
-                        {stream.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {fetchedStreams
+                      .filter((stream) => stream.isActive !== false)
+                      .map((stream) => (
+                        <DropdownMenuItem
+                          className={`w-full cursor-pointer ${
+                            selectedStream?.uuid === stream.uuid
+                              ? "bg-gray-100 font-semibold"
+                              : ""
+                          }`}
+                          key={stream.uuid}
+                          onClick={() =>
+                            setSelectedStream((prev) =>
+                              prev?.uuid === stream.uuid ? null : stream
+                            )
+                          }
+                        >
+                          {stream.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -519,217 +803,6 @@ export default function DegreeManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Breadcrumb */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-medium">Degree Management</h1>
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/admin">Home</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/admin/qp">Streams & Degrees</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild className="text-muted-foreground">
-                <Link href="/admin/qp/degree">Degree</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-
-      {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search degrees..."
-            className="pl-9 bg-white"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-2">
-          {(selectedStream || !showOnlyActive) && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSelectedStream(null);
-                setShowOnlyActive(true);
-              }}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              Clear filters
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                Actions <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setIsDialogOpen(true)}>
-                  <CirclePlusIcon className="h-4 w-4 mr-2" /> New Degree
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={exportToExcel}
-                  disabled={filteredDegrees.length === 0}
-                >
-                  <FileDown className="h-4 w-4 mr-2" /> Export
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setInputDialog(true)}>
-                  <FileUp className="h-4 w-4 mr-2" /> Import
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowOnlyActive(!showOnlyActive)}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {showOnlyActive ? "Show All" : "Show Active Only"}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Stream Filter */}
-      <div className="relative w-full sm:w-64">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="flex justify-between items-center"
-            >
-              <span>{selectedStream?.name || "All Streams"}</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => setSelectedStream(null)}
-                className="cursor-pointer"
-              >
-                All Streams
-              </DropdownMenuItem>
-              {fetchedStreams.map((stream) => (
-                <DropdownMenuItem
-                  key={stream.uuid}
-                  onClick={() => setSelectedStream(stream)}
-                  className="cursor-pointer"
-                >
-                  {stream.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Degrees Table */}
-      <Card className="flex-1 overflow-hidden">
-        <div className="p-6 py-0 rounded-md">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">
-              Degrees{" "}
-              <span className="text-sm font-normal text-gray-500 ml-2">
-                ({filteredDegrees.length} total)
-              </span>
-            </h2>
-          </div>
-          <div className="rounded-md">
-            <Table className="bg-white border shadow-sm rounded-md">
-              <TableHeader className="bg-gray-50">
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox disabled />
-                  </TableHead>
-                  <TableHead className="font-medium">Degree Name</TableHead>
-                  <TableHead className="font-medium">Stream Name</TableHead>
-                  <TableHead className="font-medium">Status</TableHead>
-                  <TableHead className="text-right font-medium">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-gray-500">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredDegrees.length > 0 ? (
-                  filteredDegrees.map((deg) => (
-                    <TableRow
-                      key={deg.uuid}
-                      className={`hover:bg-gray-50 ${!deg.isActive ? "bg-red-50 text-gray-500" : ""}`}
-                    >
-                      <TableCell>
-                        <Checkbox />
-                      </TableCell>
-                      <TableCell className="font-medium">{deg.name}</TableCell>
-                      <TableCell>
-                        {streams[deg.stream] || deg.courseName || "Unknown"}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            deg.isActive
-                              ? "text-green-600 font-semibold"
-                              : "text-red-500 font-medium"
-                          }
-                        >
-                          {deg.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 gap-1 text-gray-700 hover:bg-gray-100"
-                          onClick={() => handleEditClick(deg)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          <span>Edit</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`h-8 gap-1 ${
-                            deg.isActive
-                              ? "text-red-600 hover:bg-red-50"
-                              : "text-green-600 hover:bg-green-50"
-                          }`}
-                          onClick={() => handleStatusToggle(deg.uuid, deg.isActive)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>{deg.isActive ? "Deactivate" : "Activate"}</span>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-gray-500">
-                      No degrees found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
