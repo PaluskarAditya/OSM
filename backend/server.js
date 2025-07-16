@@ -331,26 +331,6 @@ function crudRoutes(app, path, Model, validation = []) {
         return sendError(res, 400, errors.array()[0].msg);
       }
 
-<<<<<<< HEAD
-      // Handle updates for other paths
-      const updated = await Model.findOneAndUpdate(
-        { uuid: req.params.uuid },
-        req.body,
-        { new: true }
-      );
-
-      if (path === 'streams') {
-        const combined = await Combined.findOne({ stream: req.params.uuid });
-        console.log(combined?.name);
-
-        if (!updated) {
-          return sendError(res, 404, "Document not found");
-        }
-  
-        return res.status(200).json(updated);
-      }
-
-=======
       // Start a MongoDB session for transaction
       const session = await mongoose.startSession();
       await session.withTransaction(async () => {
@@ -389,7 +369,6 @@ function crudRoutes(app, path, Model, validation = []) {
       });
 
       session.endSession();
->>>>>>> 1a0c944 (Degree Module working properly)
     } catch (err) {
       sendError(res, err.message === "Not found" ? 404 : 500, err.message);
     }
