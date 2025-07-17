@@ -63,13 +63,14 @@ export default function AcademicYearManagementPage() {
   const [selectedDegree, setSelectedDegree] = useState(null);
   const [showDeactivated, setShowDeactivated] = useState(false);
   const [streams, setStreams] = useState([]);
+  const [streamMap, setStreamMap] = useState({}); // New state for streamMap
   const [degrees, setDegrees] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [selectedFile, setSelectedFile] = useState(null);
 
-  // Generate UUID (consistent with previous implementation)
+  // Generate UUID
   const generateUUID = () => [...Array(6)].map(() => Math.random().toString(36)[2].toUpperCase()).join("");
 
   // Validate year format (YYYY-YY)
@@ -78,24 +79,52 @@ export default function AcademicYearManagementPage() {
     return regex.test(year);
   };
 
-  // Fetch streams
-  useEffect(() => {
-    const fetchStreams = async () => {
-      try {
-        setIsLoading(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
-        if (!res.ok) throw new Error("Failed to fetch streams");
-        const data = await res.json();
-        setStreams(data);
-      } catch (err) {
-        toast.error("Error loading streams: " + err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Fetch streams and create streamMap
+  const fetchStreams = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
+      if (!res.ok) throw new Error("Failed to fetch streams");
+      const data = await res.json();
+      
+      // Create streamMap
+      const newStreamMap = {};
+      data.forEach((stream) => {
+        newStreamMap[stream.uuid] = {
+          name: stream.name || "Unknown",
+          isActive: stream.isActive !== false,
+        };
+      });
 
-    fetchStreams();
-  }, []);
+      setStreams(data);
+      setStreamMap(newStreamMap);
+    } catch (err) {
+      toast.error("Error loading streams: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Activate stream
+  const activateStream = async (streamUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) throw new Error("Failed to activate stream");
+
+      // Refetch streams to update streamMap
+      await fetchStreams();
+      toast.success("Stream activated successfully");
+    } catch (error) {
+      toast.error("Error activating stream: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Fetch degrees by stream
   useEffect(() => {
@@ -123,12 +152,19 @@ export default function AcademicYearManagementPage() {
   // Fetch academic years
   useEffect(() => {
     const fetchAcademicYears = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`);
         if (!res.ok) throw new Error("Failed to fetch academic years");
         const data = await res.json();
-        setAcademicYears(data);
+
+        // Filter academic years to only include those with active streams
+        const filteredAcademicYears = data.filter((academicYear) => {
+          const stream = streamMap[academicYear.stream];
+          return stream && stream.isActive !== false;
+        });
+
+        setAcademicYears(filteredAcademicYears);
       } catch (err) {
         toast.error("Error loading academic years: " + err.message);
       } finally {
@@ -136,8 +172,13 @@ export default function AcademicYearManagementPage() {
       }
     };
 
-    fetchAcademicYears();
-  }, []);
+    // Only fetch academic years if streamMap is populated
+    if (Object.keys(streamMap).length > 0) {
+      fetchAcademicYears();
+    } else {
+      fetchStreams();
+    }
+  }, [streamMap]);
 
   // Filter academic years
   const filteredAcademicYears = academicYears.filter((academicYear) => {
@@ -276,7 +317,7 @@ export default function AcademicYearManagementPage() {
   const handleExport = () => {
     const exportData = filteredAcademicYears.map((year) => ({
       "Academic Year": year.year,
-      "Stream Name": streams.find((s) => s.uuid === year.stream)?.name || "Unknown",
+      "Stream Name": streamMap[year.stream]?.name || "Unknown",
       "Degree Name": degrees.find((d) => d.uuid === year.degree)?.name || "Unknown",
       Status: year.isActive ? "Active" : "Inactive",
     }));
@@ -366,7 +407,7 @@ export default function AcademicYearManagementPage() {
   };
 
   // Get stream name by ID
-  const getStreamName = (id) => streams.find((str) => str.uuid === id)?.name || "Unknown";
+  const getStreamName = (id) => streamMap[id]?.name || "Unknown";
 
   // Get degree name by ID
   const getDegreeName = (id) => degrees.find((deg) => deg.uuid === id)?.name || "Unknown";
@@ -593,6 +634,21 @@ export default function AcademicYearManagementPage() {
         </Breadcrumb>
       </div>
 
+      {/* Stream Activation Button (for testing) */}
+      <div className="flex gap-2">
+        {streams.map((stream) => (
+          <Button
+            key={stream.uuid}
+            variant="outline"
+            className={stream.isActive ? "text-green-600" : "text-red-600"}
+            onClick={() => !stream.isActive && activateStream(stream.uuid)}
+            disabled={stream.isActive || isLoading}
+          >
+            {stream.name}: {stream.isActive ? "Active" : "Activate"}
+          </Button>
+        ))}
+      </div>
+
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -803,11 +859,10 @@ export default function AcademicYearManagementPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className={`h-8 gap-1 ${
-                            academicYear.isActive
+                          className={`h-8 gap-1 ${academicYear.isActive
                               ? "text-red-600 hover:bg-red-50"
                               : "text-green-600 hover:bg-green-50"
-                          }`}
+                            }`}
                           onClick={() => handleToggleAcademicYearStatus(academicYear)}
                           disabled={isLoading}
                         >

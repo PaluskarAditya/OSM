@@ -17,7 +17,7 @@
 | Deactivation       | ✅ Done |
 | Import             | ✅ Done |
 | Export             | ✅ Done |
-| Deactivation reflection chain    | ✅ Done |
+| Deactivation reflection chain | ✅ Done |
 
 
 ## 📅 Academic Years
@@ -28,7 +28,7 @@
 | Deactivation       | ✅ Done |
 | Import             | ✅ Done |
 | Export             | ✅ Done |
-| Deactivation reflection chain    | ❌ Pending |
+| Deactivation reflection chain    | ✅ Done |
 
 
 ## 📅 Courses
