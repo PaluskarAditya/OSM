@@ -40,6 +40,7 @@ import {
   Pencil,
   Trash2,
   Search,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Dialog,
@@ -69,6 +70,7 @@ export default function CourseManagementPage() {
   const [courseCode, setCourseCode] = useState("");
   const [numSemesters, setNumSemesters] = useState("");
   const [streams, setStreams] = useState([]);
+  const [streamMap, setStreamMap] = useState({}); // Added streamMap state
   const [degrees, setDegrees] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -83,41 +85,77 @@ export default function CourseManagementPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [streamsRes, coursesRes, degreeRes, academicRes] =
-        await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
-        ]);
+      const [streamsRes, coursesRes, degreeRes, academicRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
+      ]);
 
-      if (
-        !streamsRes.ok ||
-        !coursesRes.ok ||
-        !degreeRes.ok ||
-        !academicRes.ok
-      ) {
+      if (!streamsRes.ok || !coursesRes.ok || !degreeRes.ok || !academicRes.ok) {
         throw new Error("Failed to fetch initial data");
       }
 
-      const [streamsData, coursesData, degreeData, academicData] =
-        await Promise.all([
-          streamsRes.json(),
-          coursesRes.json(),
-          degreeRes.json(),
-          academicRes.json(),
-        ]);
+      const [streamsData, coursesData, degreeData, academicData] = await Promise.all([
+        streamsRes.json(),
+        coursesRes.json(),
+        degreeRes.json(),
+        academicRes.json(),
+      ]);
+
+      // Create streamMap
+      const newStreamMap = {};
+      streamsData.forEach((stream) => {
+        newStreamMap[stream.uuid] = {
+          name: stream.name || "Unknown",
+          isActive: stream.isActive !== false,
+        };
+      });
+
+      // Filter courses to only include those with active streams
+      const filteredCourses = coursesData.filter((course) => {
+        const stream = newStreamMap[course.stream];
+        return stream && stream.isActive !== false;
+      });
+
+      // Filter academic years to only include those with active streams
+      const filteredAcademicYears = academicData.filter((academicYear) => {
+        const stream = newStreamMap[academicYear.streamUuid];
+        return stream && stream.isActive !== false;
+      });
 
       setStreams(streamsData);
-      setCourses(coursesData);
+      setStreamMap(newStreamMap);
+      setCourses(filteredCourses);
       setDegrees(degreeData);
-      setAcademicYears(academicData);
+      setAcademicYears(filteredAcademicYears);
     } catch (err) {
       toast.error("Error loading data: " + err.message);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  // Activate stream
+  const activateStream = async (streamUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) throw new Error("Failed to activate stream");
+
+      // Refetch all data to update streams, courses, and academic years
+      await fetchData();
+      toast.success("Stream activated successfully");
+    } catch (error) {
+      toast.error("Error activating stream: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Fetch degrees by stream
   const fetchDegrees = useCallback(async (streamUuid) => {
@@ -233,9 +271,7 @@ export default function CourseManagementPage() {
       academicYear: selectedAcademicYear.uuid,
       semester: selectedSemester,
       numSemesters: parseInt(numSemesters),
-      uuid: [...Array(6)]
-        .map(() => Math.random().toString(36)[2].toUpperCase())
-        .join(""),
+      uuid: generateUUID(),
       isActive: true,
     };
 
@@ -351,7 +387,7 @@ export default function CourseManagementPage() {
     }
   };
 
-  // Toggle course status
+  // Toggle activate status
   const handleActivate = async (courseUuid) => {
     setIsLoading(true);
     try {
@@ -475,7 +511,7 @@ export default function CourseManagementPage() {
     const dataToExport = filteredCourses.map((course) => ({
       "Course Name": course.name,
       Code: course.code,
-      Stream: getStreamName(course.stream),
+      Stream: streamMap[course.stream]?.name || "Unknown",
       Degree: getDegreeName(course.degree),
       "Academic Year": getAcademicYearName(course.academicYear),
       Semester: course.semester,
@@ -510,13 +546,10 @@ export default function CourseManagementPage() {
 
   // Helper functions
   const getStreamName = (streamId) => {
-    return streams.find((s) => s.uuid === streamId)?.name || "Unknown";
+    return streamMap[streamId]?.name || "Unknown";
   };
 
   const getDegreeName = (degreeId) => {
-    // Debug Log
-    console.log(degreeId, degrees);
-
     return degrees.find((d) => d.uuid === degreeId)?.name || "Unknown";
   };
 
@@ -871,6 +904,21 @@ export default function CourseManagementPage() {
         </Breadcrumb>
       </div>
 
+      {/* Stream Activation Button (for testing) */}
+      <div className="flex gap-2">
+        {streams.map((stream) => (
+          <Button
+            key={stream.uuid}
+            variant="outline"
+            className={stream.isActive ? "text-green-600" : "text-red-600"}
+            onClick={() => !stream.isActive && activateStream(stream.uuid)}
+            disabled={stream.isActive || isLoading}
+          >
+            {stream.name}: {stream.isActive ? "Active" : "Activate"}
+          </Button>
+        ))}
+      </div>
+
       {/* Filters and Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -1024,8 +1072,7 @@ export default function CourseManagementPage() {
             <h2 className="text-lg font-semibold">
               Courses{" "}
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({filteredCourses.length} {showDeactivated ? "found" : "active"}
-                )
+                ({filteredCourses.length} {showDeactivated ? "found" : "active"})
               </span>
             </h2>
           </div>
@@ -1114,7 +1161,7 @@ export default function CourseManagementPage() {
                             onClick={() => handleActivate(course.uuid)}
                             disabled={isLoading}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                             <span>Activate</span>
                           </Button>
                         )}
