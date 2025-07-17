@@ -63,8 +63,9 @@ export default function AcademicYearManagementPage() {
   const [selectedDegree, setSelectedDegree] = useState(null);
   const [showDeactivated, setShowDeactivated] = useState(false);
   const [streams, setStreams] = useState([]);
-  const [streamMap, setStreamMap] = useState({}); // New state for streamMap
+  const [streamMap, setStreamMap] = useState({});
   const [degrees, setDegrees] = useState([]);
+  const [degreeMap, setDegreeMap] = useState({}); // New state for degreeMap
   const [academicYears, setAcademicYears] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState(new Set());
@@ -105,6 +106,37 @@ export default function AcademicYearManagementPage() {
     }
   };
 
+  // Fetch degrees and create degreeMap
+  const fetchDegrees = async () => {
+    try {
+      setIsLoading(true);
+      const url = selectedStream
+        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${selectedStream.uuid}/degrees`
+        : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch degrees");
+      const data = await res.json();
+
+      // Create degreeMap
+      const newDegreeMap = {};
+      data.forEach((degree) => {
+        newDegreeMap[degree.uuid] = {
+          name: degree.name || "Unknown",
+          isActive: degree.isActive !== false,
+        };
+      });
+
+      setDegrees(data);
+      setDegreeMap(newDegreeMap);
+    } catch (err) {
+      toast.error("Error loading degrees: " + err.message);
+      setDegrees([]);
+      setDegreeMap({});
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Activate stream
   const activateStream = async (streamUuid) => {
     try {
@@ -126,26 +158,29 @@ export default function AcademicYearManagementPage() {
     }
   };
 
+  // Activate degree
+  const activateDegree = async (degreeUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) throw new Error("Failed to activate degree");
+
+      // Refetch degrees to update degreeMap
+      await fetchDegrees();
+      toast.success("Degree activated successfully");
+    } catch (error) {
+      toast.error("Error activating degree: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch degrees by stream
   useEffect(() => {
-    const fetchDegrees = async () => {
-      try {
-        setIsLoading(true);
-        const url = selectedStream
-          ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${selectedStream.uuid}/degrees`
-          : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Failed to fetch degrees");
-        const data = await res.json();
-        setDegrees(data);
-      } catch (err) {
-        toast.error("Error loading degrees: " + err.message);
-        setDegrees([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchDegrees();
   }, [selectedStream]);
 
@@ -158,10 +193,11 @@ export default function AcademicYearManagementPage() {
         if (!res.ok) throw new Error("Failed to fetch academic years");
         const data = await res.json();
 
-        // Filter academic years to only include those with active streams
+        // Filter academic years to only include those with active streams and degrees
         const filteredAcademicYears = data.filter((academicYear) => {
           const stream = streamMap[academicYear.stream];
-          return stream && stream.isActive !== false;
+          const degree = degreeMap[academicYear.degree];
+          return stream && stream.isActive !== false && degree && degree.isActive !== false;
         });
 
         setAcademicYears(filteredAcademicYears);
@@ -172,13 +208,13 @@ export default function AcademicYearManagementPage() {
       }
     };
 
-    // Only fetch academic years if streamMap is populated
-    if (Object.keys(streamMap).length > 0) {
+    // Only fetch academic years if streamMap and degreeMap are populated
+    if (Object.keys(streamMap).length > 0 && Object.keys(degreeMap).length > 0) {
       fetchAcademicYears();
     } else {
       fetchStreams();
     }
-  }, [streamMap]);
+  }, [streamMap, degreeMap]);
 
   // Filter academic years
   const filteredAcademicYears = academicYears.filter((academicYear) => {
@@ -318,7 +354,7 @@ export default function AcademicYearManagementPage() {
     const exportData = filteredAcademicYears.map((year) => ({
       "Academic Year": year.year,
       "Stream Name": streamMap[year.stream]?.name || "Unknown",
-      "Degree Name": degrees.find((d) => d.uuid === year.degree)?.name || "Unknown",
+      "Degree Name": degreeMap[year.degree]?.name || "Unknown",
       Status: year.isActive ? "Active" : "Inactive",
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -388,7 +424,13 @@ export default function AcademicYearManagementPage() {
       if (result.created > 0) {
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`);
         const newAcademicYears = await res.json();
-        setAcademicYears(newAcademicYears);
+        // Filter based on active streams and degrees
+        const filteredAcademicYears = newAcademicYears.filter((academicYear) => {
+          const stream = streamMap[academicYear.stream];
+          const degree = degreeMap[academicYear.degree];
+          return stream && stream.isActive !== false && degree && degree.isActive !== false;
+        });
+        setAcademicYears(filteredAcademicYears);
         toast.success(`Imported ${result.created} academic years`);
       }
 
@@ -410,7 +452,7 @@ export default function AcademicYearManagementPage() {
   const getStreamName = (id) => streamMap[id]?.name || "Unknown";
 
   // Get degree name by ID
-  const getDegreeName = (id) => degrees.find((deg) => deg.uuid === id)?.name || "Unknown";
+  const getDegreeName = (id) => degreeMap[id]?.name || "Unknown";
 
   // Reset form state
   const resetForm = () => {
@@ -477,7 +519,7 @@ export default function AcademicYearManagementPage() {
               </Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex justify-between w-full">
+                  <Button variant="outline" className="flex justify-between w-full" disabled={isLoading}>
                     {selectedStream ? selectedStream.name : "Select Stream"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
@@ -509,7 +551,7 @@ export default function AcademicYearManagementPage() {
                   <Button
                     variant="outline"
                     className="flex justify-between w-full"
-                    disabled={!selectedStream}
+                    disabled={!selectedStream || isLoading}
                   >
                     {selectedDegree ? selectedDegree.name : "Select Degree"}
                     <ChevronDown className="ml-2 h-4 w-4" />
@@ -547,12 +589,13 @@ export default function AcademicYearManagementPage() {
                 onChange={(e) => setNewYear(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (dialogMode === "add" ? handleAddAcademicYear() : handleEditAcademicYear())}
                 className="focus-visible:ring-1 focus-visible:ring-blue-500"
+                disabled={isLoading}
               />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" className="hover:bg-gray-100">
+              <Button variant="outline" className="hover:bg-gray-100" disabled={isLoading}>
                 Cancel
               </Button>
             </DialogClose>
@@ -587,11 +630,12 @@ export default function AcademicYearManagementPage() {
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setSelectedFile(e.target.files[0])}
+              disabled={isLoading}
             />
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" disabled={isLoading}>Cancel</Button>
             </DialogClose>
             <Button
               onClick={handleImportExcel}
@@ -634,8 +678,8 @@ export default function AcademicYearManagementPage() {
         </Breadcrumb>
       </div>
 
-      {/* Stream Activation Button (for testing) */}
-      <div className="flex gap-2">
+      {/* Stream and Degree Activation Buttons */}
+      <div className="flex flex-wrap gap-2">
         {streams.map((stream) => (
           <Button
             key={stream.uuid}
@@ -647,6 +691,17 @@ export default function AcademicYearManagementPage() {
             {stream.name}: {stream.isActive ? "Active" : "Activate"}
           </Button>
         ))}
+        {degrees.map((degree) => (
+          <Button
+            key={degree.uuid}
+            variant="outline"
+            className={degree.isActive ? "text-green-600" : "text-red-600"}
+            onClick={() => !degree.isActive && activateDegree(degree.uuid)}
+            disabled={degree.isActive || isLoading}
+          >
+            {degree.name}: {degree.isActive ? "Active" : "Activate"}
+          </Button>
+        ))}
       </div>
 
       {/* Action Bar */}
@@ -655,7 +710,7 @@ export default function AcademicYearManagementPage() {
           <div className="w-full sm:w-64">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
+                <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
                   {selectedStream ? selectedStream.name : "All Streams"}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
@@ -693,7 +748,7 @@ export default function AcademicYearManagementPage() {
                 <Button
                   variant="outline"
                   className="w-full justify-between"
-                  disabled={!selectedStream}
+                  disabled={!selectedStream || isLoading}
                 >
                   {selectedDegree ? selectedDegree.name : "All Degrees"}
                   <ChevronDown className="ml-2 h-4 w-4" />
@@ -727,6 +782,7 @@ export default function AcademicYearManagementPage() {
               className="pl-9 bg-white focus-visible:ring-1 focus-visible:ring-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={isLoading}
             />
           </div>
         </div>
@@ -746,7 +802,7 @@ export default function AcademicYearManagementPage() {
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" disabled={isLoading}>
                 Actions <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -763,16 +819,16 @@ export default function AcademicYearManagementPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleExport}
-                  disabled={filteredAcademicYears.length === 0}
+                  disabled={filteredAcademicYears.length === 0 || isLoading}
                 >
                   <FileDown className="h-4 w-4 mr-2" />
                   Export
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
+                <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)} disabled={isLoading}>
                   <FileUp className="h-4 w-4 mr-2" />
                   Import
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowDeactivated(!showDeactivated)}>
+                <DropdownMenuItem onClick={() => setShowDeactivated(!showDeactivated)} disabled={isLoading}>
                   <Eye className="h-4 w-4 mr-2" />
                   {showDeactivated ? "Show Active Only" : "View Deactivated"}
                 </DropdownMenuItem>
@@ -801,6 +857,7 @@ export default function AcademicYearManagementPage() {
                     <Checkbox
                       checked={selectedRows.size === filteredAcademicYears.length && filteredAcademicYears.length > 0}
                       onCheckedChange={toggleAllRowsSelection}
+                      disabled={isLoading}
                     />
                   </TableHead>
                   <TableHead className="font-medium">ID</TableHead>
@@ -828,6 +885,7 @@ export default function AcademicYearManagementPage() {
                         <Checkbox
                           checked={selectedRows.has(academicYear.uuid)}
                           onCheckedChange={() => toggleRowSelection(academicYear.uuid)}
+                          disabled={isLoading}
                         />
                       </TableCell>
                       <TableCell className="font-medium">{academicYear.uuid}</TableCell>
