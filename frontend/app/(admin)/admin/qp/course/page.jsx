@@ -70,9 +70,11 @@ export default function CourseManagementPage() {
   const [courseCode, setCourseCode] = useState("");
   const [numSemesters, setNumSemesters] = useState("");
   const [streams, setStreams] = useState([]);
-  const [streamMap, setStreamMap] = useState({}); // Added streamMap state
+  const [streamMap, setStreamMap] = useState({});
   const [degrees, setDegrees] = useState([]);
+  const [degreeMap, setDegreeMap] = useState({});
   const [academicYears, setAcademicYears] = useState([]);
+  const [academicYearMap, setAcademicYearMap] = useState({});
   const [courses, setCourses] = useState([]);
 
   // Helper function for UUID generation
@@ -112,23 +114,43 @@ export default function CourseManagementPage() {
         };
       });
 
-      // Filter courses to only include those with active streams
-      const filteredCourses = coursesData.filter((course) => {
-        const stream = newStreamMap[course.stream];
-        return stream && stream.isActive !== false;
+      // Create degreeMap
+      const newDegreeMap = {};
+      degreeData.forEach((degree) => {
+        newDegreeMap[degree.uuid] = {
+          name: degree.name || "Unknown",
+          isActive: degree.isActive !== false,
+        };
       });
 
-      // Filter academic years to only include those with active streams
-      const filteredAcademicYears = academicData.filter((academicYear) => {
-        const stream = newStreamMap[academicYear.streamUuid];
-        return stream && stream.isActive !== false;
+      // Create academicYearMap
+      const newAcademicYearMap = {};
+      academicData.forEach((academicYear) => {
+        newAcademicYearMap[academicYear.uuid] = {
+          year: academicYear.year || "Unknown",
+          isActive: academicYear.isActive !== false,
+        };
+      });
+
+      // Filter courses to only include those with active streams, degrees, and academic years
+      const filteredCourses = coursesData.filter((course) => {
+        const stream = newStreamMap[course.stream];
+        const degree = newDegreeMap[course.degree];
+        const academicYear = newAcademicYearMap[course.academicYear];
+        return (
+          stream && stream.isActive !== false &&
+          degree && degree.isActive !== false &&
+          academicYear && academicYear.isActive !== false
+        );
       });
 
       setStreams(streamsData);
       setStreamMap(newStreamMap);
-      setCourses(filteredCourses);
       setDegrees(degreeData);
-      setAcademicYears(filteredAcademicYears);
+      setDegreeMap(newDegreeMap);
+      setAcademicYears(academicData);
+      setAcademicYearMap(newAcademicYearMap);
+      setCourses(filteredCourses);
     } catch (err) {
       toast.error("Error loading data: " + err.message);
     } finally {
@@ -147,11 +169,110 @@ export default function CourseManagementPage() {
       });
       if (!res.ok) throw new Error("Failed to activate stream");
 
-      // Refetch all data to update streams, courses, and academic years
       await fetchData();
       toast.success("Stream activated successfully");
     } catch (error) {
       toast.error("Error activating stream: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Deactivate stream
+  const deactivateStream = async (streamUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      });
+      if (!res.ok) throw new Error("Failed to deactivate stream");
+
+      await fetchData();
+      toast.success("Stream deactivated successfully");
+    } catch (error) {
+      toast.error("Error deactivating stream: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Activate degree
+  const activateDegree = async (degreeUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) throw new Error("Failed to activate degree");
+
+      await fetchData();
+      toast.success("Degree activated successfully");
+    } catch (error) {
+      toast.error("Error activating degree: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Deactivate degree
+  const deactivateDegree = async (degreeUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      });
+      if (!res.ok) throw new Error("Failed to deactivate degree");
+
+      await fetchData();
+      toast.success("Degree deactivated successfully");
+    } catch (error) {
+      toast.error("Error deactivating degree: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Activate academic year
+  const activateAcademicYear = async (academicYearUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) throw new Error("Failed to activate academic year");
+
+      await fetchData();
+      toast.success("Academic year activated successfully");
+    } catch (error) {
+      toast.error("Error activating academic year: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Deactivate academic year
+  const deactivateAcademicYear = async (academicYearUuid) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      });
+      if (!res.ok) throw new Error("Failed to deactivate academic year");
+
+      await fetchData();
+      toast.success("Academic year deactivated successfully");
+    } catch (error) {
+      toast.error("Error deactivating academic year: " + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -166,14 +287,25 @@ export default function CourseManagementPage() {
       );
       if (!res.ok) throw new Error("Failed to fetch degrees");
       const data = await res.json();
+
+      // Update degreeMap with fetched degrees
+      const newDegreeMap = { ...degreeMap };
+      data.forEach((degree) => {
+        newDegreeMap[degree.uuid] = {
+          name: degree.name || "Unknown",
+          isActive: degree.isActive !== false,
+        };
+      });
+
       setDegrees(data);
+      setDegreeMap(newDegreeMap);
     } catch (err) {
       toast.error("Error loading degrees: " + err.message);
       setDegrees([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [degreeMap]);
 
   // Fetch academic years by degree
   const fetchAcademicYears = useCallback(async (degreeUuid) => {
@@ -184,14 +316,25 @@ export default function CourseManagementPage() {
       );
       if (!res.ok) throw new Error("Failed to fetch academic years");
       const data = await res.json();
+
+      // Update academicYearMap with fetched academic years
+      const newAcademicYearMap = { ...academicYearMap };
+      data.forEach((academicYear) => {
+        newAcademicYearMap[academicYear.uuid] = {
+          year: academicYear.year || "Unknown",
+          isActive: academicYear.isActive !== false,
+        };
+      });
+
       setAcademicYears(data);
+      setAcademicYearMap(newAcademicYearMap);
     } catch (err) {
       toast.error("Error loading academic years: " + err.message);
       setAcademicYears([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [academicYearMap]);
 
   useEffect(() => {
     fetchData();
@@ -236,7 +379,12 @@ export default function CourseManagementPage() {
     const matchesAcademicYear = selectedAcademicYear
       ? course.academicYear === selectedAcademicYear.uuid
       : true;
-    const matchesStatus = showDeactivated ? true : course.isActive !== false;
+    const matchesStatus = showDeactivated
+      ? true
+      : course.isActive !== false &&
+        streamMap[course.stream]?.isActive !== false &&
+        degreeMap[course.degree]?.isActive !== false &&
+        academicYearMap[course.academicYear]?.isActive !== false;
     return (
       matchesSearch &&
       matchesStream &&
@@ -257,7 +405,8 @@ export default function CourseManagementPage() {
       !selectedSemester ||
       !numSemesters ||
       isNaN(numSemesters) ||
-      parseInt(numSemesters) <= 0
+      parseInt(numSemesters) <= 0 ||
+      parseInt(numSemesters) > 8
     ) {
       toast.error("Please fill all required fields with valid data");
       return;
@@ -314,7 +463,8 @@ export default function CourseManagementPage() {
       !selectedSemester ||
       !numSemesters ||
       isNaN(numSemesters) ||
-      parseInt(numSemesters) <= 0
+      parseInt(numSemesters) <= 0 ||
+      parseInt(numSemesters) > 8
     ) {
       toast.error("Please fill all required fields with valid data");
       return;
@@ -371,9 +521,7 @@ export default function CourseManagementPage() {
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}`,
         {
           method: "PUT",
-          headers: {
-            "content-type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isActive: false }),
         }
       );
@@ -395,9 +543,7 @@ export default function CourseManagementPage() {
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${courseUuid}`,
         {
           method: "PUT",
-          headers: {
-            "content-type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isActive: true }),
         }
       );
@@ -411,7 +557,7 @@ export default function CourseManagementPage() {
     }
   };
 
-  // New Import to Excel
+  // Import to Excel
   const importToExcel = async () => {
     if (!selectedFile) {
       toast.error("No file selected");
@@ -420,7 +566,6 @@ export default function CourseManagementPage() {
 
     try {
       setIsLoading(true);
-
       const data = await selectedFile.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -462,15 +607,31 @@ export default function CourseManagementPage() {
         return {
           name: row["Course Name"]?.toString().trim() || "",
           code: row["Code"]?.toString().trim() || "",
-          stream: row["Stream"]?.toString().trim() || "",
-          degree: row["Degree"]?.toString().trim() || "",
-          academicYear: row["Academic Year"]?.toString().trim() || "",
+          stream: streams.find(s => s.name === row["Stream"]?.toString().trim())?.uuid || "",
+          degree: degrees.find(d => d.name === row["Degree"]?.toString().trim())?.uuid || "",
+          academicYear: academicYears.find(y => y.year === row["Academic Year"]?.toString().trim())?.uuid || "",
           semester: row["Semester"]?.toString().trim() || "",
           numSemesters: numSemesters,
           uuid: generateUUID(),
           isActive: true,
         };
       });
+
+      // Validate required fields and active status
+      const missingFields = [];
+      payload.forEach((row, index) => {
+        if (!row.name) missingFields.push(`Row ${index + 2}: Missing Course Name`);
+        if (!row.code) missingFields.push(`Row ${index + 2}: Missing Code`);
+        if (!row.stream || !streamMap[row.stream]?.isActive) missingFields.push(`Row ${index + 2}: Invalid or inactive Stream`);
+        if (!row.degree || !degreeMap[row.degree]?.isActive) missingFields.push(`Row ${index + 2}: Invalid or inactive Degree`);
+        if (!row.academicYear || !academicYearMap[row.academicYear]?.isActive) missingFields.push(`Row ${index + 2}: Invalid or inactive Academic Year`);
+        if (!row.semester) missingFields.push(`Row ${index + 2}: Missing Semester`);
+      });
+
+      if (missingFields.length > 0) {
+        toast.error(`Invalid file data:\n${missingFields.join("\n")}`);
+        return;
+      }
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/bulk`,
@@ -488,7 +649,7 @@ export default function CourseManagementPage() {
       }
 
       if (result.created > 0) {
-        await fetchData(); // Refresh courses
+        await fetchData(); // Refresh courses with active filters
         toast.success(`Imported ${result.created} courses`);
       }
 
@@ -512,8 +673,8 @@ export default function CourseManagementPage() {
       "Course Name": course.name,
       Code: course.code,
       Stream: streamMap[course.stream]?.name || "Unknown",
-      Degree: getDegreeName(course.degree),
-      "Academic Year": getAcademicYearName(course.academicYear),
+      Degree: degreeMap[course.degree]?.name || "Unknown",
+      "Academic Year": academicYearMap[course.academicYear]?.year || "Unknown",
       Semester: course.semester,
       "Number of Semesters": course.numSemesters,
     }));
@@ -538,7 +699,7 @@ export default function CourseManagementPage() {
       },
     ];
 
-    const worksheet = XLSX.utils.json_to_sheet(template);
+    const worksheet = XLSX.utils.sheet_to_sheet(template);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
     XLSX.writeFile(workbook, "Course_Template.xlsx");
@@ -550,11 +711,11 @@ export default function CourseManagementPage() {
   };
 
   const getDegreeName = (degreeId) => {
-    return degrees.find((d) => d.uuid === degreeId)?.name || "Unknown";
+    return degreeMap[degreeId]?.name || "Unknown";
   };
 
   const getAcademicYearName = (yearId) => {
-    return academicYears.find((y) => y.uuid === yearId)?.year || "Unknown";
+    return academicYearMap[yearId]?.year || "Unknown";
   };
 
   const resetForm = () => {
@@ -619,6 +780,7 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
+                      disabled={isLoading}
                     >
                       {selectedStream ? selectedStream.name : "Select Stream"}
                       <ChevronDown className="ml-2 h-4 w-4" />
@@ -626,7 +788,7 @@ export default function CourseManagementPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
-                      {streams.map((stream) => (
+                      {streams.filter(s => s.isActive).map((stream) => (
                         <DropdownMenuItem
                           key={stream.uuid}
                           onSelect={() => setSelectedStream(stream)}
@@ -647,7 +809,7 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
-                      disabled={!selectedStream}
+                      disabled={!selectedStream || isLoading}
                     >
                       {selectedDegree ? selectedDegree.name : "Select Degree"}
                       <ChevronDown className="ml-2 h-4 w-4" />
@@ -656,7 +818,7 @@ export default function CourseManagementPage() {
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
                       {degrees.length > 0 ? (
-                        degrees.map((degree) => (
+                        degrees.filter(d => d.isActive).map((degree) => (
                           <DropdownMenuItem
                             key={degree.uuid}
                             onSelect={() => setSelectedDegree(degree)}
@@ -682,7 +844,7 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
-                      disabled={!selectedDegree}
+                      disabled={!selectedDegree || isLoading}
                     >
                       {selectedAcademicYear
                         ? selectedAcademicYear.year
@@ -693,7 +855,7 @@ export default function CourseManagementPage() {
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
                       {academicYears.length > 0 ? (
-                        academicYears.map((year) => (
+                        academicYears.filter(y => y.isActive).map((year) => (
                           <DropdownMenuItem
                             key={year.uuid}
                             onSelect={() => setSelectedAcademicYear(year)}
@@ -721,6 +883,7 @@ export default function CourseManagementPage() {
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
                   className="focus-visible:ring-1 focus-visible:ring-blue-500"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -732,6 +895,7 @@ export default function CourseManagementPage() {
                   value={courseCode}
                   onChange={(e) => setCourseCode(e.target.value)}
                   className="focus-visible:ring-1 focus-visible:ring-blue-500"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -743,6 +907,7 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
+                      disabled={isLoading}
                     >
                       {selectedSemester || "Select Semester"}
                       <ChevronDown className="ml-2 h-4 w-4" />
@@ -774,6 +939,7 @@ export default function CourseManagementPage() {
                   type="number"
                   min="1"
                   max="8"
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -804,7 +970,8 @@ export default function CourseManagementPage() {
                 !selectedSemester ||
                 !numSemesters ||
                 isNaN(numSemesters) ||
-                parseInt(numSemesters) <= 0
+                parseInt(numSemesters) <= 0 ||
+                parseInt(numSemesters) > 8
               }
             >
               {isLoading
@@ -904,17 +1071,39 @@ export default function CourseManagementPage() {
         </Breadcrumb>
       </div>
 
-      {/* Stream Activation Button (for testing) */}
-      <div className="flex gap-2">
+      {/* Stream, Degree, and Academic Year Activation/Deactivation Buttons */}
+      <div className="flex flex-wrap gap-2">
         {streams.map((stream) => (
           <Button
             key={stream.uuid}
             variant="outline"
             className={stream.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => !stream.isActive && activateStream(stream.uuid)}
-            disabled={stream.isActive || isLoading}
+            onClick={() => stream.isActive ? deactivateStream(stream.uuid) : activateStream(stream.uuid)}
+            disabled={isLoading}
           >
-            {stream.name}: {stream.isActive ? "Active" : "Activate"}
+            {stream.name}: {stream.isActive ? "Deactivate" : "Activate"}
+          </Button>
+        ))}
+        {degrees.map((degree) => (
+          <Button
+            key={degree.uuid}
+            variant="outline"
+            className={degree.isActive ? "text-green-600" : "text-red-600"}
+            onClick={() => degree.isActive ? deactivateDegree(degree.uuid) : activateDegree(degree.uuid)}
+            disabled={isLoading}
+          >
+            {degree.name}: {degree.isActive ? "Deactivate" : "Activate"}
+          </Button>
+        ))}
+        {academicYears.map((year) => (
+          <Button
+            key={year.uuid}
+            variant="outline"
+            className={year.isActive ? "text-green-600" : "text-red-600"}
+            onClick={() => year.isActive ? deactivateAcademicYear(year.uuid) : activateAcademicYear(year.uuid)}
+            disabled={isLoading}
+          >
+            {year.year}: {year.isActive ? "Deactivate" : "Activate"}
           </Button>
         ))}
       </div>
@@ -935,7 +1124,7 @@ export default function CourseManagementPage() {
           <div className="w-full sm:w-64">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
+                <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
                   {selectedStream ? selectedStream.name : "All Streams"}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
@@ -961,7 +1150,7 @@ export default function CourseManagementPage() {
             <div className="w-full sm:w-64">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
+                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
                     {selectedDegree ? selectedDegree.name : "All Degrees"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
@@ -988,7 +1177,7 @@ export default function CourseManagementPage() {
             <div className="w-full sm:w-64">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
+                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
                     {selectedAcademicYear
                       ? selectedAcademicYear.year
                       : "All Academic Years"}
