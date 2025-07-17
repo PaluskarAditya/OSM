@@ -24,14 +24,15 @@ import {
 	Search,
 	Pencil,
 	Trash2,
-	CalendarIcon
+	CalendarIcon,
+	CheckCircle2,
 } from "lucide-react";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,6 +69,7 @@ export default function SubjectManagementPage() {
 	const [inputDialog, setInputDialog] = useState(false);
 	const [combined, setCombined] = useState([]);
 	const [streams, setStreams] = useState([]);
+	const [streamMap, setStreamMap] = useState({});
 	const [degrees, setDegrees] = useState([]);
 	const [years, setYears] = useState([]);
 	const [selectedCombined, setSelectedCombined] = useState(null);
@@ -105,78 +107,127 @@ export default function SubjectManagementPage() {
 		return date && !isNaN(date?.getTime());
 	};
 
-	// Fetch all subjects
-	useEffect(() => {
-		const fetchSubjects = async () => {
-			try {
-				const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`);
-				const data = await res.json();
-				if (res.ok) {
-					setSubjects(data);
-					setFilteredSubjects(data);
-				} else {
-					toast.error("Failed to load subjects.");
-				}
-			} catch (err) {
-				toast.error(err.message);
+	// Fetch initial data (subjects, combined, streams, degrees, years, courses)
+	const fetchData = useCallback(async () => {
+		setIsLoading(true);
+		try {
+			const [subjectsRes, combinedRes, streamRes, degreeRes, yearRes, courseRes] = await Promise.all([
+				fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`),
+				fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combineds`),
+				fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
+				fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
+				fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
+				fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
+			]);
+
+			if (!subjectsRes.ok || !combinedRes.ok || !streamRes.ok || !degreeRes.ok || !yearRes.ok || !courseRes.ok) {
+				throw new Error("Failed to fetch initial data");
 			}
-		};
-		fetchSubjects();
-	}, []);
 
-	// Fetch initial data (combined, streams, degrees, years, courses)
-	useEffect(() => {
-		const getData = async () => {
-			try {
-				const [combinedRes, streamRes, degreeRes, yearRes, courseRes] = await Promise.all([
-					fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combineds`),
-					fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
-					fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
-					fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
-					fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`)
-				]);
+			const [subjectsData, combinedData, streamData, degreeData, yearData, courseData] = await Promise.all([
+				subjectsRes.json(),
+				combinedRes.json(),
+				streamRes.json(),
+				degreeRes.json(),
+				yearRes.json(),
+				courseRes.json(),
+			]);
 
-				if (combinedRes.ok && streamRes.ok && degreeRes.ok && yearRes.ok) {
-					const [combinedData, streamData, degreeData, yearData, courseData] = await Promise.all([
-						combinedRes.json(),
-						streamRes.json(),
-						degreeRes.json(),
-						yearRes.json(),
-						courseRes.json(),
-					]);
+			// Create streamMap
+			const newStreamMap = {};
+			streamData.forEach((stream) => {
+				newStreamMap[stream.uuid] = {
+					name: stream.name || "Unknown",
+					isActive: stream.isActive !== false,
+				};
+			});
 
-					setCombined(combinedData);
-					setStreams(streamData);
-					setDegrees(degreeData);
-					setYears(yearData);
-					setCourses(courseData);
-				}
-			} catch (error) {
-				toast.error(error.message);
-			}
+			// Filter subjects to only include those with active streams via combined
+			const filteredSubjects = subjectsData.filter((subject) => {
+				const combinedEntry = combinedData.find((c) => c.uuid === subject.combined);
+				return combinedEntry && newStreamMap[combinedEntry.stream]?.isActive !== false;
+			});
+
+			// Filter combined to only include those with active streams
+			const filteredCombined = combinedData.filter((c) => newStreamMap[c.stream]?.isActive !== false);
+
+			// Filter courses to only include those linked to active streams via combined
+			const filteredCourses = courseData.filter((course) => {
+				const courseCombined = combinedData.find((c) => c.course === course.uuid);
+				return courseCombined && newStreamMap[courseCombined.stream]?.isActive !== false;
+			});
+
+			// Filter academic years to only include those with active streams
+			const filteredYears = yearData.filter((year) => newStreamMap[year.streamUuid]?.isActive !== false);
+
+			setStreamMap(newStreamMap);
+			setSubjects(filteredSubjects);
+			setFilteredSubjects(filteredSubjects);
+			setCombined(filteredCombined);
+			setStreams(streamData);
+			setDegrees(degreeData);
+			setYears(filteredYears);
+			setCourses(filteredCourses);
+		} catch (err) {
+			toast.error("Error loading data: " + err.message);
+		} finally {
+			setIsLoading(false);
 		}
-		getData();
 	}, []);
+
+	// Activate stream
+	const activateStream = async (streamUuid) => {
+		setIsLoading(true);
+		try {
+			const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ isActive: true }),
+			});
+			if (!res.ok) throw new Error("Failed to activate stream");
+
+			// Refetch all data to update streamMap, subjects, combined, years, and courses
+			await fetchData();
+			toast.success("Stream activated successfully");
+		} catch (error) {
+			toast.error("Error activating stream: " + error.message);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	// Fetch initial data
+	useEffect(() => {
+		fetchData();
+	}, [fetchData]);
 
 	// Fetch courses when combined is selected
 	useEffect(() => {
 		const getCourseByCombinedData = async () => {
-			if (!selectedCombined?.course) return;
+			if (!selectedCombined?.uuid) return;
 
+			setIsLoading(true);
 			try {
-				const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${selectedCombined.course}/combineds`);
+				const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${selectedCombined.uuid}`);
 				if (res.ok) {
 					const data = await res.json();
-					setCourses(Array.isArray(data) ? data : []);
+					// Filter courses to ensure they are linked to active streams via combined
+					const filteredCourses = Array.isArray(data) ? data.filter((course) => {
+						const courseCombined = combined.find((c) => c.course === course.uuid && c.uuid === selectedCombined.uuid);
+						return courseCombined && streamMap[courseCombined.stream]?.isActive !== false;
+					}) : [];
+					setCourses(filteredCourses);
 				} else {
 					toast.error("Failed to fetch courses");
 				}
 			} catch (error) {
 				toast.error(error.message);
+			} finally {
+				setIsLoading(false);
 			}
 		};
 		getCourseByCombinedData();
-	}, [selectedCombined]);
+	}, [selectedCombined, combined, streamMap]);
 
 	// Apply filters whenever dependencies change
 	useEffect(() => {
@@ -224,6 +275,7 @@ export default function SubjectManagementPage() {
 		}
 
 		try {
+			setIsLoading(true);
 			const newSub = {
 				name: subjectName,
 				code: subjectCode,
@@ -247,13 +299,16 @@ export default function SubjectManagementPage() {
 			if (res.ok) {
 				toast.success("Subject created successfully!");
 				setSubjects(prev => [...prev, data]);
+				setFilteredSubjects(prev => [...prev, data]);
 				setIsDialogOpen(false);
-				resetForm();
+			 resetForm();
 			} else {
 				toast.error(data?.error || "Something went wrong.");
 			}
 		} catch (err) {
 			toast.error(err.message);
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
@@ -270,6 +325,7 @@ export default function SubjectManagementPage() {
 		}
 
 		try {
+			setIsLoading(true);
 			const updatedSubject = {
 				name: subjectName,
 				code: subjectCode,
@@ -278,7 +334,7 @@ export default function SubjectManagementPage() {
 				exam: date.toISOString(),
 				course: selectedCourse.uuid,
 				combined: selectedCombined.uuid,
-				isActive: editingSubject.isActive
+				isActive: editingSubject.isActive,
 			};
 
 			const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/${editingSubject.uuid}`, {
@@ -293,13 +349,16 @@ export default function SubjectManagementPage() {
 			if (res.ok) {
 				toast.success("Subject updated successfully!");
 				setSubjects(prev => prev.map(s => s.uuid === editingSubject.uuid ? { ...s, ...data } : s));
+				setFilteredSubjects(prev => prev.map(s => s.uuid === editingSubject.uuid ? { ...s, ...data } : s));
 				setIsEditDialogOpen(false);
 				resetForm();
 			} else {
 				toast.error(data?.error || "Something went wrong.");
 			}
 		} catch (err) {
-			toast.error(err.type);
+			toast.error(err.message);
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
@@ -329,7 +388,7 @@ export default function SubjectManagementPage() {
 		setEditingSubject(null);
 	};
 
-	// New Export to Excel function
+	// Export to Excel
 	const toExcel = () => {
 		const dataToExport = filteredSubjects.map(subject => {
 			const matchedCombined = combined.find(c => c.uuid === subject.combined);
@@ -358,7 +417,7 @@ export default function SubjectManagementPage() {
 				'Course': courseName,
 				'Stream': stream,
 				'Degree': degree,
-				'Year': year
+				'Year': year,
 			};
 		});
 
@@ -366,7 +425,7 @@ export default function SubjectManagementPage() {
 		const workbook = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(workbook, worksheet, "Subjects");
 		XLSX.writeFile(workbook, "Subjects.xlsx");
-	}
+	};
 
 	// Download template
 	const downloadTemplate = () => {
@@ -380,7 +439,7 @@ export default function SubjectManagementPage() {
 			'Course Code': '',
 			'Stream': '',
 			'Degree': '',
-			'Year': ''
+			'Year': '',
 		}];
 
 		const worksheet = XLSX.utils.json_to_sheet(template);
@@ -389,7 +448,7 @@ export default function SubjectManagementPage() {
 		XLSX.writeFile(workbook, "Subject_Template.xlsx");
 	};
 
-	// New Import to Excel
+	// Import to Excel
 	const importToExcel = async () => {
 		if (!selectedFile) {
 			toast.error("No file selected");
@@ -420,13 +479,13 @@ export default function SubjectManagementPage() {
 				stream: row['Stream']?.toString().trim() || '',
 				degree: row['Degree']?.toString().trim() || '',
 				year: row['Year']?.toString().trim() || '',
-				uuid: generateUUID()
+				uuid: generateUUID(),
 			}));
 
 			const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/bulk`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
+				body: JSON.stringify(payload),
 			});
 
 			const result = await response.json();
@@ -434,9 +493,7 @@ export default function SubjectManagementPage() {
 			if (!response.ok) throw new Error(result.error || 'Import failed');
 
 			if (result.created > 0) {
-				const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`);
-				const newSubjects = await res.json();
-				setSubjects(newSubjects);
+				await fetchData(); // Refresh subjects
 				toast.success(`Imported ${result.created} subjects`);
 			}
 
@@ -446,7 +503,6 @@ export default function SubjectManagementPage() {
 
 			setInputDialog(false);
 			setSelectedFile(null);
-
 		} catch (error) {
 			toast.error(`Import failed: ${error.message}`);
 			console.error("Import error:", error);
@@ -469,6 +525,7 @@ export default function SubjectManagementPage() {
 	// Toggle subject status
 	const handleToggleSubjectStatus = async (uuid) => {
 		try {
+			setIsLoading(true);
 			const subject = subjects.find(s => s.uuid === uuid);
 			if (!subject) return;
 
@@ -481,22 +538,28 @@ export default function SubjectManagementPage() {
 			});
 
 			if (res.ok) {
-				setSubjects(prev => prev.map(s =>
-					s.uuid === uuid ? { ...s, isActive: !s.isActive } : s
-				));
+				const data = await res.json();
+				setSubjects(prev => prev.map(s => s.uuid === uuid ? { ...s, ...data } : s));
+				setFilteredSubjects(prev => prev.map(s => s.uuid === uuid ? { ...s, ...data } : s));
 				toast.success(`Subject ${subject.isActive ? 'deactivated' : 'activated'} successfully`);
 			} else {
-				toast.error("Failed to update subject status");
+				const errorData = await res.json();
+				toast.error(errorData?.error || "Failed to update subject status");
 			}
 		} catch (error) {
 			toast.error(error.message);
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
 	return (
 		<div className="flex h-screen w-full bg-gray-100/50 p-6 flex-col gap-5">
 			{/* Create Subject Dialog */}
-			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+			<Dialog open={isDialogOpen} onOpenChange={(open) => {
+				if (!open) resetForm();
+				setIsDialogOpen(open);
+			}}>
 				<DialogContent className="max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Create New Subject</DialogTitle>
@@ -507,7 +570,7 @@ export default function SubjectManagementPage() {
 							<Label>Stream | Degree | Year</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{selectedCombined?.name || 'Select'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -516,7 +579,7 @@ export default function SubjectManagementPage() {
 									<DropdownMenuGroup>
 										{combined.map(el => (
 											<DropdownMenuItem
-												key={el._id}
+												key={el.uuid}
 												onSelect={() => setSelectedCombined(el)}
 												className="cursor-pointer"
 											>
@@ -535,7 +598,7 @@ export default function SubjectManagementPage() {
 									<Button
 										variant="outline"
 										className="w-full justify-between"
-										disabled={!selectedCombined}
+										disabled={!selectedCombined || isLoading}
 									>
 										{selectedCourse?.name || 'Select'}
 										<ChevronDown className="ml-2 h-4 w-4" />
@@ -545,7 +608,7 @@ export default function SubjectManagementPage() {
 									<DropdownMenuGroup>
 										{courses.map(el => (
 											<DropdownMenuItem
-												key={el._id}
+												key={el.uuid}
 												onSelect={() => setSelectedCourse(el)}
 												className="cursor-pointer"
 											>
@@ -563,6 +626,7 @@ export default function SubjectManagementPage() {
 								placeholder="e.g Computer Science"
 								value={subjectName}
 								onChange={(e) => setSubjectName(e.target.value)}
+								disabled={isLoading}
 							/>
 						</div>
 
@@ -572,6 +636,7 @@ export default function SubjectManagementPage() {
 								placeholder="e.g CS101"
 								value={subjectCode}
 								onChange={(e) => setSubjectCode(e.target.value)}
+								disabled={isLoading}
 							/>
 						</div>
 
@@ -579,7 +644,7 @@ export default function SubjectManagementPage() {
 							<Label>Subject Type</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{subjectType || 'Select'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -604,13 +669,14 @@ export default function SubjectManagementPage() {
 								placeholder="e.g 1"
 								value={semester}
 								min={1}
-								max={selectedCourse?.semester}
+								max={selectedCourse?.numSemesters || 8}
 								onChange={e => {
 									const value = parseInt(e.target.value, 10);
 									if (value <= 8) {
 										setSemester(e.target.value);
 									}
 								}}
+								disabled={isLoading}
 							/>
 						</div>
 
@@ -622,12 +688,14 @@ export default function SubjectManagementPage() {
 									placeholder="June 01, 2025"
 									className="bg-background pr-10"
 									readOnly
+									disabled={isLoading}
 								/>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
 											variant="ghost"
 											className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+											disabled={isLoading}
 										>
 											<CalendarIcon className="size-3.5" />
 										</Button>
@@ -637,7 +705,10 @@ export default function SubjectManagementPage() {
 											mode="single"
 											selected={date}
 											onSelect={setDate}
+											month={month}
+											onMonthChange={setMonth}
 											initialFocus
+											disabled={isLoading}
 										/>
 									</PopoverContent>
 								</Popover>
@@ -645,14 +716,24 @@ export default function SubjectManagementPage() {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-						<Button onClick={createSubject}>Create Subject</Button>
+						<DialogClose asChild>
+							<Button variant="outline" disabled={isLoading}>Cancel</Button>
+						</DialogClose>
+						<Button
+							onClick={createSubject}
+							disabled={isLoading || !subjectName || !subjectCode || !subjectType || !semester || !date || !selectedCombined || !selectedCourse}
+						>
+							{isLoading ? "Creating..." : "Create Subject"}
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
 			{/* Edit Subject Dialog */}
-			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+			<Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+				if (!open) resetForm();
+				setIsEditDialogOpen(open);
+			}}>
 				<DialogContent className="max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Edit Subject</DialogTitle>
@@ -663,7 +744,7 @@ export default function SubjectManagementPage() {
 							<Label>Stream | Degree | Year</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{selectedCombined?.name || 'Select'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -672,7 +753,7 @@ export default function SubjectManagementPage() {
 									<DropdownMenuGroup>
 										{combined.map(el => (
 											<DropdownMenuItem
-												key={el._id}
+												key={el.uuid}
 												onSelect={() => setSelectedCombined(el)}
 												className="cursor-pointer"
 											>
@@ -691,7 +772,7 @@ export default function SubjectManagementPage() {
 									<Button
 										variant="outline"
 										className="w-full justify-between"
-										disabled={!selectedCombined}
+										disabled={!selectedCombined || isLoading}
 									>
 										{selectedCourse?.name || 'Select'}
 										<ChevronDown className="ml-2 h-4 w-4" />
@@ -701,7 +782,7 @@ export default function SubjectManagementPage() {
 									<DropdownMenuGroup>
 										{courses.map(el => (
 											<DropdownMenuItem
-												key={el._id}
+												key={el.uuid}
 												onSelect={() => setSelectedCourse(el)}
 												className="cursor-pointer"
 											>
@@ -719,6 +800,7 @@ export default function SubjectManagementPage() {
 								placeholder="e.g Computer Science"
 								value={subjectName}
 								onChange={(e) => setSubjectName(e.target.value)}
+								disabled={isLoading}
 							/>
 						</div>
 
@@ -728,6 +810,7 @@ export default function SubjectManagementPage() {
 								placeholder="e.g CS101"
 								value={subjectCode}
 								onChange={(e) => setSubjectCode(e.target.value)}
+								disabled={isLoading}
 							/>
 						</div>
 
@@ -735,7 +818,7 @@ export default function SubjectManagementPage() {
 							<Label>Subject Type</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{subjectType || 'Select'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -760,13 +843,14 @@ export default function SubjectManagementPage() {
 								placeholder="e.g 1"
 								value={semester}
 								min={1}
-								max={selectedCourse?.semester}
+								max={selectedCourse?.numSemesters || 8}
 								onChange={e => {
 									const value = parseInt(e.target.value, 10);
 									if (value <= 8) {
 										setSemester(e.target.value);
 									}
 								}}
+								disabled={isLoading}
 							/>
 						</div>
 
@@ -778,12 +862,14 @@ export default function SubjectManagementPage() {
 									placeholder="June 01, 2025"
 									className="bg-background pr-10"
 									readOnly
+									disabled={isLoading}
 								/>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
 											variant="ghost"
 											className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+											disabled={isLoading}
 										>
 											<CalendarIcon className="size-3.5" />
 										</Button>
@@ -793,7 +879,10 @@ export default function SubjectManagementPage() {
 											mode="single"
 											selected={date}
 											onSelect={setDate}
+											month={month}
+											onMonthChange={setMonth}
 											initialFocus
+											disabled={isLoading}
 										/>
 									</PopoverContent>
 								</Popover>
@@ -801,8 +890,15 @@ export default function SubjectManagementPage() {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-						<Button onClick={editSubject}>Update Subject</Button>
+						<DialogClose asChild>
+							<Button variant="outline" disabled={isLoading}>Cancel</Button>
+						</DialogClose>
+						<Button
+							onClick={editSubject}
+							disabled={isLoading || !subjectName || !subjectCode || !subjectType || !semester || !date || !selectedCombined || !selectedCourse}
+						>
+							{isLoading ? "Updating..." : "Update Subject"}
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
@@ -821,6 +917,7 @@ export default function SubjectManagementPage() {
 							variant="outline"
 							onClick={downloadTemplate}
 							className="w-full gap-2"
+							disabled={isLoading}
 						>
 							<FileDown className="h-4 w-4" />
 							Download Template
@@ -832,18 +929,21 @@ export default function SubjectManagementPage() {
 								accept=".xlsx, .xls"
 								onChange={(e) => setSelectedFile(e.target.files[0])}
 								id="file-upload"
+								disabled={isLoading}
 							/>
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setInputDialog(false)}>
-							Cancel
-						</Button>
+						<DialogClose asChild>
+							<Button variant="outline" disabled={isLoading}>
+								Cancel
+							</Button>
+						</DialogClose>
 						<Button
 							onClick={importToExcel}
-							disabled={!selectedFile}
+							disabled={!selectedFile || isLoading}
 						>
-							Import Excel
+							{isLoading ? "Importing..." : "Import Excel"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -875,21 +975,37 @@ export default function SubjectManagementPage() {
 				</Breadcrumb>
 			</div>
 
+			{/* Stream Activation Buttons */}
+			<div className="flex gap-2">
+				{streams.map((stream) => (
+					<Button
+						key={stream.uuid}
+						variant="outline"
+						className={stream.isActive ? "text-green-600" : "text-red-600"}
+						onClick={() => !stream.isActive && activateStream(stream.uuid)}
+						disabled={stream.isActive || isLoading}
+					>
+						{stream.name}: {stream.isActive ? "Active" : "Activate"}
+					</Button>
+				))}
+			</div>
+
 			{/* Filters and Actions */}
 			<div className="flex flex-col gap-4">
 				<div className="flex justify-between items-center flex-col md:flex-row gap-4">
-					<div className="relative">
+					<div className="relative w-full md:w-64">
 						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
 						<Input
 							placeholder="Search subjects..."
-							className="pl-9 bg-white"
+							className="pl-9 bg-white focus-visible:ring-1 focus-visible:ring-blue-500"
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
+							disabled={isLoading}
 						/>
 					</div>
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="outline" className="gap-2">
+							<Button variant="outline" className="gap-2" disabled={isLoading}>
 								Actions
 								<ChevronDown className="h-4 w-4" />
 							</Button>
@@ -900,17 +1016,18 @@ export default function SubjectManagementPage() {
 									<CirclePlusIcon className="h-4 w-4" />
 									New Subject
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={toExcel} className="gap-2">
+								<DropdownMenuItem onSelect={toExcel} className="gap-2" disabled={isLoading || filteredSubjects.length === 0}>
 									<FileDown className="h-4 w-4" />
 									Export
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => setInputDialog(true)} className="gap-2">
+								<DropdownMenuItem onSelect={() => setInputDialog(true)} className="gap-2" disabled={isLoading}>
 									<FileUp className="h-4 w-4" />
 									Import
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									onSelect={() => setShowDeactivated(!showDeactivated)}
 									className="gap-2"
+									disabled={isLoading}
 								>
 									<Eye className="h-4 w-4" />
 									{showDeactivated ? 'Hide' : 'Show'} Deactivated
@@ -926,7 +1043,7 @@ export default function SubjectManagementPage() {
 							<Label>Stream | Degree | Year</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{selectedCombined?.name || 'All'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -937,7 +1054,7 @@ export default function SubjectManagementPage() {
 									</DropdownMenuItem>
 									{combined.map(el => (
 										<DropdownMenuItem
-											key={el._id}
+											key={el.uuid}
 											onSelect={() => setSelectedCombined(el)}
 										>
 											{el.name}
@@ -954,7 +1071,7 @@ export default function SubjectManagementPage() {
 									<Button
 										variant="outline"
 										className="w-full justify-between"
-										disabled={!selectedCombined}
+										disabled={!selectedCombined || isLoading}
 									>
 										{selectedCourse?.name || 'All'}
 										<ChevronDown className="ml-2 h-4 w-4" />
@@ -966,7 +1083,7 @@ export default function SubjectManagementPage() {
 									</DropdownMenuItem>
 									{courses.map(el => (
 										<DropdownMenuItem
-											key={el._id}
+											key={el.uuid}
 											onSelect={() => setSelectedCourse(el)}
 										>
 											{el.name}
@@ -980,7 +1097,7 @@ export default function SubjectManagementPage() {
 							<Label>Semester</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{selectedSemester || 'All'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -1005,7 +1122,7 @@ export default function SubjectManagementPage() {
 							<Label>Status</Label>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<Button variant="outline" className="w-full justify-between">
+									<Button variant="outline" className="w-full justify-between" disabled={isLoading}>
 										{showDeactivated ? 'All' : 'Active Only'}
 										<ChevronDown className="ml-2 h-4 w-4" />
 									</Button>
@@ -1041,7 +1158,7 @@ export default function SubjectManagementPage() {
 							<TableHeader className="bg-gray-50">
 								<TableRow>
 									<TableHead className="w-12">
-										<Checkbox />
+										<Checkbox disabled={isLoading} />
 									</TableHead>
 									<TableHead>Subject Name</TableHead>
 									<TableHead>Code</TableHead>
@@ -1054,11 +1171,17 @@ export default function SubjectManagementPage() {
 							</TableHeader>
 
 							<TableBody>
-								{filteredSubjects.length > 0 ? (
+								{isLoading ? (
+									<TableRow>
+										<TableCell colSpan={8} className="h-24 text-center">
+											Loading...
+										</TableCell>
+									</TableRow>
+								) : filteredSubjects.length > 0 ? (
 									filteredSubjects.map((subject) => (
 										<TableRow key={subject.uuid} className="hover:bg-gray-50">
 											<TableCell>
-												<Checkbox />
+												<Checkbox disabled={isLoading} />
 											</TableCell>
 											<TableCell className="font-medium">{subject.name}</TableCell>
 											<TableCell>{subject.code}</TableCell>
@@ -1079,6 +1202,7 @@ export default function SubjectManagementPage() {
 													variant="outline"
 													className="h-8 gap-1 text-gray-700 hover:bg-gray-100"
 													onClick={() => handleEditSubject(subject)}
+													disabled={isLoading}
 												>
 													<Pencil className="h-3.5 w-3.5" />
 													<span>Edit</span>
@@ -1091,10 +1215,11 @@ export default function SubjectManagementPage() {
 														: 'text-red-600 hover:bg-red-50'
 														}`}
 													onClick={() => handleToggleSubjectStatus(subject.uuid)}
+													disabled={isLoading}
 												>
 													{subject.isActive === false ? (
 														<>
-															<CirclePlusIcon className="h-3.5 w-3.5" />
+															<CheckCircle2 className="h-3.5 w-3.5" />
 															<span>Activate</span>
 														</>
 													) : (

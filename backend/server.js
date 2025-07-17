@@ -211,6 +211,9 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
             name: `${stream} | ${degree} | ${year}`,
             course,
             uuid: generateUUID(),
+            stream: streamDoc.uuid,
+            degree: degreeDoc.uuid,
+            year: yearDoc.uuid,
           });
           await combinedDoc.save();
         }
@@ -522,7 +525,7 @@ app.post("/api/v1/courses/bulk", async (req, res) => {
     sendError(res, 500, error.message);
   }
 });
-  
+
 // ----- Generic CRUD Factory -----
 function crudRoutes(app, path, Model, validation = []) {
   app.post(`/api/v1/${path}`, validation, async (req, res) => {
@@ -551,6 +554,7 @@ function crudRoutes(app, path, Model, validation = []) {
         }
 
         const combinedName = `${stream.name} | ${degree.name} | ${year.year}`;
+        console.log(stream.uuid, degree.uuid, year.uuid);
         let combined = await Combined.findOne({ name: combinedName });
 
         if (!combined) {

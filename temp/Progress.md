@@ -39,7 +39,7 @@
 | Deactivation       | ✅ Done |
 | Import             | ✅ Done |
 | Export             | ✅ Done |
-| Deactivation reflection chain    | ❌ Pending |
+| Deactivation reflection chain    | ✅ Done |
 
 ## 📅 Subjects
 | Feature            | Status |
@@ -49,7 +49,7 @@
 | Deactivation       | ✅ Done |
 | Import             | ✅ Done |
 | Export             | ✅ Done |
-| Deactivation reflection chain    | ❌ Pending |
+| Deactivation reflection chain    | ✅ Done |
 
 
 ### Legend:
