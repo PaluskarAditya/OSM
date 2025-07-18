@@ -1,5 +1,6 @@
 "use client";
 
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -73,8 +74,9 @@ export default function SubjectManagementPage() {
   const [degreeMap, setDegreeMap] = useState({});
   const [years, setYears] = useState([]);
   const [academicYearMap, setAcademicYearMap] = useState({});
-  const [selectedCombined, setSelectedCombined] = useState(null);
   const [courses, setCourses] = useState([]);
+  const [courseMap, setCourseMap] = useState({});
+  const [selectedCombined, setSelectedCombined] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
   const [subjectName, setSubjectName] = useState("");
@@ -89,16 +91,6 @@ export default function SubjectManagementPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Format date for display
-  const formatDate = useCallback((date) => {
-    if (!date || !isValidDate(date)) return "";
-    return date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  }, []);
-
   // Helper function for UUID generation
   const generateUUID = () =>
     [...Array(6)]
@@ -106,84 +98,95 @@ export default function SubjectManagementPage() {
       .join("");
 
   // Validate date
-  const isValidDate = (date) => {
-    return date && !isNaN(date?.getTime());
-  };
+  const isValidDate = (date) => date && !isNaN(date?.getTime());
 
-  // Fetch initial data (subjects, combined, streams, degrees, years, courses)
+  // Format date for display
+  const formatDate = useCallback((date) => {
+    if (!isValidDate(date)) return "";
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }, []);
+
+  // Fetch initial data
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [subjectsRes, combinedRes, streamRes, degreeRes, yearRes, courseRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combineds`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
-      ]);
-
-      if (!subjectsRes.ok || !combinedRes.ok || !streamRes.ok || !degreeRes.ok || !yearRes.ok || !courseRes.ok) {
-        throw new Error("Failed to fetch initial data");
-      }
-
-      const [subjectsData, combinedData, streamData, degreeData, yearData, courseData] = await Promise.all([
-        subjectsRes.json(),
-        combinedRes.json(),
-        streamRes.json(),
-        degreeRes.json(),
-        yearRes.json(),
-        courseRes.json(),
-      ]);
-
-      // Create streamMap
-      const newStreamMap = {};
-      streamData.forEach((stream) => {
-        newStreamMap[stream.uuid] = {
-          name: stream.name || "Unknown",
-          isActive: stream.isActive !== false,
-        };
-      });
-
-      // Create degreeMap
-      const newDegreeMap = {};
-      degreeData.forEach((degree) => {
-        newDegreeMap[degree.uuid] = {
-          name: degree.name || "Unknown",
-          isActive: degree.isActive !== false,
-        };
-      });
-
-      // Create academicYearMap
-      const newAcademicYearMap = {};
-      yearData.forEach((year) => {
-        newAcademicYearMap[year.uuid] = {
-          year: year.year || "Unknown",
-          isActive: year.isActive !== false,
-        };
-      });
-
-      // Filter combined to only include those with active streams, degrees, and academic years
-      const filteredCombined = combinedData.filter((c) =>
-        newStreamMap[c.stream]?.isActive !== false &&
-        newDegreeMap[c.degree]?.isActive !== false &&
-        newAcademicYearMap[c.academicYear]?.isActive !== false
+      const endpoints = [
+        "/subjects",
+        "/combineds",
+        "/streams",
+        "/degrees",
+        "/academic-years",
+        "/courses",
+      ];
+      const responses = await Promise.all(
+        endpoints.map((endpoint) =>
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1${endpoint}`)
+        )
       );
 
-      // Filter subjects to only include those with active streams, degrees, and academic years via combined
+      const [
+        subjectsData,
+        combinedData,
+        streamData,
+        degreeData,
+        yearData,
+        courseData,
+      ] = await Promise.all(responses.map((res) => res.json()));
+
+      const newStreamMap = Object.fromEntries(
+        streamData.map((stream) => [
+          stream.uuid,
+          { name: stream.name, isActive: stream.isActive !== false },
+        ])
+      );
+      const newDegreeMap = Object.fromEntries(
+        degreeData.map((degree) => [
+          degree.uuid,
+          { name: degree.name, isActive: degree.isActive !== false },
+        ])
+      );
+      const newAcademicYearMap = Object.fromEntries(
+        yearData.map((year) => [
+          year.uuid,
+          { year: year.year, isActive: year.isActive !== false },
+        ])
+      );
+      const newCourseMap = Object.fromEntries(
+        courseData.map((course) => [
+          course.uuid,
+          {
+            name: course.name,
+            isActive: course.isActive !== false,
+            numSemesters: course.numSemesters || 8,
+          },
+        ])
+      );
+      const filteredCombined = combinedData.filter(
+        (c) =>
+          newStreamMap[c.stream]?.isActive !== false &&
+          newDegreeMap[c.degree]?.isActive !== false &&
+          newAcademicYearMap[c.academicYear]?.isActive !== false
+      );
       const filteredSubjects = subjectsData.filter((subject) => {
-        const combinedEntry = combinedData.find((c) => c.uuid === subject.combined);
+        const combinedEntry = combinedData.find(
+          (c) => c.uuid === subject.combined
+        );
         return (
           combinedEntry &&
           newStreamMap[combinedEntry.stream]?.isActive !== false &&
           newDegreeMap[combinedEntry.degree]?.isActive !== false &&
-          newAcademicYearMap[combinedEntry.academicYear]?.isActive !== false
+          newAcademicYearMap[combinedEntry.academicYear]?.isActive !== false &&
+          newCourseMap[subject.course]?.isActive !== false
         );
       });
-
-      // Filter courses to only include those linked to active streams, degrees, and academic years via combined
       const filteredCourses = courseData.filter((course) => {
-        const courseCombined = combinedData.find((c) => c.course === course.uuid);
+        const courseCombined = combinedData.find(
+          (c) => c.course === course.uuid
+        );
         return (
           courseCombined &&
           newStreamMap[courseCombined.stream]?.isActive !== false &&
@@ -191,16 +194,16 @@ export default function SubjectManagementPage() {
           newAcademicYearMap[courseCombined.academicYear]?.isActive !== false
         );
       });
-
-      // Filter academic years to only include those with active streams and degrees
-      const filteredYears = yearData.filter((year) =>
-        newStreamMap[year.streamUuid]?.isActive !== false &&
-        newDegreeMap[year.degree]?.isActive !== false
+      const filteredYears = yearData.filter(
+        (year) =>
+          newStreamMap[year.streamUuid]?.isActive !== false &&
+          newDegreeMap[year.degree]?.isActive !== false
       );
 
       setStreamMap(newStreamMap);
       setDegreeMap(newDegreeMap);
       setAcademicYearMap(newAcademicYearMap);
+      setCourseMap(newCourseMap);
       setSubjects(filteredSubjects);
       setFilteredSubjects(filteredSubjects);
       setCombined(filteredCombined);
@@ -215,181 +218,93 @@ export default function SubjectManagementPage() {
     }
   }, []);
 
-  // Activate stream
-  const activateStream = async (streamUuid) => {
+  // Generic toggle status function
+  const toggleEntityStatus = async (entityType, uuid, isActive) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
-      if (!res.ok) throw new Error("Failed to activate stream");
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/${entityType}/${uuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive }),
+        }
+      );
+      if (!res.ok)
+        throw new Error(
+          `Failed to ${isActive ? "activate" : "deactivate"} ${entityType}`
+        );
       await fetchData();
-      toast.success("Stream activated successfully");
+      toast.success(
+        `${entityType.slice(0, -1)} ${
+          isActive ? "activated" : "deactivated"
+        } successfully`
+      );
     } catch (error) {
-      toast.error("Error activating stream: " + error.message);
+      toast.error(
+        `Error ${isActive ? "activating" : "deactivating"} ${entityType.slice(
+          0,
+          -1
+        )}: ${error.message}`
+      );
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Deactivate stream
-  const deactivateStream = async (streamUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      });
-      if (!res.ok) throw new Error("Failed to deactivate stream");
-
-      await fetchData();
-      toast.success("Stream deactivated successfully");
-    } catch (error) {
-      toast.error("Error deactivating stream: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Activate degree
-  const activateDegree = async (degreeUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
-      if (!res.ok) throw new Error("Failed to activate degree");
-
-      await fetchData();
-      toast.success("Degree activated successfully");
-    } catch (error) {
-      toast.error("Error activating degree: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Deactivate degree
-  const deactivateDegree = async (degreeUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      });
-      if (!res.ok) throw new Error("Failed to deactivate degree");
-
-      await fetchData();
-      toast.success("Degree deactivated successfully");
-    } catch (error) {
-      toast.error("Error deactivating degree: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Activate academic year
-  const activateAcademicYear = async (academicYearUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
-      if (!res.ok) throw new Error("Failed to activate academic year");
-
-      await fetchData();
-      toast.success("Academic year activated successfully");
-    } catch (error) {
-      toast.error("Error activating academic year: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Deactivate academic year
-  const deactivateAcademicYear = async (academicYearUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      });
-      if (!res.ok) throw new Error("Failed to deactivate academic year");
-
-      await fetchData();
-      toast.success("Academic year deactivated successfully");
-    } catch (error) {
-      toast.error("Error deactivating academic year: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch initial data
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   // Fetch courses when combined is selected
-  useEffect(() => {
-    const getCourseByCombinedData = async () => {
-      if (!selectedCombined?.uuid) {
+  const fetchCourses = useCallback(async () => {
+    if (!selectedCombined?.uuid) {
+      setCourses([]);
+      setSelectedCourse(null);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${selectedCombined.uuid}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const filteredCourses = Array.isArray(data)
+          ? data.filter((course) => {
+              const courseCombined = combined.find(
+                (c) =>
+                  c.course === course.uuid && c.uuid === selectedCombined.uuid
+              );
+              return (
+                courseCombined &&
+                streamMap[courseCombined.stream]?.isActive !== false &&
+                degreeMap[courseCombined.degree]?.isActive !== false &&
+                academicYearMap[courseCombined.academicYear]?.isActive !==
+                  false &&
+                courseMap[course.uuid]?.isActive !== false
+              );
+            })
+          : [];
+        setCourses(filteredCourses);
+      } else {
+        toast.error("Failed to fetch courses");
         setCourses([]);
-        setSelectedCourse(null);
-        return;
       }
+    } catch (error) {
+      toast.error(error.message);
+      setCourses([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    selectedCombined,
+    combined,
+    streamMap,
+    degreeMap,
+    academicYearMap,
+    courseMap,
+  ]);
 
-      setIsLoading(true);
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${selectedCombined.uuid}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          // Filter courses to ensure they are linked to active streams, degrees, and academic years via combined
-          const filteredCourses = Array.isArray(data)
-            ? data.filter((course) => {
-                const courseCombined = combined.find(
-                  (c) => c.course === course.uuid && c.uuid === selectedCombined.uuid
-                );
-                return (
-                  courseCombined &&
-                  streamMap[courseCombined.stream]?.isActive !== false &&
-                  degreeMap[courseCombined.degree]?.isActive !== false &&
-                  academicYearMap[courseCombined.academicYear]?.isActive !== false
-                );
-              })
-            : [];
-          setCourses(filteredCourses);
-        } else {
-          toast.error("Failed to fetch courses");
-          setCourses([]);
-        }
-      } catch (error) {
-        toast.error(error.message);
-        setCourses([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    getCourseByCombinedData();
-  }, [selectedCombined, combined, streamMap, degreeMap, academicYearMap]);
-
-  // Apply filters whenever dependencies change
+  // Apply filters
   useEffect(() => {
     let results = subjects;
-
-    // Apply search filter
     if (searchTerm) {
       results = results.filter(
         (subject) =>
@@ -397,23 +312,21 @@ export default function SubjectManagementPage() {
           subject.code.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
-    // Apply combined filter
     if (selectedCombined) {
-      results = results.filter((subject) => subject.combined === selectedCombined.uuid);
+      results = results.filter(
+        (subject) => subject.combined === selectedCombined.uuid
+      );
     }
-
-    // Apply course filter
     if (selectedCourse) {
-      results = results.filter((subject) => subject.course === selectedCourse.uuid);
+      results = results.filter(
+        (subject) => subject.course === selectedCourse.uuid
+      );
     }
-
-    // Apply semester filter
     if (selectedSemester) {
-      results = results.filter((subject) => subject.semester === selectedSemester);
+      results = results.filter(
+        (subject) => subject.semester === selectedSemester
+      );
     }
-
-    // Apply deactivated filter
     if (!showDeactivated) {
       results = results.filter((subject) => {
         const combinedEntry = combined.find((c) => c.uuid === subject.combined);
@@ -422,28 +335,52 @@ export default function SubjectManagementPage() {
           combinedEntry &&
           streamMap[combinedEntry.stream]?.isActive !== false &&
           degreeMap[combinedEntry.degree]?.isActive !== false &&
-          academicYearMap[combinedEntry.academicYear]?.isActive !== false
+          academicYearMap[combinedEntry.academicYear]?.isActive !== false &&
+          courseMap[subject.course]?.isActive !== false
         );
       });
     }
-
     setFilteredSubjects(results);
-  }, [subjects, searchTerm, selectedCombined, selectedCourse, selectedSemester, showDeactivated, combined, streamMap, degreeMap, academicYearMap]);
+  }, [
+    subjects,
+    searchTerm,
+    selectedCombined,
+    selectedCourse,
+    selectedSemester,
+    showDeactivated,
+    combined,
+    streamMap,
+    degreeMap,
+    academicYearMap,
+    courseMap,
+  ]);
+
+  // Form validation
+  const validateForm = () => {
+    if (!selectedCombined || !selectedCourse) {
+      toast.error("Please select Combined and Course.");
+      return false;
+    }
+    if (!subjectName || !subjectCode || !subjectType || !semester || !date) {
+      toast.error("Please fill all fields.");
+      return false;
+    }
+    if (
+      parseInt(semester) > (courseMap[selectedCourse?.uuid]?.numSemesters || 8)
+    ) {
+      toast.error(
+        `Semester cannot exceed ${
+          courseMap[selectedCourse?.uuid]?.numSemesters || 8
+        } for the selected course.`
+      );
+      return false;
+    }
+    return true;
+  };
 
   // Create new subject
   const createSubject = async () => {
-    if (!selectedCombined || !selectedCourse) {
-      return toast.error("Please select Combined and Course.");
-    }
-
-    if (!subjectName || !subjectCode || !subjectType || !semester || !date) {
-      return toast.error("Please fill all fields.");
-    }
-
-    if (parseInt(semester) > (selectedCourse?.numSemesters || 8)) {
-      return toast.error(`Semester cannot exceed ${selectedCourse?.numSemesters || 8} for the selected course.`);
-    }
-
+    if (!validateForm()) return;
     try {
       setIsLoading(true);
       const newSub = {
@@ -457,13 +394,14 @@ export default function SubjectManagementPage() {
         uuid: generateUUID(),
         isActive: true,
       };
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSub),
-      });
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newSub),
+        }
+      );
       const data = await res.json();
       if (res.ok) {
         toast.success("Subject created successfully!");
@@ -483,20 +421,7 @@ export default function SubjectManagementPage() {
 
   // Edit subject
   const editSubject = async () => {
-    if (!editingSubject) return;
-
-    if (!selectedCombined || !selectedCourse) {
-      return toast.error("Please select Combined and Course.");
-    }
-
-    if (!subjectName || !subjectCode || !subjectType || !semester || !date) {
-      return toast.error("Please fill all fields.");
-    }
-
-    if (parseInt(semester) > (selectedCourse?.numSemesters || 8)) {
-      return toast.error(`Semester cannot exceed ${selectedCourse?.numSemesters || 8} for the selected course.`);
-    }
-
+    if (!editingSubject || !validateForm()) return;
     try {
       setIsLoading(true);
       const updatedSubject = {
@@ -509,18 +434,27 @@ export default function SubjectManagementPage() {
         combined: selectedCombined.uuid,
         isActive: editingSubject.isActive,
       };
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/${editingSubject.uuid}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedSubject),
-      });
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/${editingSubject.uuid}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedSubject),
+        }
+      );
       const data = await res.json();
       if (res.ok) {
         toast.success("Subject updated successfully!");
-        setSubjects((prev) => prev.map((s) => (s.uuid === editingSubject.uuid ? { ...s, ...data } : s)));
-        setFilteredSubjects((prev) => prev.map((s) => (s.uuid === editingSubject.uuid ? { ...s, ...data } : s)));
+        setSubjects((prev) =>
+          prev.map((s) =>
+            s.uuid === editingSubject.uuid ? { ...s, ...data } : s
+          )
+        );
+        setFilteredSubjects((prev) =>
+          prev.map((s) =>
+            s.uuid === editingSubject.uuid ? { ...s, ...data } : s
+          )
+        );
         setIsEditDialogOpen(false);
         resetForm();
       } else {
@@ -531,19 +465,6 @@ export default function SubjectManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Handle edit button click
-  const handleEditSubject = (subject) => {
-    setEditingSubject(subject);
-    setSubjectName(subject.name);
-    setSubjectCode(subject.code);
-    setSubjectType(subject.type);
-    setSemester(subject.semester.toString());
-    setDate(new Date(subject.exam));
-    setSelectedCombined(combined.find((c) => c.uuid === subject.combined) || null);
-    setSelectedCourse(courses.find((c) => c.uuid === subject.course) || null);
-    setIsEditDialogOpen(true);
   };
 
   // Reset form fields
@@ -567,33 +488,25 @@ export default function SubjectManagementPage() {
         degree = "",
         year = "";
       if (matchedCombined?.name) {
-        const parts = matchedCombined.name.split("|").map((p) => p.trim());
-        [stream, degree, year] = parts;
+        [stream, degree, year] = matchedCombined.name
+          .split("|")
+          .map((p) => p.trim());
       }
-
-      const course = courses.find((c) => c.uuid === subject.course);
-      const courseName = course?.name || "Unknown Course";
-
-      let examDate = "";
-      try {
-        examDate = subject.exam ? formatDate(new Date(subject.exam)) : "Not set";
-      } catch {
-        examDate = "Invalid date";
-      }
-
+      const course = courseMap[subject.course] || { name: "Unknown Course" };
       return {
         "Subject Name": subject.name,
         Code: subject.code,
         Type: subject.type,
         Semester: subject.semester?.toString() || "",
-        "Exam Date": examDate,
-        Course: courseName,
+        "Exam Date": subject.exam
+          ? formatDate(new Date(subject.exam))
+          : "Not set",
+        Course: course.name,
         Stream: stream,
         Degree: degree,
         Year: year,
       };
     });
-
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Subjects");
@@ -616,141 +529,59 @@ export default function SubjectManagementPage() {
         Year: "",
       },
     ];
-
     const worksheet = XLSX.utils.json_to_sheet(template);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
     XLSX.writeFile(workbook, "Subject_Template.xlsx");
   };
 
-  // Import to Excel
+  // New Import to Excel
   const importToExcel = async () => {
     if (!selectedFile) {
       toast.error("No file selected");
       return;
     }
-
     try {
       setIsLoading(true);
       const data = await selectedFile.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      if (!jsonData.length) {
-        toast.error("The file is empty");
-        return;
-      }
-
-      // Validate Excel headers
-      const requiredHeaders = [
-        "Subject Name",
-        "Code",
-        "Type",
-        "Semester",
-        "Exam Date",
-        "Course",
-        "Course Code",
-        "Stream",
-        "Degree",
-        "Year",
-      ];
-      const headers = Object.keys(jsonData[0]);
-      const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
-      if (missingHeaders.length > 0) {
-        toast.error(`Missing required headers: ${missingHeaders.join(", ")}`);
-        return;
-      }
-
-      const payload = jsonData.map((row, index) => {
-        const semester = parseInt(row["Semester"]);
-        if (isNaN(semester) || semester <= 0 || semester > 8) {
-          throw new Error(`Invalid semester at row ${index + 2}: must be a number between 1 and 8`);
+      const payload = jsonData.map((row) => ({
+        name: row["Subject Name"]?.toString().trim() || "",
+        code: row["Code"]?.toString().trim() || "",
+        type: row["Type"]?.toString().trim() || "Compulsory",
+        semester: row["Semester"]?.toString().trim() || "",
+        exam: row["Exam Date"] ? formatExcelDate(row["Exam Date"]) : null,
+        course: row["Course"]?.toString().trim() || "",
+        courseCode: row["Course Code"]?.toString().trim() || "",
+        stream: row["Stream"]?.toString().trim() || "",
+        degree: row["Degree"]?.toString().trim() || "",
+        year: row["Year"]?.toString().trim() || "",
+        uuid: generateUUID(),
+      }));
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         }
-        const examDate = row["Exam Date"] ? formatExcelDate(row["Exam Date"]) : null;
-        if (!examDate || !isValidDate(examDate)) {
-          throw new Error(`Invalid exam date at row ${index + 2}`);
-        }
-        const course = courses.find((c) => c.name === row["Course"]?.toString().trim() && c.code === row["Course Code"]?.toString().trim());
-        const stream = streams.find((s) => s.name === row["Stream"]?.toString().trim());
-        const degree = degrees.find((d) => d.name === row["Degree"]?.toString().trim());
-        const year = years.find((y) => y.year === row["Year"]?.toString().trim());
-        const combinedEntry = combined.find(
-          (c) =>
-            c.stream === stream?.uuid &&
-            c.degree === degree?.uuid &&
-            c.academicYear === year?.uuid &&
-            c.course === course?.uuid
-        );
-
-        return {
-          name: row["Subject Name"]?.toString().trim() || "",
-          code: row["Code"]?.toString().trim() || "",
-          type: row["Type"]?.toString().trim() || "Compulsory",
-          semester: semester.toString(),
-          exam: examDate.toISOString(),
-          course: course?.uuid || "",
-          courseCode: row["Course Code"]?.toString().trim() || "",
-          stream: stream?.uuid || "",
-          degree: degree?.uuid || "",
-          year: year?.uuid || "",
-          combined: combinedEntry?.uuid || "",
-          uuid: generateUUID(),
-          isActive: true,
-        };
-      });
-
-      // Validate required fields and active status
-      const missingFields = [];
-      payload.forEach((row, index) => {
-        if (!row.name) missingFields.push(`Row ${index + 2}: Missing Subject Name`);
-        if (!row.code) missingFields.push(`Row ${index + 2}: Missing Code`);
-        if (!row.type || !["Compulsory", "Elective / Optional"].includes(row.type)) {
-          missingFields.push(`Row ${index + 2}: Invalid Type (must be Compulsory or Elective / Optional)`);
-        }
-        if (!row.semester) missingFields.push(`Row ${index + 2}: Missing Semester`);
-        if (!row.exam) missingFields.push(`Row ${index + 2}: Missing or invalid Exam Date`);
-        if (!row.course || !courses.find((c) => c.uuid === row.course)) {
-          missingFields.push(`Row ${index + 2}: Invalid or inactive Course`);
-        }
-        if (!row.combined || !combined.find((c) => c.uuid === row.combined)) {
-          missingFields.push(`Row ${index + 2}: Invalid or inactive Combined (Stream/Degree/Year)`);
-        }
-        if (!row.stream || !streamMap[row.stream]?.isActive) {
-          missingFields.push(`Row ${index + 2}: Invalid or inactive Stream`);
-        }
-        if (!row.degree || !degreeMap[row.degree]?.isActive) {
-          missingFields.push(`Row ${index + 2}: Invalid or inactive Degree`);
-        }
-        if (!row.year || !academicYearMap[row.year]?.isActive) {
-          missingFields.push(`Row ${index + 2}: Invalid or inactive Academic Year`);
-        }
-      });
-
-      if (missingFields.length > 0) {
-        toast.error(`Invalid file data:\n${missingFields.join("\n")}`);
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
+      );
       const result = await response.json();
-
       if (!response.ok) throw new Error(result.error || "Import failed");
-
       if (result.created > 0) {
-        await fetchData(); // Refresh subjects
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`
+        );
+        const newSubjects = await res.json();
+        setSubjects(newSubjects);
+        setFilteredSubjects(newSubjects);
         toast.success(`Imported ${result.created} subjects`);
       }
-
       if (result.skipped > 0) {
         toast.info(`Skipped ${result.skipped} existing subjects`);
       }
-
       setInputDialog(false);
       setSelectedFile(null);
     } catch (error) {
@@ -767,7 +598,13 @@ export default function SubjectManagementPage() {
       return new Date((dateValue - 25569) * 86400 * 1000);
     }
     if (typeof dateValue === "string") {
-      return new Date(dateValue);
+      const dateStr = dateValue.trim();
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+        const [day, month, year] = dateStr.split("-");
+        return new Date(`${year}-${month}-${day}`);
+      }
+      const parsedDate = new Date(dateStr);
+      if (!isNaN(parsedDate.getTime())) return parsedDate;
     }
     return null;
   }
@@ -778,18 +615,27 @@ export default function SubjectManagementPage() {
       setIsLoading(true);
       const subject = subjects.find((s) => s.uuid === uuid);
       if (!subject) return;
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/${uuid}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !subject.isActive }),
-      });
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects/${uuid}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: !subject.isActive }),
+        }
+      );
       if (res.ok) {
         const data = await res.json();
-        setSubjects((prev) => prev.map((s) => (s.uuid === uuid ? { ...s, ...data } : s)));
-        setFilteredSubjects((prev) => prev.map((s) => (s.uuid === uuid ? { ...s, ...data } : s)));
-        toast.success(`Subject ${subject.isActive ? "deactivated" : "activated"} successfully`);
+        setSubjects((prev) =>
+          prev.map((s) => (s.uuid === uuid ? { ...s, ...data } : s))
+        );
+        setFilteredSubjects((prev) =>
+          prev.map((s) => (s.uuid === uuid ? { ...s, ...data } : s))
+        );
+        toast.success(
+          `Subject ${
+            subject.isActive ? "deactivated" : "activated"
+          } successfully`
+        );
       } else {
         const errorData = await res.json();
         toast.error(errorData?.error || "Failed to update subject status");
@@ -800,6 +646,31 @@ export default function SubjectManagementPage() {
       setIsLoading(false);
     }
   };
+
+  // Handle edit button click
+  const handleEditSubject = (subject) => {
+    setEditingSubject(subject);
+    setSubjectName(subject.name);
+    setSubjectCode(subject.code);
+    setSubjectType(subject.type);
+    setSemester(subject.semester.toString());
+    setDate(new Date(subject.exam));
+    setSelectedCombined(
+      combined.find((c) => c.uuid === subject.combined) || null
+    );
+    setSelectedCourse(courses.find((c) => c.uuid === subject.course) || null);
+    setIsEditDialogOpen(true);
+  };
+
+  // Fetch courses when combined changes
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return (
     <div className="flex h-screen w-full bg-gray-100/50 p-6 flex-col gap-5">
@@ -821,31 +692,37 @@ export default function SubjectManagementPage() {
               <Label>Stream | Degree | Year</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {selectedCombined?.name || "Select"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   <DropdownMenuGroup>
-                    {combined.filter((c) =>
-                      streamMap[c.stream]?.isActive !== false &&
-                      degreeMap[c.degree]?.isActive !== false &&
-                      academicYearMap[c.academicYear]?.isActive !== false
-                    ).map((el) => (
-                      <DropdownMenuItem
-                        key={el.uuid}
-                        onSelect={() => setSelectedCombined(el)}
-                        className="cursor-pointer"
-                      >
-                        {el.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {combined
+                      .filter(
+                        (c) =>
+                          streamMap[c.stream]?.isActive !== false &&
+                          degreeMap[c.degree]?.isActive !== false &&
+                          academicYearMap[c.academicYear]?.isActive !== false
+                      )
+                      .map((el) => (
+                        <DropdownMenuItem
+                          key={el.uuid}
+                          onSelect={() => setSelectedCombined(el)}
+                          className="cursor-pointer"
+                        >
+                          {el.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-2">
               <Label>Course Name</Label>
               <DropdownMenu>
@@ -861,20 +738,21 @@ export default function SubjectManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   <DropdownMenuGroup>
-                    {courses.map((el) => (
-                      <DropdownMenuItem
-                        key={el.uuid}
-                        onSelect={() => setSelectedCourse(el)}
-                        className="cursor-pointer"
-                      >
-                        {el.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {courses
+                      .filter((c) => courseMap[c.uuid]?.isActive !== false)
+                      .map((el) => (
+                        <DropdownMenuItem
+                          key={el.uuid}
+                          onSelect={() => setSelectedCourse(el)}
+                          className="cursor-pointer"
+                        >
+                          {el.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-2">
               <Label>Subject Name</Label>
               <Input
@@ -884,7 +762,6 @@ export default function SubjectManagementPage() {
                 disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Subject Code</Label>
               <Input
@@ -894,29 +771,35 @@ export default function SubjectManagementPage() {
                 disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Subject Type</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {subjectType || "Select"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuGroup>
-                    <DropdownMenuItem onSelect={() => setSubjectType("Elective / Optional")}>
+                    <DropdownMenuItem
+                      onSelect={() => setSubjectType("Elective / Optional")}
+                    >
                       Elective / Optional
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setSubjectType("Compulsory")}>
+                    <DropdownMenuItem
+                      onSelect={() => setSubjectType("Compulsory")}
+                    >
                       Compulsory
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-2">
               <Label>Semester/Trimester</Label>
               <Input
@@ -924,17 +807,18 @@ export default function SubjectManagementPage() {
                 placeholder="e.g 1"
                 value={semester}
                 min={1}
-                max={selectedCourse?.numSemesters || 8}
+                max={courseMap[selectedCourse?.uuid]?.numSemesters || 8}
                 onChange={(e) => {
                   const value = parseInt(e.target.value, 10);
-                  if (value <= (selectedCourse?.numSemesters || 8)) {
+                  if (
+                    value <=
+                    (courseMap[selectedCourse?.uuid]?.numSemesters || 8)
+                  )
                     setSemester(e.target.value);
-                  }
                 }}
                 disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2 col-span-2">
               <Label>Exam Date</Label>
               <div className="relative flex gap-2">
@@ -1013,31 +897,37 @@ export default function SubjectManagementPage() {
               <Label>Stream | Degree | Year</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {selectedCombined?.name || "Select"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   <DropdownMenuGroup>
-                    {combined.filter((c) =>
-                      streamMap[c.stream]?.isActive !== false &&
-                      degreeMap[c.degree]?.isActive !== false &&
-                      academicYearMap[c.academicYear]?.isActive !== false
-                    ).map((el) => (
-                      <DropdownMenuItem
-                        key={el.uuid}
-                        onSelect={() => setSelectedCombined(el)}
-                        className="cursor-pointer"
-                      >
-                        {el.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {combined
+                      .filter(
+                        (c) =>
+                          streamMap[c.stream]?.isActive !== false &&
+                          degreeMap[c.degree]?.isActive !== false &&
+                          academicYearMap[c.academicYear]?.isActive !== false
+                      )
+                      .map((el) => (
+                        <DropdownMenuItem
+                          key={el.uuid}
+                          onSelect={() => setSelectedCombined(el)}
+                          className="cursor-pointer"
+                        >
+                          {el.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-2">
               <Label>Course Name</Label>
               <DropdownMenu>
@@ -1053,20 +943,21 @@ export default function SubjectManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   <DropdownMenuGroup>
-                    {courses.map((el) => (
-                      <DropdownMenuItem
-                        key={el.uuid}
-                        onSelect={() => setSelectedCourse(el)}
-                        className="cursor-pointer"
-                      >
-                        {el.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {courses
+                      .filter((c) => courseMap[c.uuid]?.isActive !== false)
+                      .map((el) => (
+                        <DropdownMenuItem
+                          key={el.uuid}
+                          onSelect={() => setSelectedCourse(el)}
+                          className="cursor-pointer"
+                        >
+                          {el.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-2">
               <Label>Subject Name</Label>
               <Input
@@ -1076,7 +967,6 @@ export default function SubjectManagementPage() {
                 disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Subject Code</Label>
               <Input
@@ -1086,29 +976,35 @@ export default function SubjectManagementPage() {
                 disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Subject Type</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {subjectType || "Select"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuGroup>
-                    <DropdownMenuItem onSelect={() => setSubjectType("Elective / Optional")}>
+                    <DropdownMenuItem
+                      onSelect={() => setSubjectType("Elective / Optional")}
+                    >
                       Elective / Optional
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setSubjectType("Compulsory")}>
+                    <DropdownMenuItem
+                      onSelect={() => setSubjectType("Compulsory")}
+                    >
                       Compulsory
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-2">
               <Label>Semester/Trimester</Label>
               <Input
@@ -1116,17 +1012,18 @@ export default function SubjectManagementPage() {
                 placeholder="e.g 1"
                 value={semester}
                 min={1}
-                max={selectedCourse?.numSemesters || 8}
+                max={courseMap[selectedCourse?.uuid]?.numSemesters || 8}
                 onChange={(e) => {
                   const value = parseInt(e.target.value, 10);
-                  if (value <= (selectedCourse?.numSemesters || 8)) {
+                  if (
+                    value <=
+                    (courseMap[selectedCourse?.uuid]?.numSemesters || 8)
+                  )
                     setSemester(e.target.value);
-                  }
                 }}
                 disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2 col-span-2">
               <Label>Exam Date</Label>
               <div className="relative flex gap-2">
@@ -1192,7 +1089,9 @@ export default function SubjectManagementPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Import Subjects</DialogTitle>
-            <DialogDescription>Upload an Excel file to import subjects</DialogDescription>
+            <DialogDescription>
+              Upload an Excel file to import subjects
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Button
@@ -1233,7 +1132,12 @@ export default function SubjectManagementPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-medium">Question Paper Management</h1>
+        <div className="flex gap-1 justify-start items-center">
+          <SidebarTrigger className="mt-1 mb-1" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Question Paper Management
+          </h1>
+        </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -1257,14 +1161,16 @@ export default function SubjectManagementPage() {
         </Breadcrumb>
       </div>
 
-      {/* Stream, Degree, and Academic Year Activation/Deactivation Buttons */}
-      <div className="flex flex-wrap gap-2">
+      {/* Stream, Degree, Academic Year, and Course Activation/Deactivation Buttons */}
+      <div className="flex flex-wrap gap-2 max-w-full">
         {streams.map((stream) => (
           <Button
             key={stream.uuid}
             variant="outline"
             className={stream.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => (stream.isActive ? deactivateStream(stream.uuid) : activateStream(stream.uuid))}
+            onClick={() =>
+              toggleEntityStatus("streams", stream.uuid, !stream.isActive)
+            }
             disabled={isLoading}
           >
             {stream.name}: {stream.isActive ? "Deactivate" : "Activate"}
@@ -1275,7 +1181,9 @@ export default function SubjectManagementPage() {
             key={degree.uuid}
             variant="outline"
             className={degree.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => (degree.isActive ? deactivateDegree(degree.uuid) : activateDegree(degree.uuid))}
+            onClick={() =>
+              toggleEntityStatus("degrees", degree.uuid, !degree.isActive)
+            }
             disabled={isLoading}
           >
             {degree.name}: {degree.isActive ? "Deactivate" : "Activate"}
@@ -1286,10 +1194,25 @@ export default function SubjectManagementPage() {
             key={year.uuid}
             variant="outline"
             className={year.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => (year.isActive ? deactivateAcademicYear(year.uuid) : activateAcademicYear(year.uuid))}
+            onClick={() =>
+              toggleEntityStatus("academic-years", year.uuid, !year.isActive)
+            }
             disabled={isLoading}
           >
             {year.year}: {year.isActive ? "Deactivate" : "Activate"}
+          </Button>
+        ))}
+        {courses.map((course) => (
+          <Button
+            key={course.uuid}
+            variant="outline"
+            className={course.isActive ? "text-green-600" : "text-red-600"}
+            onClick={() =>
+              toggleEntityStatus("courses", course.uuid, !course.isActive)
+            }
+            disabled={isLoading}
+          >
+            {course.name}: {course.isActive ? "Deactivate" : "Activate"}
           </Button>
         ))}
       </div>
@@ -1316,15 +1239,26 @@ export default function SubjectManagementPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48">
               <DropdownMenuGroup>
-                <DropdownMenuItem onSelect={() => setIsDialogOpen(true)} className="gap-2">
+                <DropdownMenuItem
+                  onSelect={() => setIsDialogOpen(true)}
+                  className="gap-2"
+                >
                   <CirclePlusIcon className="h-4 w-4" />
                   New Subject
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={toExcel} className="gap-2" disabled={isLoading || filteredSubjects.length === 0}>
+                <DropdownMenuItem
+                  onSelect={toExcel}
+                  className="gap-2"
+                  disabled={isLoading || filteredSubjects.length === 0}
+                >
                   <FileDown className="h-4 w-4" />
                   Export
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => set (true)} className="gap-2" disabled={isLoading}>
+                <DropdownMenuItem
+                  onSelect={() => setInputDialog(true)}
+                  className="gap-2"
+                  disabled={isLoading}
+                >
                   <FileUp className="h-4 w-4" />
                   Import
                 </DropdownMenuItem>
@@ -1340,14 +1274,17 @@ export default function SubjectManagementPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Stream | Degree | Year</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {selectedCombined?.name || "All"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
@@ -1356,22 +1293,24 @@ export default function SubjectManagementPage() {
                   <DropdownMenuItem onSelect={() => setSelectedCombined(null)}>
                     All
                   </DropdownMenuItem>
-                  {combined.filter((c) =>
-                    streamMap[c.stream]?.isActive !== false &&
-                    degreeMap[c.degree]?.isActive !== false &&
-                    academicYearMap[c.academicYear]?.isActive !== false
-                  ).map((el) => (
-                    <DropdownMenuItem
-                      key={el.uuid}
-                      onSelect={() => setSelectedCombined(el)}
-                    >
-                      {el.name}
-                    </DropdownMenuItem>
-                  ))}
+                  {combined
+                    .filter(
+                      (c) =>
+                        streamMap[c.stream]?.isActive !== false &&
+                        degreeMap[c.degree]?.isActive !== false &&
+                        academicYearMap[c.academicYear]?.isActive !== false
+                    )
+                    .map((el) => (
+                      <DropdownMenuItem
+                        key={el.uuid}
+                        onSelect={() => setSelectedCombined(el)}
+                      >
+                        {el.name}
+                      </DropdownMenuItem>
+                    ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             {selectedCombined && (
               <div className="space-y-2">
                 <Label>Course</Label>
@@ -1390,25 +1329,30 @@ export default function SubjectManagementPage() {
                     <DropdownMenuItem onSelect={() => setSelectedCourse(null)}>
                       All
                     </DropdownMenuItem>
-                    {courses.map((el) => (
-                      <DropdownMenuItem
-                        key={el.uuid}
-                        onSelect={() => setSelectedCourse(el)}
-                      >
-                        {el.name}
-                      </DropdownMenuItem>
-                    ))}
+                    {courses
+                      .filter((c) => courseMap[c.uuid]?.isActive !== false)
+                      .map((el) => (
+                        <DropdownMenuItem
+                          key={el.uuid}
+                          onSelect={() => setSelectedCourse(el)}
+                        >
+                          {el.name}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             )}
-
             {selectedCourse && (
               <div className="space-y-2">
                 <Label>Semester</Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      disabled={isLoading}
+                    >
                       {selectedSemester || "All"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -1417,7 +1361,11 @@ export default function SubjectManagementPage() {
                     <DropdownMenuItem onSelect={() => setSelectedSemester("")}>
                       All
                     </DropdownMenuItem>
-                    {[...Array(selectedCourse?.numSemesters || 8)].map((_, i) => (
+                    {[
+                      ...Array(
+                        courseMap[selectedCourse?.uuid]?.numSemesters || 8
+                      ),
+                    ].map((_, i) => (
                       <DropdownMenuItem
                         key={i + 1}
                         onSelect={() => setSelectedSemester((i + 1).toString())}
@@ -1429,19 +1377,24 @@ export default function SubjectManagementPage() {
                 </DropdownMenu>
               </div>
             )}
-
             {selectedSemester && (
               <div className="space-y-2">
                 <Label>Status</Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      disabled={isLoading}
+                    >
                       {showDeactivated ? "All" : "Active Only"}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
-                    <DropdownMenuItem onSelect={() => setShowDeactivated(false)}>
+                    <DropdownMenuItem
+                      onSelect={() => setShowDeactivated(false)}
+                    >
                       Active Only
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setShowDeactivated(true)}>
@@ -1462,11 +1415,11 @@ export default function SubjectManagementPage() {
             <h2 className="text-lg font-semibold">
               Subjects
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({filteredSubjects.length} {showDeactivated ? "found" : "active"})
+                ({filteredSubjects.length}{" "}
+                {showDeactivated ? "found" : "active"})
               </span>
             </h2>
           </div>
-
           <div className="rounded-md border overflow-y-scroll min-h-[45vh] max-h-[80vh]">
             <Table>
               <TableHeader className="bg-gray-50">
@@ -1483,7 +1436,6 @@ export default function SubjectManagementPage() {
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {isLoading ? (
                   <TableRow>
@@ -1497,11 +1449,15 @@ export default function SubjectManagementPage() {
                       <TableCell>
                         <Checkbox disabled={isLoading} />
                       </TableCell>
-                      <TableCell className="font-medium">{subject.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {subject.name}
+                      </TableCell>
                       <TableCell>{subject.code}</TableCell>
                       <TableCell>{subject.type}</TableCell>
                       <TableCell>{subject.semester}</TableCell>
-                      <TableCell>{formatDate(new Date(subject.exam))}</TableCell>
+                      <TableCell>
+                        {formatDate(new Date(subject.exam))}
+                      </TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -1510,7 +1466,9 @@ export default function SubjectManagementPage() {
                               : "bg-green-100 text-green-800"
                           }`}
                         >
-                          {subject.isActive === false ? "Deactivated" : "Active"}
+                          {subject.isActive === false
+                            ? "Deactivated"
+                            : "Active"}
                         </span>
                       </TableCell>
                       <TableCell className="flex justify-end gap-2">
@@ -1532,7 +1490,9 @@ export default function SubjectManagementPage() {
                               ? "text-green-600 hover:bg-green-50"
                               : "text-red-600 hover:bg-red-50"
                           }`}
-                          onClick={() => handleToggleSubjectStatus(subject.uuid)}
+                          onClick={() =>
+                            handleToggleSubjectStatus(subject.uuid)
+                          }
                           disabled={isLoading}
                         >
                           {subject.isActive === false ? (

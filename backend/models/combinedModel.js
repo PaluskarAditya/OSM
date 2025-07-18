@@ -7,6 +7,7 @@ const combinedSchema = mongoose.Schema({
     stream: { type: String },
     degree: { type: String },
     year: { type: String },
+    isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const Combined = mongoose.models.Combined || mongoose.model('Combined', combinedSchema);

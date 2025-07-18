@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { v4 as uuid } from "uuid";
 import * as XLSX from "xlsx";
@@ -87,23 +88,30 @@ export default function CourseManagementPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [streamsRes, coursesRes, degreeRes, academicRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
-      ]);
+      const [streamsRes, coursesRes, degreeRes, academicRes] =
+        await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`),
+        ]);
 
-      if (!streamsRes.ok || !coursesRes.ok || !degreeRes.ok || !academicRes.ok) {
+      if (
+        !streamsRes.ok ||
+        !coursesRes.ok ||
+        !degreeRes.ok ||
+        !academicRes.ok
+      ) {
         throw new Error("Failed to fetch initial data");
       }
 
-      const [streamsData, coursesData, degreeData, academicData] = await Promise.all([
-        streamsRes.json(),
-        coursesRes.json(),
-        degreeRes.json(),
-        academicRes.json(),
-      ]);
+      const [streamsData, coursesData, degreeData, academicData] =
+        await Promise.all([
+          streamsRes.json(),
+          coursesRes.json(),
+          degreeRes.json(),
+          academicRes.json(),
+        ]);
 
       // Create streamMap
       const newStreamMap = {};
@@ -138,9 +146,12 @@ export default function CourseManagementPage() {
         const degree = newDegreeMap[course.degree];
         const academicYear = newAcademicYearMap[course.academicYear];
         return (
-          stream && stream.isActive !== false &&
-          degree && degree.isActive !== false &&
-          academicYear && academicYear.isActive !== false
+          stream &&
+          stream.isActive !== false &&
+          degree &&
+          degree.isActive !== false &&
+          academicYear &&
+          academicYear.isActive !== false
         );
       });
 
@@ -162,11 +173,14 @@ export default function CourseManagementPage() {
   const activateStream = async (streamUuid) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: true }),
+        }
+      );
       if (!res.ok) throw new Error("Failed to activate stream");
 
       await fetchData();
@@ -182,11 +196,14 @@ export default function CourseManagementPage() {
   const deactivateStream = async (streamUuid) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: false }),
+        }
+      );
       if (!res.ok) throw new Error("Failed to deactivate stream");
 
       await fetchData();
@@ -202,11 +219,14 @@ export default function CourseManagementPage() {
   const activateDegree = async (degreeUuid) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: true }),
+        }
+      );
       if (!res.ok) throw new Error("Failed to activate degree");
 
       await fetchData();
@@ -222,11 +242,14 @@ export default function CourseManagementPage() {
   const deactivateDegree = async (degreeUuid) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: false }),
+        }
+      );
       if (!res.ok) throw new Error("Failed to deactivate degree");
 
       await fetchData();
@@ -242,11 +265,14 @@ export default function CourseManagementPage() {
   const activateAcademicYear = async (academicYearUuid) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: true }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: true }),
+        }
+      );
       if (!res.ok) throw new Error("Failed to activate academic year");
 
       await fetchData();
@@ -262,11 +288,14 @@ export default function CourseManagementPage() {
   const deactivateAcademicYear = async (academicYearUuid) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${academicYearUuid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: false }),
+        }
+      );
       if (!res.ok) throw new Error("Failed to deactivate academic year");
 
       await fetchData();
@@ -279,62 +308,68 @@ export default function CourseManagementPage() {
   };
 
   // Fetch degrees by stream
-  const fetchDegrees = useCallback(async (streamUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}/degrees`
-      );
-      if (!res.ok) throw new Error("Failed to fetch degrees");
-      const data = await res.json();
+  const fetchDegrees = useCallback(
+    async (streamUuid) => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}/degrees`
+        );
+        if (!res.ok) throw new Error("Failed to fetch degrees");
+        const data = await res.json();
 
-      // Update degreeMap with fetched degrees
-      const newDegreeMap = { ...degreeMap };
-      data.forEach((degree) => {
-        newDegreeMap[degree.uuid] = {
-          name: degree.name || "Unknown",
-          isActive: degree.isActive !== false,
-        };
-      });
+        // Update degreeMap with fetched degrees
+        const newDegreeMap = { ...degreeMap };
+        data.forEach((degree) => {
+          newDegreeMap[degree.uuid] = {
+            name: degree.name || "Unknown",
+            isActive: degree.isActive !== false,
+          };
+        });
 
-      setDegrees(data);
-      setDegreeMap(newDegreeMap);
-    } catch (err) {
-      toast.error("Error loading degrees: " + err.message);
-      setDegrees([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [degreeMap]);
+        setDegrees(data);
+        setDegreeMap(newDegreeMap);
+      } catch (err) {
+        toast.error("Error loading degrees: " + err.message);
+        setDegrees([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [degreeMap]
+  );
 
   // Fetch academic years by degree
-  const fetchAcademicYears = useCallback(async (degreeUuid) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}/academic-years`
-      );
-      if (!res.ok) throw new Error("Failed to fetch academic years");
-      const data = await res.json();
+  const fetchAcademicYears = useCallback(
+    async (degreeUuid) => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degrees/${degreeUuid}/academic-years`
+        );
+        if (!res.ok) throw new Error("Failed to fetch academic years");
+        const data = await res.json();
 
-      // Update academicYearMap with fetched academic years
-      const newAcademicYearMap = { ...academicYearMap };
-      data.forEach((academicYear) => {
-        newAcademicYearMap[academicYear.uuid] = {
-          year: academicYear.year || "Unknown",
-          isActive: academicYear.isActive !== false,
-        };
-      });
+        // Update academicYearMap with fetched academic years
+        const newAcademicYearMap = { ...academicYearMap };
+        data.forEach((academicYear) => {
+          newAcademicYearMap[academicYear.uuid] = {
+            year: academicYear.year || "Unknown",
+            isActive: academicYear.isActive !== false,
+          };
+        });
 
-      setAcademicYears(data);
-      setAcademicYearMap(newAcademicYearMap);
-    } catch (err) {
-      toast.error("Error loading academic years: " + err.message);
-      setAcademicYears([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [academicYearMap]);
+        setAcademicYears(data);
+        setAcademicYearMap(newAcademicYearMap);
+      } catch (err) {
+        toast.error("Error loading academic years: " + err.message);
+        setAcademicYears([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [academicYearMap]
+  );
 
   useEffect(() => {
     fetchData();
@@ -607,9 +642,16 @@ export default function CourseManagementPage() {
         return {
           name: row["Course Name"]?.toString().trim() || "",
           code: row["Code"]?.toString().trim() || "",
-          stream: streams.find(s => s.name === row["Stream"]?.toString().trim())?.uuid || "",
-          degree: degrees.find(d => d.name === row["Degree"]?.toString().trim())?.uuid || "",
-          academicYear: academicYears.find(y => y.year === row["Academic Year"]?.toString().trim())?.uuid || "",
+          stream:
+            streams.find((s) => s.name === row["Stream"]?.toString().trim())
+              ?.uuid || "",
+          degree:
+            degrees.find((d) => d.name === row["Degree"]?.toString().trim())
+              ?.uuid || "",
+          academicYear:
+            academicYears.find(
+              (y) => y.year === row["Academic Year"]?.toString().trim()
+            )?.uuid || "",
           semester: row["Semester"]?.toString().trim() || "",
           numSemesters: numSemesters,
           uuid: generateUUID(),
@@ -620,12 +662,19 @@ export default function CourseManagementPage() {
       // Validate required fields and active status
       const missingFields = [];
       payload.forEach((row, index) => {
-        if (!row.name) missingFields.push(`Row ${index + 2}: Missing Course Name`);
+        if (!row.name)
+          missingFields.push(`Row ${index + 2}: Missing Course Name`);
         if (!row.code) missingFields.push(`Row ${index + 2}: Missing Code`);
-        if (!row.stream || !streamMap[row.stream]?.isActive) missingFields.push(`Row ${index + 2}: Invalid or inactive Stream`);
-        if (!row.degree || !degreeMap[row.degree]?.isActive) missingFields.push(`Row ${index + 2}: Invalid or inactive Degree`);
-        if (!row.academicYear || !academicYearMap[row.academicYear]?.isActive) missingFields.push(`Row ${index + 2}: Invalid or inactive Academic Year`);
-        if (!row.semester) missingFields.push(`Row ${index + 2}: Missing Semester`);
+        if (!row.stream || !streamMap[row.stream]?.isActive)
+          missingFields.push(`Row ${index + 2}: Invalid or inactive Stream`);
+        if (!row.degree || !degreeMap[row.degree]?.isActive)
+          missingFields.push(`Row ${index + 2}: Invalid or inactive Degree`);
+        if (!row.academicYear || !academicYearMap[row.academicYear]?.isActive)
+          missingFields.push(
+            `Row ${index + 2}: Invalid or inactive Academic Year`
+          );
+        if (!row.semester)
+          missingFields.push(`Row ${index + 2}: Missing Semester`);
       });
 
       if (missingFields.length > 0) {
@@ -788,14 +837,16 @@ export default function CourseManagementPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
-                      {streams.filter(s => s.isActive).map((stream) => (
-                        <DropdownMenuItem
-                          key={stream.uuid}
-                          onSelect={() => setSelectedStream(stream)}
-                        >
-                          {stream.name}
-                        </DropdownMenuItem>
-                      ))}
+                      {streams
+                        .filter((s) => s.isActive)
+                        .map((stream) => (
+                          <DropdownMenuItem
+                            key={stream.uuid}
+                            onSelect={() => setSelectedStream(stream)}
+                          >
+                            {stream.name}
+                          </DropdownMenuItem>
+                        ))}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -818,14 +869,16 @@ export default function CourseManagementPage() {
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
                       {degrees.length > 0 ? (
-                        degrees.filter(d => d.isActive).map((degree) => (
-                          <DropdownMenuItem
-                            key={degree.uuid}
-                            onSelect={() => setSelectedDegree(degree)}
-                          >
-                            {degree.name}
-                          </DropdownMenuItem>
-                        ))
+                        degrees
+                          .filter((d) => d.isActive)
+                          .map((degree) => (
+                            <DropdownMenuItem
+                              key={degree.uuid}
+                              onSelect={() => setSelectedDegree(degree)}
+                            >
+                              {degree.name}
+                            </DropdownMenuItem>
+                          ))
                       ) : (
                         <DropdownMenuItem disabled>
                           No degrees available
@@ -855,14 +908,16 @@ export default function CourseManagementPage() {
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
                       {academicYears.length > 0 ? (
-                        academicYears.filter(y => y.isActive).map((year) => (
-                          <DropdownMenuItem
-                            key={year.uuid}
-                            onSelect={() => setSelectedAcademicYear(year)}
-                          >
-                            {year.year}
-                          </DropdownMenuItem>
-                        ))
+                        academicYears
+                          .filter((y) => y.isActive)
+                          .map((year) => (
+                            <DropdownMenuItem
+                              key={year.uuid}
+                              onSelect={() => setSelectedAcademicYear(year)}
+                            >
+                              {year.year}
+                            </DropdownMenuItem>
+                          ))
                       ) : (
                         <DropdownMenuItem disabled>
                           No academic years available
@@ -1034,9 +1089,12 @@ export default function CourseManagementPage() {
 
       {/* Header */}
       <div className="flex flex-col space-y-2">
-        <h1 className="text-2xl font-semibold text-gray-800">
-          Question Paper Management
-        </h1>
+        <div className="flex gap-1 justify-start items-center">
+          <SidebarTrigger className="mt-1 mb-1" />
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Question Paper Management
+          </h1>
+        </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -1078,7 +1136,11 @@ export default function CourseManagementPage() {
             key={stream.uuid}
             variant="outline"
             className={stream.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => stream.isActive ? deactivateStream(stream.uuid) : activateStream(stream.uuid)}
+            onClick={() =>
+              stream.isActive
+                ? deactivateStream(stream.uuid)
+                : activateStream(stream.uuid)
+            }
             disabled={isLoading}
           >
             {stream.name}: {stream.isActive ? "Deactivate" : "Activate"}
@@ -1089,7 +1151,11 @@ export default function CourseManagementPage() {
             key={degree.uuid}
             variant="outline"
             className={degree.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => degree.isActive ? deactivateDegree(degree.uuid) : activateDegree(degree.uuid)}
+            onClick={() =>
+              degree.isActive
+                ? deactivateDegree(degree.uuid)
+                : activateDegree(degree.uuid)
+            }
             disabled={isLoading}
           >
             {degree.name}: {degree.isActive ? "Deactivate" : "Activate"}
@@ -1100,7 +1166,11 @@ export default function CourseManagementPage() {
             key={year.uuid}
             variant="outline"
             className={year.isActive ? "text-green-600" : "text-red-600"}
-            onClick={() => year.isActive ? deactivateAcademicYear(year.uuid) : activateAcademicYear(year.uuid)}
+            onClick={() =>
+              year.isActive
+                ? deactivateAcademicYear(year.uuid)
+                : activateAcademicYear(year.uuid)
+            }
             disabled={isLoading}
           >
             {year.year}: {year.isActive ? "Deactivate" : "Activate"}
@@ -1124,7 +1194,11 @@ export default function CourseManagementPage() {
           <div className="w-full sm:w-64">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  disabled={isLoading}
+                >
                   {selectedStream ? selectedStream.name : "All Streams"}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
@@ -1150,7 +1224,11 @@ export default function CourseManagementPage() {
             <div className="w-full sm:w-64">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {selectedDegree ? selectedDegree.name : "All Degrees"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
@@ -1177,7 +1255,11 @@ export default function CourseManagementPage() {
             <div className="w-full sm:w-64">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
                     {selectedAcademicYear
                       ? selectedAcademicYear.year
                       : "All Academic Years"}
@@ -1261,7 +1343,8 @@ export default function CourseManagementPage() {
             <h2 className="text-lg font-semibold">
               Courses{" "}
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({filteredCourses.length} {showDeactivated ? "found" : "active"})
+                ({filteredCourses.length} {showDeactivated ? "found" : "active"}
+                )
               </span>
             </h2>
           </div>

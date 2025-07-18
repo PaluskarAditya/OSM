@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -69,7 +70,9 @@ export default function StreamManagementPage() {
     const fetchStreams = async () => {
       try {
         setIsLoading(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`);
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`
+        );
         if (!res.ok) throw new Error("Failed to fetch streams");
         const data = await res.json();
         setStreams(data);
@@ -103,11 +106,14 @@ export default function StreamManagementPage() {
     const newStream = { uuid, name: newStreamName.trim(), isActive: true };
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newStream),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newStream),
+        }
+      );
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -234,11 +240,15 @@ export default function StreamManagementPage() {
           )
         );
 
-        const newStreams = await Promise.all(responses.map((res) => res.json()));
+        const newStreams = await Promise.all(
+          responses.map((res) => res.json())
+        );
         const successfulImports = newStreams.filter((stream) => !stream.error);
         if (successfulImports.length > 0) {
           setStreams((prev) => [...prev, ...successfulImports]);
-          toast.success(`${successfulImports.length} streams imported successfully`);
+          toast.success(
+            `${successfulImports.length} streams imported successfully`
+          );
         } else {
           toast.error("No streams were imported successfully");
         }
@@ -270,7 +280,9 @@ export default function StreamManagementPage() {
       setStreams((prev) =>
         prev.map((s) => (s.uuid === streamId ? { ...s, isActive } : s))
       );
-      toast.success(`Stream ${isActive ? "activated" : "deactivated"} successfully`);
+      toast.success(
+        `Stream ${isActive ? "activated" : "deactivated"} successfully`
+      );
     } catch (err) {
       toast.error(err.message);
     }
@@ -369,7 +381,8 @@ export default function StreamManagementPage() {
             <DialogTitle>Import Streams</DialogTitle>
             <DialogDescription>
               Upload an Excel file to import streams
-              <p className="text-xs text-gray-500 mt-2">
+              <p
+                className="text-xs te;xt-gray-500 mt-2">
                 File should contain columns: Stream Name, Status
               </p>
             </DialogDescription>
@@ -397,7 +410,10 @@ export default function StreamManagementPage() {
 
       {/* Breadcrumb */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Stream Management</h1>
+        <div className="flex gap-1 justify-start items-center">
+          <SidebarTrigger className="mt-1 mb-1" />
+          <h1 className="text-2xl font-semibold">Stream Management</h1>
+        </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -463,7 +479,9 @@ export default function StreamManagementPage() {
                 <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
                   <FileUp className="h-4 w-4 mr-2" /> Import
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowOnlyDeactivated((v) => !v)}>
+                <DropdownMenuItem
+                  onClick={() => setShowOnlyDeactivated((v) => !v)}
+                >
                   <Eye className="h-4 w-4 mr-2" />
                   {showOnlyDeactivated ? "Show All" : "View Deactivated"}
                 </DropdownMenuItem>
@@ -480,7 +498,8 @@ export default function StreamManagementPage() {
             <h2 className="text-lg font-semibold">
               Streams
               <span className="ml-2 text-sm font-normal text-gray-500">
-                ({filteredStreams.length} {filteredStreams.length === 1 ? "item" : "items"})
+                ({filteredStreams.length}{" "}
+                {filteredStreams.length === 1 ? "item" : "items"})
               </span>
             </h2>
           </div>
@@ -490,7 +509,10 @@ export default function StreamManagementPage() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedRows.size === filteredStreams.length && filteredStreams.length > 0}
+                      checked={
+                        selectedRows.size === filteredStreams.length &&
+                        filteredStreams.length > 0
+                      }
                       onCheckedChange={toggleAllRowsSelection}
                     />
                   </TableHead>
@@ -503,13 +525,19 @@ export default function StreamManagementPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-gray-500">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-4 text-gray-500"
+                    >
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredStreams.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-gray-500">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-4 text-gray-500"
+                    >
                       No streams found.
                     </TableCell>
                   </TableRow>
@@ -517,15 +545,21 @@ export default function StreamManagementPage() {
                   filteredStreams.map((stream) => (
                     <TableRow
                       key={stream.uuid}
-                      className={`hover:bg-gray-50 ${!stream.isActive ? "bg-red-50 text-gray-500" : ""}`}
+                      className={`hover:bg-gray-50 ${
+                        !stream.isActive ? "bg-red-50 text-gray-500" : ""
+                      }`}
                     >
                       <TableCell>
                         <Checkbox
                           checked={selectedRows.has(stream.uuid)}
-                          onCheckedChange={() => toggleRowSelection(stream.uuid)}
+                          onCheckedChange={() =>
+                            toggleRowSelection(stream.uuid)
+                          }
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{stream.uuid}</TableCell>
+                      <TableCell className="font-medium">
+                        {stream.uuid}
+                      </TableCell>
                       <TableCell>{stream.name}</TableCell>
                       <TableCell>
                         <span
@@ -556,7 +590,9 @@ export default function StreamManagementPage() {
                               ? "text-red-600 hover:bg-red-50"
                               : "text-green-600 hover:bg-green-50"
                           }`}
-                          onClick={() => toggleStreamStatus(stream.uuid, !stream.isActive)}
+                          onClick={() =>
+                            toggleStreamStatus(stream.uuid, !stream.isActive)
+                          }
                         >
                           {stream.isActive ? (
                             <>

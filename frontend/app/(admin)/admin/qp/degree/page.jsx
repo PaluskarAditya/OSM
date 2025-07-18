@@ -1,6 +1,7 @@
 "use client";
 
 import * as XLSX from "xlsx";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -385,7 +386,10 @@ export default function DegreeManagementPage() {
     <div className="flex p-6 h-full flex-col gap-5 bg-gray-100/50 w-full">
       {/* Breadcrumb */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-medium">Degree Management</h1>
+        <div className="flex gap-1 justify-start items-center">
+          <SidebarTrigger className="mt-1 mb-1" />
+          <h1 className="text-2xl font-medium">Degree Management</h1>
+        </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -778,8 +782,12 @@ export default function DegreeManagementPage() {
             <DialogTitle>Import Degrees</DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
               Upload an Excel file to import degrees
-              <p className="text-xs text-gray-500 mt-2">
-                File should contain columns: Degree Name, Stream Name, Status
+              <p
+                className="text-xs teimport { SidebarTrigger } from '@/components/ui/sidebar';
+xt-gray-500 mt-2"
+              >
+                import {SidebarTrigger} from '@/components/ui/sidebar'; File
+                should contain columns: Degree Name, Stream Name, Status
               </p>
             </DialogDescription>
           </DialogHeader>
