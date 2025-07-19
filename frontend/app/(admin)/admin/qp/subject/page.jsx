@@ -571,12 +571,7 @@ export default function SubjectManagementPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Import failed");
       if (result.created > 0) {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`
-        );
-        const newSubjects = await res.json();
-        setSubjects(newSubjects);
-        setFilteredSubjects(newSubjects);
+        await fetchData();
         toast.success(`Imported ${result.created} subjects`);
       }
       if (result.skipped > 0) {
@@ -648,6 +643,7 @@ export default function SubjectManagementPage() {
   };
 
   // Handle edit button click
+  // Set editingSubject and selectedCombined, then let useEffect handle course fetching and selectedCourse
   const handleEditSubject = (subject) => {
     setEditingSubject(subject);
     setSubjectName(subject.name);
@@ -655,12 +651,52 @@ export default function SubjectManagementPage() {
     setSubjectType(subject.type);
     setSemester(subject.semester.toString());
     setDate(new Date(subject.exam));
-    setSelectedCombined(
-      combined.find((c) => c.uuid === subject.combined) || null
-    );
-    setSelectedCourse(courses.find((c) => c.uuid === subject.course) || null);
+    setSelectedCombined(combined.find((c) => c.uuid === subject.combined) || null);
     setIsEditDialogOpen(true);
   };
+
+  // When editingSubject and selectedCombined are set, fetch courses and set selectedCourse
+  useEffect(() => {
+    const fetchAndSetCourses = async () => {
+      if (editingSubject && selectedCombined) {
+        setIsLoading(true);
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${selectedCombined.uuid}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const filteredCourses = Array.isArray(data)
+              ? data.filter((course) => {
+                  const courseCombined = combined.find(
+                    (c) => c.course === course.uuid && c.uuid === selectedCombined.uuid
+                  );
+                  return (
+                    courseCombined &&
+                    streamMap[courseCombined.stream]?.isActive !== false &&
+                    degreeMap[courseCombined.degree]?.isActive !== false &&
+                    academicYearMap[courseCombined.academicYear]?.isActive !== false &&
+                    courseMap[course.uuid]?.isActive !== false
+                  );
+                })
+              : [];
+            setCourses(filteredCourses);
+            setSelectedCourse(filteredCourses.find((c) => c.uuid === editingSubject.course) || null);
+          } else {
+            setCourses([]);
+            setSelectedCourse(null);
+          }
+        } catch (error) {
+          setCourses([]);
+          setSelectedCourse(null);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    fetchAndSetCourses();
+    // Only run when editingSubject or selectedCombined changes
+  }, [editingSubject, selectedCombined, combined, streamMap, degreeMap, academicYearMap, courseMap]);
 
   // Fetch courses when combined changes
   useEffect(() => {
@@ -673,7 +709,7 @@ export default function SubjectManagementPage() {
   }, [fetchData]);
 
   return (
-    <div className="flex h-screen w-full bg-gray-100/50 p-6 flex-col gap-5">
+    <div className="flex w-full bg-gray-100/50 p-6 flex-col gap-5">
       {/* Create Subject Dialog */}
       <Dialog
         open={isDialogOpen}
@@ -1420,9 +1456,10 @@ export default function SubjectManagementPage() {
               </span>
             </h2>
           </div>
-          <div className="rounded-md border overflow-y-scroll min-h-[45vh] max-h-[80vh]">
-            <Table>
-              <TableHeader className="bg-gray-50">
+          {/* Add a fixed height and overflow-y-auto for vertical scrolling */}
+          <div className="rounded-md border bg-white min-h-[40vh] max-h-[60vh] overflow-y-auto overflow-x-auto w-full">
+            <Table className="min-w-[700px] relative">
+              <TableHeader className="bg-gray-50 sticky left-0 right-0 top-0 z-10">
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox disabled={isLoading} />
