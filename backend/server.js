@@ -133,19 +133,6 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
           continue;
         }
 
-        // Check for existing subject (case insensitive)
-        const existingSubject = await Subject.findOne({
-          $or: [
-            { code: { $regex: new RegExp(`^${code}$`, "i") } },
-            { name: { $regex: new RegExp(`^${name}$`, "i") } },
-          ],
-        });
-
-        if (existingSubject) {
-          console.log(`Skipping duplicate subject ${code} - ${name}`);
-          continue;
-        }
-
         // Process Stream
         let streamDoc = await Stream.findOne({ name: stream });
         if (!streamDoc) {
@@ -217,6 +204,21 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
           });
           await combinedDoc.save();
         }
+
+        // ---- NEW DUPLICATE CHECK LOGIC ----
+        const existingSubject = await Subject.findOne({
+          name: name,
+          code: code,
+          course: courseDoc.uuid,
+          year: yearDoc.uuid,
+          semester: semester,
+        });
+
+        if (existingSubject) {
+          console.log(`Skipping duplicate subject ${code} - ${name} for course ${courseDoc.name}, year ${yearDoc.year}, semester ${semester}`);
+          continue;
+        }
+        // ---- END NEW DUPLICATE CHECK ----
 
         // Create Subject
         const newSubject = new Subject({
