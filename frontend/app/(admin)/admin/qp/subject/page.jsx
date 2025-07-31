@@ -1,6 +1,6 @@
 "use client";
 
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -253,54 +253,85 @@ export default function SubjectManagementPage() {
   };
 
   // Fetch courses when combined is selected
-  const fetchCourses = useCallback(async () => {
-    if (!selectedCombined?.uuid) {
-      setCourses([]);
-      setSelectedCourse(null);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${selectedCombined.uuid}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const filteredCourses = Array.isArray(data)
-          ? data.filter((course) => {
-              const courseCombined = combined.find(
-                (c) =>
-                  c.course === course.uuid && c.uuid === selectedCombined.uuid
-              );
-              return (
-                courseCombined &&
-                streamMap[courseCombined.stream]?.isActive !== false &&
-                degreeMap[courseCombined.degree]?.isActive !== false &&
-                academicYearMap[courseCombined.academicYear]?.isActive !==
-                  false &&
-                courseMap[course.uuid]?.isActive !== false
-              );
-            })
-          : [];
-        setCourses(filteredCourses);
-      } else {
-        toast.error("Failed to fetch courses");
+  const fetchCourses = useCallback(
+    async (combinedId, currentSubjectCourse = null, isEditing = false) => {
+      if (!combinedId) {
         setCourses([]);
+        setSelectedCourse(null);
+        return;
       }
-    } catch (error) {
-      toast.error(error.message);
-      setCourses([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    selectedCombined,
-    combined,
-    streamMap,
-    degreeMap,
-    academicYearMap,
-    courseMap,
-  ]);
+      setIsLoading(true);
+      try {
+        // Fetch courses associated with the combined ID
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${combinedId}`
+        );
+        if (res.ok) {
+          let data = await res.json();
+          let filteredCourses = Array.isArray(data)
+            ? data.filter((course) => {
+                const courseCombined = combined.find(
+                  (c) => c.course === course.uuid && c.uuid === combinedId
+                );
+                // For editing, include the current subject course even if inactive
+                return isEditing && course.uuid === currentSubjectCourse
+                  ? true
+                  : courseCombined &&
+                      streamMap[courseCombined.stream]?.isActive !== false &&
+                      degreeMap[courseCombined.degree]?.isActive !== false &&
+                      academicYearMap[courseCombined.academicYear]?.isActive !==
+                        false &&
+                      courseMap[course.uuid]?.isActive !== false;
+              })
+            : [];
+
+          // If editing and the current course isn't in the filtered list, fetch it directly
+          if (
+            isEditing &&
+            currentSubjectCourse &&
+            !filteredCourses.some((c) => c.uuid === currentSubjectCourse)
+          ) {
+            try {
+              const courseRes = await fetch(
+                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses/${currentSubjectCourse}`
+              );
+              if (courseRes.ok) {
+                const courseData = await courseRes.json();
+                filteredCourses = [...filteredCourses, courseData];
+              }
+            } catch (err) {
+              console.warn(
+                `Could not fetch course ${currentSubjectCourse}: ${err.message}`
+              );
+            }
+          }
+
+          setCourses(filteredCourses);
+
+          // Set selectedCourse to the current subject's course if editing
+          if (isEditing && currentSubjectCourse) {
+            const matchingCourse = filteredCourses.find(
+              (c) => c.uuid === currentSubjectCourse
+            );
+            setSelectedCourse(matchingCourse || null);
+          } else {
+            setSelectedCourse(null);
+          }
+        } else {
+          toast.error("Failed to fetch courses");
+          setCourses([]);
+          setSelectedCourse(null);
+        }
+      } catch (error) {
+        toast.error(error.message);
+        setCourses([]);
+        setSelectedCourse(null);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [combined, streamMap, degreeMap, academicYearMap, courseMap]
+  );
 
   // Apply filters
   useEffect(() => {
@@ -478,6 +509,7 @@ export default function SubjectManagementPage() {
     setDate(new Date("2025-06-01"));
     setMonth(new Date("2025-06-01"));
     setEditingSubject(null);
+    setCourses([]);
   };
 
   // Export to Excel
@@ -535,7 +567,7 @@ export default function SubjectManagementPage() {
     XLSX.writeFile(workbook, "Subject_Template.xlsx");
   };
 
-  // New Import to Excel
+  // Import to Excel
   const importToExcel = async () => {
     if (!selectedFile) {
       toast.error("No file selected");
@@ -643,7 +675,6 @@ export default function SubjectManagementPage() {
   };
 
   // Handle edit button click
-  // Set editingSubject and selectedCombined, then let useEffect handle course fetching and selectedCourse
   const handleEditSubject = (subject) => {
     setEditingSubject(subject);
     setSubjectName(subject.name);
@@ -651,57 +682,30 @@ export default function SubjectManagementPage() {
     setSubjectType(subject.type);
     setSemester(subject.semester.toString());
     setDate(new Date(subject.exam));
-    setSelectedCombined(combined.find((c) => c.uuid === subject.combined) || null);
+    const combinedEntry = combined.find((c) => c.uuid === subject.combined);
+    setSelectedCombined(combinedEntry || null);
+    // Set initial selectedCourse from courseMap if available
+    const courseEntry = courseMap[subject.course]
+      ? { uuid: subject.course, name: courseMap[subject.course].name }
+      : null;
+    setSelectedCourse(courseEntry);
     setIsEditDialogOpen(true);
   };
 
-  // When editingSubject and selectedCombined are set, fetch courses and set selectedCourse
+  // Fetch courses whenever selectedCombined changes
   useEffect(() => {
-    const fetchAndSetCourses = async () => {
-      if (editingSubject && selectedCombined) {
-        setIsLoading(true);
-        try {
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses?combined=${selectedCombined.uuid}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const filteredCourses = Array.isArray(data)
-              ? data.filter((course) => {
-                  const courseCombined = combined.find(
-                    (c) => c.course === course.uuid && c.uuid === selectedCombined.uuid
-                  );
-                  return (
-                    courseCombined &&
-                    streamMap[courseCombined.stream]?.isActive !== false &&
-                    degreeMap[courseCombined.degree]?.isActive !== false &&
-                    academicYearMap[courseCombined.academicYear]?.isActive !== false &&
-                    courseMap[course.uuid]?.isActive !== false
-                  );
-                })
-              : [];
-            setCourses(filteredCourses);
-            setSelectedCourse(filteredCourses.find((c) => c.uuid === editingSubject.course) || null);
-          } else {
-            setCourses([]);
-            setSelectedCourse(null);
-          }
-        } catch (error) {
-          setCourses([]);
-          setSelectedCourse(null);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-    fetchAndSetCourses();
-    // Only run when editingSubject or selectedCombined changes
-  }, [editingSubject, selectedCombined, combined, streamMap, degreeMap, academicYearMap, courseMap]);
-
-  // Fetch courses when combined changes
-  useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
+    if (!selectedCombined?.uuid) {
+      setCourses([]);
+      setSelectedCourse(null);
+      return;
+    }
+    // Pass isEditing: true when editingSubject exists
+    fetchCourses(
+      selectedCombined.uuid,
+      editingSubject?.course,
+      !!editingSubject
+    );
+  }, [selectedCombined, editingSubject, fetchCourses]);
 
   // Fetch initial data
   useEffect(() => {
@@ -774,17 +778,23 @@ export default function SubjectManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   <DropdownMenuGroup>
-                    {courses
-                      .filter((c) => courseMap[c.uuid]?.isActive !== false)
-                      .map((el) => (
-                        <DropdownMenuItem
-                          key={el.uuid}
-                          onSelect={() => setSelectedCourse(el)}
-                          className="cursor-pointer"
-                        >
-                          {el.name}
-                        </DropdownMenuItem>
-                      ))}
+                    {courses.length > 0 ? (
+                      courses
+                        .filter((c) => courseMap[c.uuid]?.isActive !== false)
+                        .map((el) => (
+                          <DropdownMenuItem
+                            key={el.uuid}
+                            onSelect={() => setSelectedCourse(el)}
+                            className="cursor-pointer"
+                          >
+                            {el.name}
+                          </DropdownMenuItem>
+                        ))
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        No courses available
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -957,7 +967,7 @@ export default function SubjectManagementPage() {
                           onSelect={() => setSelectedCombined(el)}
                           className="cursor-pointer"
                         >
-                          {el.name}
+                          <span>{el.name}</span>
                         </DropdownMenuItem>
                       ))}
                   </DropdownMenuGroup>
@@ -979,17 +989,22 @@ export default function SubjectManagementPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   <DropdownMenuGroup>
-                    {courses
-                      .filter((c) => courseMap[c.uuid]?.isActive !== false)
-                      .map((el) => (
+                    {courses.length > 0 ? (
+                      courses.map((el) => (
                         <DropdownMenuItem
                           key={el.uuid}
                           onSelect={() => setSelectedCourse(el)}
                           className="cursor-pointer"
                         >
                           {el.name}
+                          {courseMap[el.uuid]?.isActive === false && " (Inactive)"}
                         </DropdownMenuItem>
-                      ))}
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        No courses available
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1456,7 +1471,6 @@ export default function SubjectManagementPage() {
               </span>
             </h2>
           </div>
-          {/* Add a fixed height and overflow-y-auto for vertical scrolling */}
           <div className="rounded-md border bg-white min-h-[40vh] max-h-[60vh] overflow-y-auto overflow-x-auto w-full">
             <Table className="min-w-[700px] relative">
               <TableHeader className="bg-gray-50 sticky left-0 right-0 top-0 z-10">

@@ -7,47 +7,69 @@ const qpSchema = new mongoose.Schema(
       required: true,
     },
     stream: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Stream',
-      required: true,
-    },
-    subject: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Subject',
-      required: true,
-    },
-    course: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Course',
-    },
-    specialization: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Specialization',
-    },
-    fileUrl: {
       type: String,
       required: true,
     },
-    uploadedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // assuming admin is stored in User model
+    degree: {
+      type: String,
       required: true,
+    },
+    year: {
+      type: String,
+      required: true,
+    },
+    subject: {
+      type: String,
+      required: true,
+    },
+    course: {
+      type: String,
+      required: true,
+    },
+    specialization: {
+      type: String,
+      required: true,
+      default: 'no specialization'
+    },
+    fileUrl: {
+      type: String,
     },
     examDate: {
       type: Date,
     },
     isActive: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     version: {
       type: Number,
       default: 1,
     },
+    validated: {
+      type: Boolean,
+      default: false
+    },
     examinerAssigned: {
       type: Boolean,
       default: false,
     },
+    totalMarks: {
+      type: String,
+      required: true,
+    },
+    subQuestionsCount: {
+      type: String,
+      required: true,
+    },
+    questionsCount: {
+      type: String,
+      required: true,
+    },
+    semester: {
+      type: String,
+      required: true,
+    },
+    data: [{}]
   },
   {
     timestamps: true, // adds createdAt and updatedAt

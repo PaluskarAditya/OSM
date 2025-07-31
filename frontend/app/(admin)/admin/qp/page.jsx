@@ -8,13 +8,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
-import { PlusIcon, ChevronRight } from "lucide-react";
+import { PlusIcon, ChevronRight, FileText, Upload, Copy, Library } from "lucide-react";
 import Link from "next/link";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function QPManagementPage() {
   return (
-    <div className="flex flex-col min-h-screen w-full gap-6 p-6 bg-gray-50">
+    <div className="flex flex-col w-full gap-6 p-6 bg-gray-50">
       {/* Header Section */}
       <div className="flex flex-col gap-1">
         <div className="flex gap-1 justify-start items-center">
@@ -49,130 +49,209 @@ export default function QPManagementPage() {
       </div>
 
       {/* Main Content Card */}
-      <Card className="overflow-hidden h-max shadow-sm p-0">
-        {/* Card Header */}
-        <div className="bg-blue-600 p-6">
-          <h2 className="text-2xl font-light text-white">Define Timetable</h2>
-        </div>
+      <Card className="overflow-hidden h-max bg-none shadow-sm p-0">
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+          {/* Timetable Card */}
+          <div className="flex flex-col w-full flex-1 bg-white rounded-lg shadow-sm overflow-hidden">
+            {/* Card Header */}
+            <div className="bg-blue-600 p-6">
+              <h2 className="text-2xl font-light text-white">Define Timetable</h2>
+            </div>
 
-        {/* Card Body */}
-        <div className="p-2 py-2 -mt-5 bg-white">
-          <Link href="/admin/qp/stream" className="group">
-            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-blue-50 group-hover:shadow-xs">
-              <Button
-                size="icon"
-                className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors duration-200"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h3 className="text-md font-medium text-gray-800">Stream</h3>
-                <p className="text-xs text-gray-500">
-                  Create and manage examination streams
-                </p>
-              </div>
-              <ChevronRight className="ml-auto h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors duration-200" />
+            {/* Card Body */}
+            <div className="space-y-2 p-4">
+              <Link href="/admin/qp/stream" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-blue-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors duration-200"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Stream</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Create and manage examination streams
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/degree" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Degree</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Create and manage degrees
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/academic-year" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-red-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Academic Year</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Create and manage academic years
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-red-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/course" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-indigo-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors duration-200"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Course</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Create and manage courses
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/specialization" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-amber-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-amber-100 text-amber-600 hover:bg-amber-200 transition-colors duration-200"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Specialization</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Create and manage specializations
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-amber-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/subject" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-cyan-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-cyan-100 text-cyan-600 hover:bg-cyan-200 transition-colors duration-200"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Subjects</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Create and manage subjects
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-cyan-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
             </div>
-          </Link>
-        </div>
-        <div className="p-2 -mt-10 bg-white">
-          <Link href="/admin/qp/degree" className="group">
-            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs">
-              <Button
-                size="icon"
-                className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h3 className="text-md font-medium text-gray-800">Degree</h3>
-                <p className="text-xs text-gray-500">
-                  Create and manage degree's{" "}
-                </p>
-              </div>
-              <ChevronRight className="ml-auto h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors duration-200" />
+          </div>
+
+          {/* Question Paper Card */}
+          <div className="flex flex-col w-full flex-1 bg-white rounded-lg shadow-sm overflow-hidden">
+            {/* Card Header */}
+            <div className="bg-blue-600 p-6">
+              <h2 className="text-2xl font-light text-white">Define Question Paper</h2>
             </div>
-          </Link>
-        </div>
-        <div className="p-2 -mt-10 bg-white">
-          <Link href="/admin/qp/academic-year" className="group">
-            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-red-50 group-hover:shadow-xs">
-              <Button
-                size="icon"
-                className="h-12 w-12 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h3 className="text-md font-medium text-gray-800">
-                  Academic Year
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Create and manage academic year's{" "}
-                </p>
-              </div>
-              <ChevronRight className="ml-auto h-5 w-5 text-red-400 group-hover:text-red-600 transition-colors duration-200" />
+
+            {/* Card Body */}
+            <div className="space-y-2 p-4">
+              <Link href="/admin/qp/question-paper/generate" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-purple-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors duration-200"
+                  >
+                    <FileText className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Generate QP Excel</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Generate question paper Excel templates
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/question-paper/import" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-emerald-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors duration-200"
+                  >
+                    <Upload className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Import Question Paper</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Upload and process question papers
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/question-paper/copy" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-blue-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors duration-200"
+                  >
+                    <Copy className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">Copy Question Paper</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Copy and modify existing papers
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
+
+              <Link href="/admin/qp/question-paper/master" className="group block">
+                <div className="flex items-center gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-rose-50 group-hover:shadow-xs h-20">
+                  <Button
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 transition-colors duration-200"
+                  >
+                    <Library className="h-5 w-5" />
+                  </Button>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <h3 className="text-md font-medium text-gray-800 truncate">QP Master</h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      Manage question paper database
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-rose-600 transition-colors duration-200 flex-shrink-0" />
+                </div>
+              </Link>
             </div>
-          </Link>
-        </div>
-        <div className="p-2 -mt-10 bg-white">
-          <Link href="/admin/qp/course" className="group">
-            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-indigo-50 group-hover:shadow-xs">
-              <Button
-                size="icon"
-                className="h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors duration-200"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h3 className="text-md font-medium text-gray-800">Course</h3>
-                <p className="text-xs text-gray-500">
-                  Create and manage courses
-                </p>
-              </div>
-              <ChevronRight className="ml-auto h-5 w-5 text-indigo-400 group-hover:text-indigo-600 transition-colors duration-200" />
-            </div>
-          </Link>
-        </div>
-        <div className="p-2 -mt-10 bg-white">
-          <Link href="/admin/qp/specialization" className="group">
-            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs">
-              <Button
-                size="icon"
-                className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h3 className="text-md font-medium text-gray-800">
-                  Specialization
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Create and manage specialization
-                </p>
-              </div>
-              <ChevronRight className="ml-auto h-5 w-5 text-green-400 group-hover:text-green-600 transition-colors duration-200" />
-            </div>
-          </Link>
-        </div>
-        <div className="p-2 -mt-10 bg-white">
-          <Link href="/admin/qp/subject" className="group">
-            <div className="flex items-center h-full gap-4 p-4 rounded-lg transition-all duration-200 group-hover:bg-green-50 group-hover:shadow-xs">
-              <Button
-                size="icon"
-                className="h-12 w-12 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-200"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Button>
-              <div className="flex flex-col">
-                <h3 className="text-md font-medium text-gray-800">Subjects</h3>
-                <p className="text-xs text-gray-500">
-                  Create and manage subject's
-                </p>
-              </div>
-              <ChevronRight className="ml-auto h-5 w-5 text-green-400 group-hover:text-green-600 transition-colors duration-200" />
-            </div>
-          </Link>
+          </div>
         </div>
       </Card>
 
