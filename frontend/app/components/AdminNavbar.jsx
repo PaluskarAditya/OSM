@@ -44,13 +44,15 @@ import {
   LogOut,
   User,
   ChevronDown,
+  ArrowBigRight,
 } from "lucide-react";
 
 const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Streams & Subjects", href: "/admin/qp", icon: BookOpenText },
-  { name: "Candidates", href: "/candidates", icon: Users },
-  { name: "Answer Books", href: "/answer-books", icon: FileText, badge: "New" },
+  { name: "Inward / Outward", href: "/admin/inward-outward", icon: ArrowBigRight },
+  { name: "Candidates", href: "/admin/candidates", icon: Users },
+  { name: "Answer Books", href: "/admin/answer-books", icon: FileText, badge: "New" },
   { name: "Evaluation", href: "/evaluation", icon: ClipboardList },
   { name: "Results", href: "/results", icon: Award },
   { name: "Reports", href: "/reports", icon: FileBarChart2 },

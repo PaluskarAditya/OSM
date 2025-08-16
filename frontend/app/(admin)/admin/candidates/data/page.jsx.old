@@ -1,0 +1,894 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+import {
+  ChevronDown,
+  CirclePlusIcon,
+  FileDown,
+  Eye,
+  UploadCloudIcon,
+  DownloadIcon,
+  Info as InfoIcon,
+} from "lucide-react";
+import { Label } from "@/components/ui/label";
+import * as XLSX from "xlsx";
+
+function normalizeCandidate(raw) {
+  // Normalize property names (from imported Excel or API)
+  return {
+    candidateId: raw.candidateId || raw.CandidateId || raw.PRNNumber || "",
+    rollNumber: raw.rollNumber || raw.RollNo || "",
+    prnNumber: raw.prnNumber || raw.PRNNumber || "",
+    name: raw.name || [raw.FirstName, raw.MiddleName, raw.LastName].filter(Boolean).join(" ") || "",
+    emailId: raw.emailId || raw.Email || "",
+    gender: raw.gender || raw.Gender || "",
+    course: raw.course || raw.Course || "",
+    mobileNo: raw.mobileNo || raw.MobileNo || "",
+    isPHCandidate: raw.isPHCandidate ?? raw.IsPHCandidate ?? false,
+    isActive: raw.isActive ?? raw.IsActive ?? true,
+    campusName: raw.campusName || raw.CampusName || "",
+    subjects: raw.subjects || raw.Subjects || {},
+    srNo: raw.srNo || raw.SrNo || "",
+    // Add more fields if necessary...
+  };
+}
+
+export default function CandidatePage() {
+  // State declarations
+  const [stream, setStream] = useState("");
+  const [course, setCourse] = useState("");
+  const [semester, setSemester] = useState("");
+  const [subject, setSubject] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [combineds, setCombineds] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [selectedCandidates, setSelectedCandidates] = useState(new Set());
+  const [selectedCombined, setSelectedCombined] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [openActionModal, setOpenActionModal] = useState(false);
+  const [selectedAction, setSelectedAction] = useState("");
+  const [showDeactivated, setShowDeactivated] = useState(false);
+  const [exportDialog, setExportDialog] = useState(false);
+  const [generationDate, setGenerationDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [file, setFile] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // For dynamic semester options
+  const semesterArray = selectedCourse?.semester
+    ? Array.from({ length: Number(selectedCourse.semester) }, (_, i) =>
+        (i + 1).toString()
+      )
+    : [];
+
+  // --- Fetch data on mount ---
+  useEffect(() => {
+    const getData = async () => {
+      setLoading(true);
+      try {
+        const [combinedRes, courseRes, subjectRes, candidateRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combineds`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/courses`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subjects`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidates`),
+        ]);
+        if (!combinedRes.ok) throw new Error("Failed to fetch combineds");
+        if (!courseRes.ok) throw new Error("Failed to fetch courses");
+        if (!subjectRes.ok) throw new Error("Failed to fetch subjects");
+        if (!candidateRes.ok) throw new Error("Failed to fetch candidates");
+
+        const [combinedData, courseData, subjectData, candidateData] = await Promise.all([
+          combinedRes.json(),
+          courseRes.json(),
+          subjectRes.json(),
+          candidateRes.json(),
+        ]);
+        setCombineds(combinedData);
+        setCourses(courseData);
+        setSubjects(subjectData);
+        // Normalize candidates
+        setCandidates(candidateData.map(normalizeCandidate));
+      } catch (error) {
+        toast.error(`Error fetching data: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    getData();
+  }, []);
+
+  // --- Filtering logic ---
+  const filteredCandidates = candidates.filter((c) => {
+    const matchesStream = !stream || c.stream === stream || c.Stream === stream;
+    const matchesCourse = !course || c.course === course || c.Course === course;
+    const matchesSemester = !semester || c.semester === semester || c.Semester === semester;
+    const matchesSubject = !subject || c.subject === subject || c.Subject === subject;
+    const matchesSearch =
+      !searchTerm ||
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.candidateId && c.candidateId.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+      c.emailId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.rollNumber && c.rollNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+    return (
+      matchesStream &&
+      matchesCourse &&
+      matchesSemester &&
+      matchesSubject &&
+      matchesSearch &&
+      (showDeactivated || c.isActive)
+    );
+  });
+
+  // --- Filter handlers ---
+  const handleStreamChange = (value) => {
+    const selected = combineds.find((item) => item.name === value) || null;
+    setSelectedCombined(selected);
+    setStream(selected ? selected.name : "");
+    setCourse("");
+    setSelectedCourse(null);
+    setSemester("");
+    setSubject("");
+  };
+
+  const handleCourseChange = (value) => {
+    const selected = courses.find((c) => c.name === value) || null;
+    setSelectedCourse(selected);
+    setCourse(selected ? selected.name : "");
+    setSemester("");
+    setSubject("");
+  };
+
+  // --- Search ---
+  const handleSearch = (e) => setSearchTerm(e.target.value);
+
+  // --- Checkboxes ---
+  const handleCheckboxChange = (candidateId) => {
+    setSelectedCandidates((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(candidateId)) newSet.delete(candidateId);
+      else newSet.add(candidateId);
+      return newSet;
+    });
+  };
+
+  // --- Import Excel (file must be picked first!) ---
+  const handleImportExcel = async (localFile) => {
+    setLoading(true);
+    try {
+      const data = await localFile.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      // Normalize imported candidates
+      const importedCandidates = jsonData.map(normalizeCandidate);
+
+      // Update frontend state
+      setCandidates((prev) => [...prev, ...importedCandidates]);
+
+      // API call
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidates/import`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            course: selectedCourse?.uuid,
+            data: jsonData,
+          }),
+        }
+      );
+      if (res.ok) {
+        const resData = await res.json();
+        setCandidates(resData.map(normalizeCandidate));
+        toast.success(`Imported ${importedCandidates.length} candidates`);
+      } else {
+        throw new Error(`API Error: ${res.statusText}`);
+      }
+    } catch (error) {
+      toast.error(`Import failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setOpenActionModal(false);
+    }
+  };
+
+  // --- Export to Excel ---
+  const generateExportExcel = () => {
+    try {
+      // Compose header row
+      const headers = [
+        "RollNo",
+        "PRNNumber",
+        "Gender",
+        "Email",
+        "FirstName",
+        "MiddleName",
+        "LastName",
+        "MobileNo",
+        "IsPHCandidate",
+        "CampusName",
+        ...subjects.map((s) => s.name),
+      ];
+
+      // Compose data rows
+      const data = filteredCandidates.map((candidate) => {
+        const [firstName, middleName = "", ...otherNames] = candidate.name.split(" ");
+        const lastName = otherNames.join(" ");
+        return [
+          candidate.rollNumber,
+          candidate.prnNumber,
+          candidate.gender,
+          candidate.emailId,
+          firstName || "",
+          middleName,
+          lastName,
+          candidate.mobileNo,
+          candidate.isPHCandidate ? "Yes" : "No",
+          candidate.campusName,
+          ...subjects.map((s) => candidate.subjects[s.name] || 0),
+        ];
+      });
+
+      // Write file
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, worksheet, "Sheet1");
+      XLSX.writeFile(wb, "CandidateData.xlsx");
+      setExportDialog(false);
+    } catch (error) {
+      toast.error(`Export failed: ${error.message}`);
+    }
+  };
+
+  // --- Get course name by UUID ---
+  const getCourseName = (id) => {
+    const c = courses.find((item) => item.uuid === id);
+    return c?.name || "";
+  };
+
+  // --- UI ---
+  if (loading) {
+    return <div className="container mx-auto p-6 text-center">Loading...</div>;
+  }
+
+  return (
+    <div className="container mx-auto w-3/4 p-4 sm:p-6 bg-white min-h-screen">
+      {/* ACTION MODAL */}
+      <Dialog open={openActionModal} onOpenChange={setOpenActionModal}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              {selectedAction === "import candidates" ? (
+                <div className="flex items-center gap-2">
+                  <UploadCloudIcon className="h-5 w-5 text-blue-600" />
+                  <span>Import Candidates</span>
+                </div>
+              ) : (
+                `${selectedAction.charAt(0).toUpperCase() + selectedAction.slice(1)}`
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              {selectedAction === "import candidates"
+                ? "Upload an Excel file to import candidate data"
+                : `Confirm ${selectedAction} for selected candidates`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedAction === "import candidates" ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Stream/Degree/Year
+                    </Label>
+                    <Select onValueChange={handleStreamChange} value={stream}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select stream..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {combineds.map((item) => (
+                          <SelectItem key={item.uuid || item.id} value={item.name}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Course</Label>
+                    <Select
+                      onValueChange={handleCourseChange}
+                      value={course}
+                      disabled={!stream}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            stream ? "Select course..." : "Select stream first"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses
+                          .filter(
+                            (item) => selectedCombined?.course === item.name
+                          )
+                          .map((item) => (
+                            <SelectItem key={item.uuid} value={item.name}>
+                              {item.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <UploadCloudIcon className="h-10 w-10 text-gray-400 mb-3" />
+                  <p className="text-sm font-medium text-gray-700">
+                    Click to upload or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Excel files only (.xlsx, .xls)
+                  </p>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx,.xls"
+                    ref={fileInputRef}
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) {
+                        setFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  {file && (
+                    <span className="text-xs text-blue-600 mt-2 block">
+                      Selected: {file.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : selectedAction === "generate booklet" && selectedCandidates.size > 0 ? (
+              <div className="space-y-6">
+                {/* ... booklet generation inputs ... */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Generation Date
+                    </Label>
+                    <Input
+                      type="date"
+                      value={generationDate}
+                      onChange={(e) => setGenerationDate(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Status Filter</Label>
+                    <Select
+                      onValueChange={setStatusFilter}
+                      value={statusFilter}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Candidates</SelectItem>
+                        <SelectItem value="active">Active Only</SelectItem>
+                        <SelectItem value="deactivated">
+                          Deactivated Only
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Selected Candidates ({selectedCandidates.size})
+                  </Label>
+                  <div className="border rounded-lg p-3 max-h-48 overflow-y-auto">
+                    {Array.from(selectedCandidates).map((candidateId) => {
+                      const candidate = candidates.find(
+                        (c) => c.candidateId === candidateId
+                      );
+                      if (!candidate) return null;
+                      const isIncluded =
+                        statusFilter === "all" ||
+                        (statusFilter === "active" && candidate.isActive) ||
+                        (statusFilter === "deactivated" && !candidate.isActive);
+                      return isIncluded ? (
+                        <div
+                          key={candidateId}
+                          className="flex items-center justify-between py-2 px-1 hover:bg-gray-50 rounded"
+                        >
+                          <span className="text-sm truncate max-w-[180px]">
+                            {candidate.name}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              candidate.isActive
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {candidate.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenActionModal(false);
+                setGenerationDate(new Date().toISOString().split("T")[0]);
+                setStatusFilter("all");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (selectedAction === "import candidates") {
+                  if (file) {
+                    await handleImportExcel(file);
+                  } else {
+                    toast.warning("Please select a file to import");
+                  }
+                } else if (selectedAction === "generate booklet") {
+                  // Place your booklet generation logic here!
+                  toast.success("Booklet generation not yet implemented.");
+                  setOpenActionModal(false);
+                }
+              }}
+              disabled={
+                loading ||
+                (selectedAction === "import candidates" && !file) ||
+                (selectedAction === "generate booklet" &&
+                  selectedCandidates.size === 0)
+              }
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* EXPORT DIALOG */}
+      <Dialog open={exportDialog} onOpenChange={setExportDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+              <DownloadIcon className="h-5 w-5 text-blue-600" />
+              Export Candidate Data
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Select filters and download candidate data in Excel format
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Stream/Degree/Year
+                </Label>
+                <Select onValueChange={handleStreamChange} value={stream}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select stream..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {combineds.map((item) => (
+                      <SelectItem key={item.uuid || item.id} value={item.name}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Course</Label>
+                <Select
+                  onValueChange={handleCourseChange}
+                  value={course}
+                  disabled={!stream}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        stream ? "Select course..." : "Select stream first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses
+                      .filter((item) => selectedCombined?.course === item.name)
+                      .map((item) => (
+                        <SelectItem key={item.uuid} value={item.name}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Semester</Label>
+                <Select
+                  onValueChange={setSemester}
+                  value={semester}
+                  disabled={!course}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        course ? "Select semester..." : "Select course first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {semesterArray.map((sem) => (
+                      <SelectItem key={sem} value={sem}>
+                        Semester {sem}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <div className="flex items-start gap-3">
+                <InfoIcon className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-medium text-blue-800">
+                    Export Options
+                  </h4>
+                  <p className="text-xs text-blue-600 mt-1">
+                    The export will include all candidate data with the selected
+                    filters applied. You can further customize the columns in
+                    Excel after downloading.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 w-full">
+              <Button
+                variant="outline"
+                onClick={() => setExportDialog(false)}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={generateExportExcel}
+                className="w-full sm:w-auto"
+              >
+                <DownloadIcon className="h-4 w-4 mr-2" />
+                Download Excel
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* FILTERS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-lg shadow-sm">
+        <div>
+          <label className="text-sm font-medium text-gray-700">Stream/Degree/Year</label>
+          <Select onValueChange={handleStreamChange} value={stream}>
+            <SelectTrigger className="w-full mt-1">
+              <SelectValue placeholder="Select Stream..." />
+            </SelectTrigger>
+            <SelectContent>
+              {combineds.map((item) => (
+                <SelectItem key={item.uuid || item.id} value={item.name}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium text-gray-700">Course</label>
+          <Select onValueChange={handleCourseChange} value={course}>
+            <SelectTrigger className="w-full mt-1">
+              <SelectValue placeholder="Select Course..." />
+            </SelectTrigger>
+            <SelectContent>
+              {courses
+                .filter((item) => selectedCombined?.course === item.name)
+                .map((item) => (
+                  <SelectItem key={item.uuid} value={item.name}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium text-gray-700">Semester/Trimester</label>
+          <Select onValueChange={setSemester} value={semester}>
+            <SelectTrigger className="w-full mt-1">
+              <SelectValue placeholder="Select Semester..." />
+            </SelectTrigger>
+            <SelectContent>
+              {semesterArray.map((sem) => (
+                <SelectItem key={sem} value={sem}>
+                  Semester {sem}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium text-gray-700">Subject</label>
+          <Select onValueChange={setSubject} value={subject}>
+            <SelectTrigger className="w-full mt-1">
+              <SelectValue placeholder="Select Subject..." />
+            </SelectTrigger>
+            <SelectContent>
+              {subjects.map((item) => (
+                <SelectItem key={item.id || item.name} value={item.name}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {/* SEARCH + ACTIONS */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+        <div className="w-full sm:w-1/3">
+          <Input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={handleSearch}
+            className="w-full"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">No of Candidate: {filteredCandidates.length}</span>
+          {/* ACTION DROPDOWN */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                Actions
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedAction("import candidates");
+                    setOpenActionModal(true);
+                  }}
+                  className="gap-2"
+                >
+                  <CirclePlusIcon className="h-4 w-4" />
+                  Import Candidates
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setExportDialog(true)}
+                  className="gap-2"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Export
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setShowDeactivated((prev) => !prev)}
+                  className="gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  {showDeactivated ? "Hide" : "Show"} Deactivated
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedAction("generate booklet");
+                    setOpenActionModal(true);
+                  }}
+                  className="gap-2"
+                  disabled={selectedCandidates.size === 0}
+                >
+                  <CirclePlusIcon className="h-4 w-4" />
+                  Generate Booklet
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {/* TABLES */}
+      <div className="overflow-x-auto">
+        <div className="hidden sm:block">
+          {filteredCandidates.length > 0 && (
+            <Table className="min-w-full border-collapse">
+              <TableHeader className="bg-gray-100">
+                <TableRow>
+                  <TableHead className="border p-2 text-left w-1/12"></TableHead>
+                  <TableHead className="border p-2 text-left">Roll No</TableHead>
+                  <TableHead className="border p-2 text-left">PRN Number</TableHead>
+                  <TableHead className="border p-2 text-left">Name</TableHead>
+                  <TableHead className="border p-2 text-left">Email</TableHead>
+                  <TableHead className="border p-2 text-left">Gender</TableHead>
+                  <TableHead className="border p-2 text-left">Course</TableHead>
+                  <TableHead className="border p-2 text-left">Mobile No</TableHead>
+                  <TableHead className="border p-2 text-left">Is PH Candidate</TableHead>
+                  <TableHead className="border p-2 text-left">Campus Name</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCandidates.map((candidate) => (
+                  <TableRow
+                    key={candidate.candidateId}
+                    className="hover:bg-gray-50"
+                  >
+                    <TableCell className="border p-2 pr-2">
+                      <Checkbox
+                        checked={selectedCandidates.has(candidate.candidateId)}
+                        onCheckedChange={() =>
+                          handleCheckboxChange(candidate.candidateId)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.rollNumber}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.prnNumber}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.name}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.emailId}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.gender}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {getCourseName(candidate.course)}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.mobileNo}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.isPHCandidate ? "Yes" : "No"}
+                    </TableCell>
+                    <TableCell className="border p-2 truncate">
+                      {candidate.campusName}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+        {/* MOBILE CARD VIEW */}
+        <div className="sm:hidden">
+          {filteredCandidates.map((candidate) => (
+            <div
+              key={candidate.candidateId}
+              className="border p-4 mb-4 rounded-lg bg-white shadow-sm hover:bg-gray-50"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-medium">Sr No: {candidate.srNo}</span>
+                <Checkbox
+                  checked={selectedCandidates.has(candidate.candidateId)}
+                  onCheckedChange={() =>
+                    handleCheckboxChange(candidate.candidateId)
+                  }
+                />
+              </div>
+              <div className="text-sm text-gray-600">
+                <p>
+                  <strong>Candidate ID:</strong> {candidate.candidateId}
+                </p>
+                <p>
+                  <strong>Name:</strong> {candidate.name}
+                </p>
+                <p>
+                  <strong>Email:</strong> {candidate.emailId}
+                </p>
+                <p>
+                  <strong>Roll Number:</strong> {candidate.rollNumber}
+                </p>
+                <p>
+                  <strong>PRN Number:</strong> {candidate.prnNumber}
+                </p>
+                <p>
+                  <strong>Gender:</strong> {candidate.gender}
+                </p>
+                <p>
+                  <strong>Mobile No:</strong> {candidate.mobileNo}
+                </p>
+                <p>
+                  <strong>Is PH Candidate:</strong>{" "}
+                  {candidate.isPHCandidate ? "Yes" : "No"}
+                </p>
+                <p>
+                  <strong>Campus Name:</strong> {candidate.campusName}
+                </p>
+                {subjects.map((s) => (
+                  <p key={s.id || s.name}>
+                    <strong>{s.name}:</strong> {candidate.subjects[s.name] || 0}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

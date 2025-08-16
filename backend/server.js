@@ -5,6 +5,15 @@ const XLSX = require("xlsx");
 const { body, validationResult } = require("express-validator");
 require("dotenv").config();
 
+// Create uploads directory if it doesn't exist
+const fs = require("fs");
+const path = require("path");
+const PdfParse = require("pdf-parse");
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
 const app = express();
 app.use(express.json());
 app.use(
@@ -30,6 +39,9 @@ const Specialization = require("./models/specializationModel");
 const Subject = require("./models/subjectModel");
 const Combined = require("./models/combinedModel");
 const QP = require("./models/qpModel");
+const Candidate = require("./models/candidateModel");
+const AnswerSheet = require("./models/answerSheetModel");
+const User = require("./models/userModel");
 
 // Validation middleware
 const validateCourse = [
@@ -108,14 +120,35 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
 
     const createdSubjects = [];
     const errors = [];
+    const seenSubjects = new Set();
 
+    // First pass: Validate all subjects and check for in-batch duplicates
+    const validSubjects = [];
     for (const [index, subjectData] of req.body.entries()) {
-      try {
-        console.log(
-          `Processing subject ${index}:`,
-          JSON.stringify(subjectData, null, 2)
-        );
+      const { name, code, semester, course, stream, degree, year } =
+        subjectData;
 
+      if (!name || !code || !course || !stream || !degree || !year) {
+        errors.push({ index, error: "Missing required fields", subjectData });
+        continue;
+      }
+
+      const subjectKey = `${name}|${code}|${course}|${stream}|${degree}|${year}|${semester}`;
+      if (seenSubjects.has(subjectKey)) {
+        errors.push({
+          index,
+          error: "Duplicate in current batch",
+          subjectData,
+        });
+        continue;
+      }
+      seenSubjects.add(subjectKey);
+      validSubjects.push(subjectData);
+    }
+
+    // Second pass: Check against database and create documents
+    for (const [index, subjectData] of validSubjects.entries()) {
+      try {
         const {
           name,
           code,
@@ -126,103 +159,100 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
           stream,
           degree,
           year,
-          uuid,
         } = subjectData;
 
-        // Validate required fields
-        if (!name || !code || !course || !stream || !degree || !year) {
-          errors.push({ index, error: "Missing required fields", subjectData });
-          continue;
-        }
-
         // Process Stream
-        let streamDoc = await Stream.findOne({ name: stream });
-        if (!streamDoc) {
-          streamDoc = new Stream({
-            name: stream,
-            uuid: generateUUID(),
-          });
-          await streamDoc.save();
-          console.log("Created new stream:", streamDoc.name);
-        }
+        let streamDoc = await Stream.findOneAndUpdate(
+          { name: stream },
+          { $setOnInsert: { name: stream, uuid: generateUUID() } },
+          { upsert: true, new: true }
+        );
 
         // Process Degree
-        let degreeDoc = await Degree.findOne({ name: degree });
-        if (!degreeDoc) {
-          degreeDoc = new Degree({
-            name: degree,
-            stream: streamDoc.uuid,
-            uuid: generateUUID(),
-          });
-          await degreeDoc.save();
-          console.log("Created new degree:", degreeDoc.name);
-        }
+        let degreeDoc = await Degree.findOneAndUpdate(
+          { name: degree },
+          {
+            $setOnInsert: {
+              name: degree,
+              stream: streamDoc.uuid,
+              uuid: generateUUID(),
+            },
+          },
+          { upsert: true, new: true }
+        );
 
         // Process Academic Year
-        let yearDoc = await AcademicYear.findOne({ year });
-        if (!yearDoc) {
-          yearDoc = new AcademicYear({
-            year,
-            degree: degreeDoc.uuid,
-            stream: streamDoc.uuid,
-            uuid: generateUUID(),
-          });
-          await yearDoc.save();
-          console.log("Created new academic year:", yearDoc.year);
-        }
+        let yearDoc = await AcademicYear.findOneAndUpdate(
+          { year, degree: degreeDoc.uuid },
+          {
+            $setOnInsert: {
+              year,
+              degree: degreeDoc.uuid,
+              stream: streamDoc.uuid,
+              uuid: generateUUID(),
+            },
+          },
+          { upsert: true, new: true }
+        );
 
         // Process Course
-        let courseDoc = await Course.findOne({
-          $or: [{ name: course }, { code: subjectData.courseCode }],
-        });
+        let courseDoc = await Course.findOneAndUpdate(
+          {
+            $or: [
+              { name: course },
+              { code: subjectData.courseCode || generateUUID().slice(0, 8) },
+            ],
+          },
+          {
+            $setOnInsert: {
+              name: course,
+              code: subjectData.courseCode || generateUUID().slice(0, 8),
+              stream: streamDoc.uuid,
+              degree: degreeDoc.uuid,
+              academicYear: yearDoc.uuid,
+              semester: semester,
+              uuid: generateUUID(),
+            },
+          },
+          { upsert: true, new: true }
+        );
 
-        if (!courseDoc) {
-          courseDoc = new Course({
-            name: course,
-            code: subjectData.courseCode || generateUUID().slice(0, 8),
-            stream: streamDoc.uuid,
-            degree: degreeDoc.uuid,
-            academicYear: yearDoc.uuid,
-            semester: semester,
-            uuid: generateUUID(),
-          });
-          await courseDoc.save();
-          console.log("Created new course:", courseDoc.name);
-        }
-
-        // Create Combined Data
-        let combinedDoc = await Combined.findOne({
-          name: `${stream} | ${degree} | ${year}`,
-        });
-
-        if (!combinedDoc) {
-          combinedDoc = new Combined({
-            name: `${stream} | ${degree} | ${year}`,
-            course,
-            uuid: generateUUID(),
-            stream: streamDoc.uuid,
-            degree: degreeDoc.uuid,
-            year: yearDoc.uuid,
-          });
-          await combinedDoc.save();
-        }
-
-        // ---- NEW DUPLICATE CHECK LOGIC ----
+        // MODIFIED DUPLICATE CHECK: Same subject name+code allowed only if course is different
         const existingSubject = await Subject.findOne({
-          name: name,
-          code: code,
-          course: courseDoc.uuid,
+          name,
+          code,
+          course: courseDoc.uuid, // Check for same course
           year: yearDoc.uuid,
-          semester: semester,
+          semester,
         });
 
         if (existingSubject) {
           console.log(
-            `Skipping duplicate subject ${code} - ${name} for course ${courseDoc.name}, year ${yearDoc.year}, semester ${semester}`
+            `Skipping existing subject (same course): ${code} - ${name} for course ${courseDoc.name}`
           );
+          errors.push({
+            index,
+            error: "Subject with same course already exists",
+            subjectData,
+          });
           continue;
         }
-        // ---- END NEW DUPLICATE CHECK ----
+
+        // Create Combined Data
+        let combinedDoc = await Combined.findOneAndUpdate(
+          { name: `${stream} | ${degree} | ${year}` },
+          {
+            $setOnInsert: {
+              name: `${stream} | ${degree} | ${year}`,
+              uuid: generateUUID(),
+              stream: streamDoc.uuid,
+              degree: degreeDoc.uuid,
+              year: yearDoc.uuid,
+            },
+            $addToSet: { course },
+          },
+          { upsert: true, new: true }
+        );
 
         // Create Subject
         const newSubject = new Subject({
@@ -234,7 +264,7 @@ app.post("/api/v1/subjects/bulk", async (req, res) => {
           course: courseDoc.uuid,
           combined: combinedDoc.uuid,
           year: yearDoc.uuid,
-          uuid: uuid || generateUUID(),
+          uuid: subjectData.uuid || generateUUID(),
         });
 
         await newSubject.save();
@@ -532,6 +562,89 @@ app.post("/api/v1/courses/bulk", async (req, res) => {
   }
 });
 
+// @POST - Csutom route to Add multiple candidates and return all
+app.post("/api/v1/candidates/import", async (req, res) => {
+  try {
+    const candidatesData = req.body.data;
+
+    if (!Array.isArray(candidatesData)) {
+      return res
+        .status(400)
+        .json({ message: "Input must be an array of candidates" });
+    }
+
+    const formatted = [];
+    const processedCombinedKeys = new Set();
+
+    for (const candidate of candidatesData) {
+      // Skip invalid rows
+      if (!candidate?.RollNo || !candidate?.PRNNumber) {
+        console.warn("Skipping invalid candidate:", candidate);
+        continue;
+      }
+
+      const combinedKey = `${candidate.RollNo} [${candidate.PRNNumber}]`;
+
+      // Skip duplicates in the current import batch
+      if (processedCombinedKeys.has(combinedKey)) {
+        continue;
+      }
+      processedCombinedKeys.add(combinedKey);
+
+      // Check if candidate already exists in DB
+      const existingCandidate = await Candidate.findOne({
+        $or: [{ RollNo: candidate.RollNo }, { PRNNumber: candidate.PRNNumber }],
+      });
+
+      if (existingCandidate) {
+        // Skip existing candidates to avoid duplicates
+        continue;
+      }
+
+      // Find matching answer sheets
+      const answerSheets = await AnswerSheet.find({
+        candidateId: combinedKey,
+      });
+
+      let sheetUploaded = false;
+
+      if (answerSheets.length > 0) {
+        sheetUploaded = true;
+        await AnswerSheet.updateMany(
+          { candidateId: combinedKey },
+          {
+            $set: {
+              attendance: true,
+            },
+          }
+        );
+      }
+
+      // Prepare candidate object for insert
+      formatted.push({
+        ...candidate,
+        course: req.body.course,
+        combined: req.body.combined,
+        sheetUploaded,
+      });
+    }
+
+    // Insert all new candidates
+    if (formatted.length > 0) {
+      await Candidate.insertMany(formatted);
+    }
+
+    // Return all candidates from DB
+    const allCandidates = await Candidate.find();
+    res.status(201).json(allCandidates);
+  } catch (error) {
+    console.error("Error saving candidates:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+});
+
 // Configure multer for file uploads
 const multer = require("multer");
 const storage = multer.diskStorage({
@@ -545,8 +658,10 @@ const storage = multer.diskStorage({
     });
   },
   filename: function (req, file, cb) {
-    const uniqueFilename = file.originalname;
-    cb(null, uniqueFilename);
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${basename}-${uniqueSuffix}${ext}`);
   },
 });
 
@@ -570,14 +685,143 @@ const upload = multer({
   },
 });
 
-// Create uploads directory if it doesn't exist
-const fs = require("fs");
-const path = require("path");
-const PdfParse = require("pdf-parse");
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
+// @POST - Custom Route to upload multiple answer sheets
+app.post(
+  "/api/v1/answer-books/upload/multiple",
+  upload.array("files"),
+  async (req, res) => {
+    try {
+      const files = req.files;
+      const { combined, course, subject } = req.body;
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+
+      if (!combined || !course || !subject) {
+        return res.status(400).json({
+          error: "Missing required fields: combined, course or subject",
+        });
+      }
+
+      // Validate file types
+      const invalidFiles = files.filter(
+        (file) => !["application/pdf"].includes(file.mimetype)
+      );
+      if (invalidFiles.length > 0) {
+        return res.status(400).json({
+          error: "Invalid file type. Only PDF files are allowed",
+        });
+      }
+
+      const savedFiles = await Promise.all(
+        files.map(async (file) => {
+          const fileUuid = [...Array(6)]
+            .map(() => Math.random().toString(36)[2].toUpperCase())
+            .join("");
+          const filePath = path.join("uploads", file.filename); // Use saved filename
+
+          // Extract RollNo & PRNNumber from original filename (format: "RollNo [PRNNumber].pdf")
+          const match = file.originalname.match(/^(\w+)\s*\[([^\]]+)\]\.pdf$/i);
+          if (!match) {
+            throw new Error(`Invalid filename format: ${file.originalname}`);
+          }
+          const roll = match[1];
+          const prn = match[2];
+          const combinedKey = `${roll} [${prn}]`;
+
+          const existCandidate = await Candidate.findOne({
+            RollNo: roll,
+          });
+
+          let candidateLinked = false;
+          let attendance = false;
+
+          if (existCandidate) {
+            // Check if course and subject match
+            if (existCandidate.course !== course) {
+              throw new Error(
+                `Candidate ${roll} is not enrolled in course ${course} or subject ${subject} for file ${file.originalname}`
+              );
+            }
+
+            candidateLinked = true;
+            attendance = true;
+
+            // Update candidate
+            await Candidate.findOneAndUpdate(
+              { RollNo: roll },
+              {
+                sheetUploaded: true,
+                BookletName: existCandidate.RollNo,
+              }
+            );
+          }
+
+          // Create or update AnswerSheet entry, unique per candidate and subject
+          const existingAnswerSheet = await AnswerSheet.findOne({
+            candidateId: combinedKey,
+            subject: subject,
+          });
+
+          let answerSheet;
+
+          if (existingAnswerSheet) {
+            // Update existing answer sheet
+            answerSheet = await AnswerSheet.findOneAndUpdate(
+              { _id: existingAnswerSheet._id },
+              {
+                name: existCandidate
+                  ? existCandidate.RollNo
+                  : file.originalname,
+                path: filePath,
+                combined,
+                course,
+                rollPRN: file.originalname,
+                subject,
+                candidateId: combinedKey,
+                sheetUploaded: true,
+                attendance,
+              },
+              { new: true }
+            );
+          } else {
+            // Create new answer sheet
+            answerSheet = new AnswerSheet({
+              name: existCandidate ? existCandidate.RollNo : file.originalname,
+              uuid: fileUuid,
+              path: filePath,
+              combined,
+              course,
+              rollPRN: file.originalname,
+              subject,
+              candidateId: combinedKey,
+              sheetUploaded: true,
+              attendance,
+            });
+            await answerSheet.save();
+          }
+
+          return {
+            name: file.originalname,
+            size: file.size,
+            uuid: fileUuid,
+            candidateLinked,
+          };
+        })
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `${files.length} file(s) uploaded successfully`,
+        files: savedFiles,
+      });
+    } catch (error) {
+      console.error("Upload error:", error.message);
+      res.status(500).json({ error: `Upload failed: ${error.message}` });
+    }
+  }
+);
 
 // Helper function to process question hierarchy
 function processQuestionPaper(jsonData) {
@@ -585,7 +829,7 @@ function processQuestionPaper(jsonData) {
 
   // First pass: Create main questions
   jsonData.forEach((row) => {
-    if (row["Question Type"] === "Main") {
+    if (row["Question Type"].trim() === "Main") {
       result[row["Question No"]] = {
         QuestionNo: row["Question No"],
         QuestionText: row["Question Text"],
@@ -594,13 +838,14 @@ function processQuestionPaper(jsonData) {
         QuestionFormat: row["Question Format"],
         Notes: row["Notes"],
         subQuestions: {},
+        actualQuestions: {}, // Add direct actual questions container
       };
     }
   });
 
   // Second pass: Add sub questions
   jsonData.forEach((row) => {
-    if (row["Question Type"] === "Sub") {
+    if (row["Question Type"].trim() === "Sub") {
       const parts = row["Question No"].split(".");
       if (parts.length === 2) {
         const mainQId = parts[0];
@@ -623,17 +868,29 @@ function processQuestionPaper(jsonData) {
 
   // Third pass: Add actual questions
   jsonData.forEach((row) => {
-    if (row["Question Type"] === "Actual") {
+    if (row["Question Type"].trim() === "Actual") {
       const parts = row["Question No"].split(".");
       if (parts.length === 2) {
-        // e.g., "Q1.a1" splits to ["Q1", "a1"]
-        const mainQId = parts[0]; // "Q1"
-        const subQId = mainQId + "." + parts[1].charAt(0); // "Q1.a" from "a1"
+        const mainQId = parts[0];
+        const subPart = parts[1];
 
-        if (result[mainQId]?.subQuestions[subQId]) {
-          result[mainQId].subQuestions[subQId].actualQuestions[
+        const potentialSubQId = mainQId + "." + subPart.charAt(0);
+
+        if (result[mainQId]?.subQuestions[potentialSubQId]) {
+          // Case 1: Has sub-question (main→sub→actual)
+          result[mainQId].subQuestions[potentialSubQId].actualQuestions[
             row["Question No"]
           ] = {
+            QuestionNo: row["Question No"],
+            QuestionText: row["Question Text"],
+            Marks: row["Marks"],
+            QuestionType: row["Question Type"],
+            QuestionFormat: row["Question Format"],
+            Notes: row["Notes"],
+          };
+        } else {
+          // Case 2: No sub-question (main→actual)
+          result[mainQId].actualQuestions[row["Question No"]] = {
             QuestionNo: row["Question No"],
             QuestionText: row["Question Text"],
             Marks: row["Marks"],
@@ -674,6 +931,7 @@ app.post("/api/v1/import/qp", upload.single("file"), async (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const workSheet = workbook.Sheets[sheetName];
     const jsonData = XLSX.utils.sheet_to_json(workSheet);
+    console.log("Data:", jsonData);
 
     // Calculate total marks (include both Main and Sub Questions)
     const totalMarks = jsonData.reduce((sum, question) => {
@@ -685,16 +943,22 @@ app.post("/api/v1/import/qp", upload.single("file"), async (req, res) => {
 
     // Count questions
     const mainQuestionsCount = jsonData.filter(
-      (el) => el["Question Type"] === "Main"
+      (el) => el["Question Type"].trim() === "Main"
     ).length;
 
     const subQuestionsCount = jsonData.filter(
-      (el) => el["Question Type"] === "Sub"
+      (el) => el["Question Type"].trim() === "Sub"
     ).length;
 
-    const actualQuestionsCount = jsonData.filter(
-      (el) => el["Question Type"] === "Actual"
-    ).length;
+    const actualQuestionsCount = jsonData.filter((el) => {
+      console.log(
+        "with trim:",
+        el["Question Type"].trim(),
+        "without trim:",
+        el["Question Type"]
+      );
+      el["Question Type"].trim() === "Actual";
+    }).length;
 
     // Process question hierarchy
     const questionData = processQuestionPaper(jsonData);
@@ -1161,6 +1425,16 @@ function crudRoutes(app, path, Model, validation = []) {
   });
 }
 
+// ---------------- User Operations ----------------
+app.get("/api/v1/candiates", async (req, res) => {
+  try {
+    const users = await User.find().select("-password -sessionToken");
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // ----- Register Routes -----
 crudRoutes(app, "streams", Stream);
 crudRoutes(app, "degrees", Degree);
@@ -1170,6 +1444,8 @@ crudRoutes(app, "specializations", Specialization);
 crudRoutes(app, "subjects", Subject);
 crudRoutes(app, "combineds", Combined);
 crudRoutes(app, "qp", QP);
+crudRoutes(app, "candidates", Candidate);
+crudRoutes(app, "answer-sheets", AnswerSheet);
 
 // Server start
 const PORT = process.env.NODE_PORT || 5000;

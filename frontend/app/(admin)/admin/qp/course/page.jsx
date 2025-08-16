@@ -308,36 +308,36 @@ export default function CourseManagementPage() {
   };
 
   // Fetch degrees by stream
-  const fetchDegrees = useCallback(
-    async (streamUuid) => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}/degrees`
-        );
-        if (!res.ok) throw new Error("Failed to fetch degrees");
-        const data = await res.json();
+  // const fetchDegrees = useCallback(
+  //   async (streamUuid) => {
+  //     setIsLoading(true);
+  //     try {
+  //       const res = await fetch(
+  //         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/streams/${streamUuid}/degrees`
+  //       );
+  //       if (!res.ok) throw new Error("Failed to fetch degrees");
+  //       const data = await res.json();
 
-        // Update degreeMap with fetched degrees
-        const newDegreeMap = { ...degreeMap };
-        data.forEach((degree) => {
-          newDegreeMap[degree.uuid] = {
-            name: degree.name || "Unknown",
-            isActive: degree.isActive !== false,
-          };
-        });
+  //       // Update degreeMap with fetched degrees
+  //       const newDegreeMap = { ...degreeMap };
+  //       data.forEach((degree) => {
+  //         newDegreeMap[degree.uuid] = {
+  //           name: degree.name || "Unknown",
+  //           isActive: degree.isActive !== false,
+  //         };
+  //       });
 
-        setDegrees(data);
-        setDegreeMap(newDegreeMap);
-      } catch (err) {
-        toast.error("Error loading degrees: " + err.message);
-        setDegrees([]);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [degreeMap]
-  );
+  //       setDegrees(data);
+  //       setDegreeMap(newDegreeMap);
+  //     } catch (err) {
+  //       toast.error("Error loading degrees: " + err.message);
+  //       setDegrees([]);
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   },
+  //   [degreeMap]
+  // );
 
   // Fetch academic years by degree
   const fetchAcademicYears = useCallback(
@@ -376,29 +376,29 @@ export default function CourseManagementPage() {
   }, [fetchData]);
 
   // Handle filter chain
-  useEffect(() => {
-    if (selectedStream) {
-      fetchDegrees(selectedStream.uuid);
-      setSelectedDegree(null);
-      setSelectedAcademicYear(null);
-      setAcademicYears([]);
-    } else {
-      setDegrees([]);
-      setAcademicYears([]);
-      setSelectedDegree(null);
-      setSelectedAcademicYear(null);
-    }
-  }, [selectedStream, fetchDegrees]);
+  // useEffect(() => {
+  //   if (selectedStream) {
+  //     fetchDegrees(selectedStream.uuid);
+  //     setSelectedDegree(null);
+  //     setSelectedAcademicYear(null);
+  //     setAcademicYears([]);
+  //   } else {
+  //     setDegrees([]);
+  //     setAcademicYears([]);
+  //     setSelectedDegree(null);
+  //     setSelectedAcademicYear(null);
+  //   }
+  // }, [selectedStream, fetchDegrees]);
 
-  useEffect(() => {
-    if (selectedDegree) {
-      fetchAcademicYears(selectedDegree.uuid);
-      setSelectedAcademicYear(null);
-    } else {
-      setAcademicYears([]);
-      setSelectedAcademicYear(null);
-    }
-  }, [selectedDegree, fetchAcademicYears]);
+  // useEffect(() => {
+  //   if (selectedDegree) {
+  //     fetchAcademicYears(selectedDegree.uuid);
+  //     setSelectedAcademicYear(null);
+  //   } else {
+  //     setAcademicYears([]);
+  //     setSelectedAcademicYear(null);
+  //   }
+  // }, [selectedDegree, fetchAcademicYears]);
 
   // Filter courses
   const filteredCourses = courses.filter((course) => {
@@ -829,7 +829,6 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
-                      disabled={isLoading}
                     >
                       {selectedStream ? selectedStream.name : "Select Stream"}
                       <ChevronDown className="ml-2 h-4 w-4" />
@@ -870,7 +869,10 @@ export default function CourseManagementPage() {
                     <DropdownMenuGroup>
                       {degrees.length > 0 ? (
                         degrees
-                          .filter((d) => d.isActive)
+                          .filter(
+                            (d) =>
+                              d.isActive && d.stream === selectedStream?.uuid
+                          )
                           .map((degree) => (
                             <DropdownMenuItem
                               key={degree.uuid}
@@ -962,7 +964,6 @@ export default function CourseManagementPage() {
                     <Button
                       variant="outline"
                       className="flex justify-between w-full"
-                      disabled={isLoading}
                     >
                       {selectedSemester || "Select Semester"}
                       <ChevronDown className="ml-2 h-4 w-4" />
@@ -970,14 +971,9 @@ export default function CourseManagementPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-full">
                     <DropdownMenuGroup>
-                      {semesterOptions.map((semester) => (
-                        <DropdownMenuItem
-                          key={semester}
-                          onSelect={() => setSelectedSemester(semester)}
-                        >
-                          {semester}
-                        </DropdownMenuItem>
-                      ))}
+                      {
+                        // courses.filter(el => )
+                      }
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>

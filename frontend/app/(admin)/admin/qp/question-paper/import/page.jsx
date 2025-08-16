@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,7 +15,12 @@ import { ChevronDown, ChevronRight, UploadCloud, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function ImportQuestionPaperPage() {
@@ -185,83 +190,140 @@ export default function ImportQuestionPaperPage() {
   const downloadTemplate = () => {
     const template = [
       {
-        "Question No": "Q1 Main",
-        "Question Type": "Main Question/Sub Question/Actual Question",
-        "Question Format": "Objective/Subjective",
-        "Question Text": "",
-        Marks: "",
-        "Optional Questions": "",
+        "Question No": "Q1",
+        "Question Type": "Main",
+        "Question Format": "Subjective",
+        "Question Text": "Answer and Written",
+        Marks: "30",
+        Optional: "",
         "Total Questions": "",
         Answer1: "",
         Answer2: "",
         Answer3: "",
         Answer4: "",
         "Correct Option": "",
-        "Difficulty Level": "Easy/Medium/Hard",
+        "Difficulty Level": "3",
         "Image Path": "",
         "Audio Path": "",
         "Video Path": "",
-        Notes: "For Main Question: use Q1 Main, Q2 Main | For Sub Question: use Q1.a, Q1.b | For Actual: use Q1.a1, Q1.a2",
+        Notes: "",
       },
       {
         "Question No": "Q1.a",
-        "Question Type": "Sub Question",
+        "Question Type": "Sub",
         "Question Format": "Subjective",
-        "Question Text": "Example: Attempt any 1 question",
-        Marks: "8",
-        "Optional Questions": "1",
-        "Total Questions": "2",
+        "Question Text": "Answer the following",
+        Marks: "15",
+        Optional: "3",
+        "Total Questions": "4",
         Answer1: "",
         Answer2: "",
         Answer3: "",
         Answer4: "",
         "Correct Option": "",
-        "Difficulty Level": "Medium",
+        "Difficulty Level": "",
         "Image Path": "",
         "Audio Path": "",
         "Video Path": "",
-        Notes: "Sub-question example",
+        Notes: "",
       },
       {
         "Question No": "Q1.a1",
-        "Question Type": "Actual Question",
+        "Question Type": "Actual",
         "Question Format": "Subjective",
-        "Question Text": "Example: Solve the equation 2x + 5 = 15",
-        Marks: "8",
-        "Optional Questions": "",
+        "Question Text": "Who is ShakeSpeare?",
+        Marks: "5",
+        Optional: "",
         "Total Questions": "",
         Answer1: "",
         Answer2: "",
         Answer3: "",
         Answer4: "",
         "Correct Option": "",
-        "Difficulty Level": "Medium",
+        "Difficulty Level": "",
         "Image Path": "",
         "Audio Path": "",
         "Video Path": "",
-        Notes: "Actual question example",
+        Notes: "",
+      },
+      {
+        "Question No": "Q1.a2",
+        "Question Type": "Actual",
+        "Question Format": "Subjective",
+        "Question Text": "What are conjuctions?",
+        Marks: "5",
+        Optional: "",
+        "Total Questions": "",
+        Answer1: "",
+        Answer2: "",
+        Answer3: "",
+        Answer4: "",
+        "Correct Option": "",
+        "Difficulty Level": "",
+        "Image Path": "",
+        "Audio Path": "",
+        "Video Path": "",
+        Notes: "",
+      },
+      {
+        "Question No": "Q2",
+        "Question Type": "Main",
+        "Question Format": "Subjective",
+        "Question Text": "Grammar",
+        Marks: "40",
+        Optional: "",
+        "Total Questions": "",
+        Answer1: "",
+        Answer2: "",
+        Answer3: "",
+        Answer4: "",
+        "Correct Option": "",
+        "Difficulty Level": "1",
+        "Image Path": "",
+        "Audio Path": "",
+        "Video Path": "",
+        Notes: "",
+      },
+      {
+        "Question No": "Q2.a",
+        "Question Type": "Sub",
+        "Question Format": "Subjective",
+        "Question Text": "Answer the grammar",
+        Marks: "40",
+        Optional: "2",
+        "Total Questions": "3",
+        Answer1: "",
+        Answer2: "",
+        Answer3: "",
+        Answer4: "",
+        "Correct Option": "",
+        "Difficulty Level": "",
+        "Image Path": "",
+        "Audio Path": "",
+        "Video Path": "",
+        Notes: "",
       },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(template);
     worksheet["!cols"] = [
       { wch: 12 }, // Question No
-      { wch: 20 }, // Question Type
+      { wch: 12 }, // Question Type
       { wch: 15 }, // Question Format
-      { wch: 50 }, // Question Text
+      { wch: 25 }, // Question Text
       { wch: 8 }, // Marks
-      { wch: 12 }, // Optional Questions
+      { wch: 10 }, // Optional
       { wch: 12 }, // Total Questions
-      { wch: 15 }, // Answer1
-      { wch: 15 }, // Answer2
-      { wch: 15 }, // Answer3
-      { wch: 15 }, // Answer4
+      { wch: 10 }, // Answer1
+      { wch: 10 }, // Answer2
+      { wch: 10 }, // Answer3
+      { wch: 10 }, // Answer4
       { wch: 12 }, // Correct Option
       { wch: 15 }, // Difficulty Level
-      { wch: 20 }, // Image Path
-      { wch: 20 }, // Audio Path
-      { wch: 20 }, // Video Path
-      { wch: 40 }, // Notes
+      { wch: 15 }, // Image Path
+      { wch: 15 }, // Audio Path
+      { wch: 15 }, // Video Path
+      { wch: 20 }, // Notes
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -386,9 +448,13 @@ export default function ImportQuestionPaperPage() {
                         <DropdownMenuContent className="w-full min-w-[200px]">
                           <DropdownMenuGroup>
                             {isLoading ? (
-                              <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Loading...
+                              </DropdownMenuItem>
                             ) : error ? (
-                              <DropdownMenuItem disabled>Error: {error}</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Error: {error}
+                              </DropdownMenuItem>
                             ) : combineds.length > 0 ? (
                               combineds.map((combined) => (
                                 <DropdownMenuItem
@@ -419,7 +485,9 @@ export default function ImportQuestionPaperPage() {
                             disabled={isLoading || !selectedCombineds}
                           >
                             <span className="truncate">
-                              {selectedCourse ? selectedCourse.name : "Select Course"}
+                              {selectedCourse
+                                ? selectedCourse.name
+                                : "Select Course"}
                             </span>
                             <ChevronDown className="ml-2 h-4 w-4" />
                           </Button>
@@ -427,9 +495,13 @@ export default function ImportQuestionPaperPage() {
                         <DropdownMenuContent className="w-full min-w-[200px]">
                           <DropdownMenuGroup>
                             {isLoading ? (
-                              <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Loading...
+                              </DropdownMenuItem>
                             ) : error ? (
-                              <DropdownMenuItem disabled>Error: {error}</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Error: {error}
+                              </DropdownMenuItem>
                             ) : courses.length > 0 ? (
                               courses
                                 .filter(
@@ -478,23 +550,30 @@ export default function ImportQuestionPaperPage() {
                         <DropdownMenuContent className="w-full min-w-[200px]">
                           <DropdownMenuGroup>
                             {isLoading ? (
-                              <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Loading...
+                              </DropdownMenuItem>
                             ) : error ? (
-                              <DropdownMenuItem disabled>Error: {error}</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Error: {error}
+                              </DropdownMenuItem>
                             ) : selectedCourse ? (
-                              Array.from({ length: selectedCourse.semester }, (_, i) => i + 1).map(
-                                (semesterNum) => (
-                                  <DropdownMenuItem
-                                    key={semesterNum}
-                                    onClick={() => {
-                                      setSelectedSemester(`Semester ${semesterNum}`);
-                                      setSelectedSubject("");
-                                    }}
-                                  >
-                                    Semester {semesterNum}
-                                  </DropdownMenuItem>
-                                )
-                              )
+                              Array.from(
+                                { length: selectedCourse.semester },
+                                (_, i) => i + 1
+                              ).map((semesterNum) => (
+                                <DropdownMenuItem
+                                  key={semesterNum}
+                                  onClick={() => {
+                                    setSelectedSemester(
+                                      `Semester ${semesterNum}`
+                                    );
+                                    setSelectedSubject("");
+                                  }}
+                                >
+                                  Semester {semesterNum}
+                                </DropdownMenuItem>
+                              ))
                             ) : (
                               <DropdownMenuItem disabled>
                                 Please select a course first
@@ -514,10 +593,14 @@ export default function ImportQuestionPaperPage() {
                           <Button
                             variant="outline"
                             className="w-full flex justify-between items-center"
-                            disabled={isLoading || !selectedCourse || !selectedSemester}
+                            disabled={
+                              isLoading || !selectedCourse || !selectedSemester
+                            }
                           >
                             <span className="truncate">
-                              {selectedSubject ? selectedSubject.name : "Select Subject"}
+                              {selectedSubject
+                                ? selectedSubject.name
+                                : "Select Subject"}
                             </span>
                             <ChevronDown className="ml-2 h-4 w-4" />
                           </Button>
@@ -525,12 +608,19 @@ export default function ImportQuestionPaperPage() {
                         <DropdownMenuContent className="w-full min-w-[200px]">
                           <DropdownMenuGroup>
                             {isLoading ? (
-                              <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Loading...
+                              </DropdownMenuItem>
                             ) : error ? (
-                              <DropdownMenuItem disabled>Error: {error}</DropdownMenuItem>
+                              <DropdownMenuItem disabled>
+                                Error: {error}
+                              </DropdownMenuItem>
                             ) : selectedCourse && selectedSemester ? (
                               subjects
-                                .filter((subject) => subject.course === selectedCourse.uuid)
+                                .filter(
+                                  (subject) =>
+                                    subject.course === selectedCourse.uuid
+                                )
                                 .map((subject) => (
                                   <DropdownMenuItem
                                     key={subject.uuid}
@@ -542,7 +632,9 @@ export default function ImportQuestionPaperPage() {
                                 ))
                             ) : (
                               <DropdownMenuItem disabled>
-                                {!selectedCourse ? "Select course first" : "Select semester first"}
+                                {!selectedCourse
+                                  ? "Select course first"
+                                  : "Select semester first"}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuGroup>
@@ -581,11 +673,15 @@ export default function ImportQuestionPaperPage() {
                           Excel Template Format
                         </h3>
                         <p className="text-sm text-blue-600 mb-4">
-                          Download and use this template to ensure your question paper follows the
-                          required format. The template includes example questions and formatting
-                          guidelines.
+                          Download and use this template to ensure your question
+                          paper follows the required format. The template
+                          includes example questions and formatting guidelines.
                         </p>
-                        <Button variant="outline" className="gap-2" onClick={downloadTemplate}>
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          onClick={downloadTemplate}
+                        >
                           <FileText className="h-4 w-4" />
                           Download Template
                         </Button>
@@ -601,8 +697,8 @@ export default function ImportQuestionPaperPage() {
                     Upload Question Paper
                   </h2>
                   <p className="text-sm text-gray-500">
-                    Select an Excel file (.xlsx) containing the question paper following the template
-                    format
+                    Select an Excel file (.xlsx) containing the question paper
+                    following the template format
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -617,13 +713,18 @@ export default function ImportQuestionPaperPage() {
                     >
                       <div className="flex flex-col items-center justify-center gap-3">
                         <UploadCloud
-                          className={`h-10 w-10 ${uploadedFile ? "text-green-500" : "text-gray-400"}`}
+                          className={`h-10 w-10 ${
+                            uploadedFile ? "text-green-500" : "text-gray-400"
+                          }`}
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-700">
                             {uploadedFile ? (
                               <>
-                                <span className="text-green-600">{uploadedFile.name}</span> selected
+                                <span className="text-green-600">
+                                  {uploadedFile.name}
+                                </span>{" "}
+                                selected
                               </>
                             ) : (
                               "Click to select or drag and drop your file"
@@ -663,7 +764,9 @@ export default function ImportQuestionPaperPage() {
                     )}
 
                     {(error || fileUploadStatus === "error") && (
-                      <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">{error}</div>
+                      <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                        {error}
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -696,7 +799,9 @@ export default function ImportQuestionPaperPage() {
 
               {selectedSubject && (
                 <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="font-medium text-blue-800 mb-2">Selected Details</h3>
+                  <h3 className="font-medium text-blue-800 mb-2">
+                    Selected Details
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className="bg-white">
                       Course: {selectedCourse?.name}
@@ -735,7 +840,9 @@ export default function ImportQuestionPaperPage() {
                       <FileText className="h-6 w-6 text-blue-500" />
                       <div>
                         <h3 className="font-medium">Uploaded File</h3>
-                        <p className="text-sm text-gray-600">{uploadedFile?.name}</p>
+                        <p className="text-sm text-gray-600">
+                          {uploadedFile?.name}
+                        </p>
                       </div>
                     </div>
                     {questionPaperLoading ? (
@@ -751,44 +858,64 @@ export default function ImportQuestionPaperPage() {
                     <div className="flex items-center justify-center p-8">
                       <div className="space-y-4 text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                        <p className="text-gray-500">Loading question paper details...</p>
+                        <p className="text-gray-500">
+                          Loading question paper details...
+                        </p>
                       </div>
                     </div>
                   ) : questionPaper ? (
                     <div className="grid gap-6 md:grid-cols-2">
                       <div className="p-4 border rounded-lg">
-                        <h3 className="font-medium mb-2">Question Paper Details</h3>
+                        <h3 className="font-medium mb-2">
+                          Question Paper Details
+                        </h3>
                         <dl className="space-y-2">
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Exam Name:</dt>
-                            <dd className="font-medium">{questionPaper.name}</dd>
+                            <dd className="font-medium">
+                              {questionPaper.name}
+                            </dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Course:</dt>
-                            <dd className="font-medium">{selectedCourse.name}</dd>
+                            <dd className="font-medium">
+                              {selectedCourse.name}
+                            </dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Subject:</dt>
-                            <dd className="font-medium">{selectedSubject.name}</dd>
+                            <dd className="font-medium">
+                              {selectedSubject.name}
+                            </dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Semester:</dt>
-                            <dd className="font-medium">{selectedCourse.semester}</dd>
+                            <dd className="font-medium">
+                              {selectedCourse.semester}
+                            </dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Created:</dt>
-                            <dd className="font-medium">{new Date().toLocaleDateString()}</dd>
+                            <dd className="font-medium">
+                              {new Date().toLocaleDateString()}
+                            </dd>
                           </div>
                         </dl>
                       </div>
 
                       <div className="p-4 border rounded-lg">
-                        <h3 className="font-medium mb-2">Question Paper Structure</h3>
+                        <h3 className="font-medium mb-2">
+                          Question Paper Structure
+                        </h3>
                         <dl className="space-y-2">
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Status:</dt>
                             <dd className="font-medium">
-                              <Badge variant={questionPaper.isActive ? "success" : "danger"}>
+                              <Badge
+                                variant={
+                                  questionPaper.isActive ? "success" : "danger"
+                                }
+                              >
                                 {questionPaper.isActive ? "active" : "inactive"}
                               </Badge>
                             </dd>
@@ -797,40 +924,63 @@ export default function ImportQuestionPaperPage() {
                             <dt className="text-gray-600">Version:</dt>
                             <Badge variant="secondary">
                               <dd className="font-medium">
-                                {questionPaper.version ? questionPaper.version : "1.0.0"}
+                                {questionPaper.version
+                                  ? questionPaper.version
+                                  : "1.0.0"}
                               </dd>
                             </Badge>
                           </div>
                           <div className="flex justify-between">
-                            <dt className="text-gray-600">Examiner Assigned:</dt>
+                            <dt className="text-gray-600">
+                              Examiner Assigned:
+                            </dt>
                             <dd className="font-medium">
-                              <Badge variant={questionPaper.examinerAssigned ? "success" : "secondary"}>
+                              <Badge
+                                variant={
+                                  questionPaper.examinerAssigned
+                                    ? "success"
+                                    : "secondary"
+                                }
+                              >
                                 {questionPaper.examinerAssigned ? "Yes" : "No"}
                               </Badge>
                             </dd>
                           </div>
-                          {questionPaper.examinerAssigned && questionPaper.examiner && (
-                            <div className="flex justify-between">
-                              <dt className="text-gray-600">Examiner:</dt>
-                              <dd className="font-medium">{questionPaper.examiner}</dd>
-                            </div>
-                          )}
+                          {questionPaper.examinerAssigned &&
+                            questionPaper.examiner && (
+                              <div className="flex justify-between">
+                                <dt className="text-gray-600">Examiner:</dt>
+                                <dd className="font-medium">
+                                  {questionPaper.examiner}
+                                </dd>
+                              </div>
+                            )}
                           <div className="flex justify-between">
-                            <dt className="text-gray-600">Total Main Questions:</dt>
+                            <dt className="text-gray-600">
+                              Total Main Questions:
+                            </dt>
                             <dd className="font-medium">
-                              <Badge variant="success">{questionPaper.questionsCount}</Badge>
+                              <Badge variant="success">
+                                {questionPaper.questionsCount}
+                              </Badge>
                             </dd>
                           </div>
                           <div className="flex justify-between">
-                            <dt className="text-gray-600">Total Sub-Questions:</dt>
+                            <dt className="text-gray-600">
+                              Total Sub-Questions:
+                            </dt>
                             <dd className="font-medium">
-                              <Badge variant="success">{questionPaper.subQuestionsCount}</Badge>
+                              <Badge variant="success">
+                                {questionPaper.subQuestionsCount}
+                              </Badge>
                             </dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Total Marks:</dt>
                             <dd className="font-medium">
-                              <Badge variant="success">{questionPaper.totalMarks}</Badge>
+                              <Badge variant="success">
+                                {questionPaper.totalMarks}
+                              </Badge>
                             </dd>
                           </div>
                         </dl>
@@ -838,36 +988,50 @@ export default function ImportQuestionPaperPage() {
 
                       {questionPaper.error && (
                         <div className="md:col-span-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                          <h3 className="font-medium mb-2 text-red-700">Import Errors</h3>
-                          <p className="text-sm text-red-600">{questionPaper.error}</p>
+                          <h3 className="font-medium mb-2 text-red-700">
+                            Import Errors
+                          </h3>
+                          <p className="text-sm text-red-600">
+                            {questionPaper.error}
+                          </p>
                         </div>
                       )}
 
-                      {questionPaper.sections && questionPaper.sections.length > 0 && (
-                        <div className="md:col-span-2 p-4 border rounded-lg">
-                          <h3 className="font-medium mb-4">Question Paper Preview</h3>
-                          <div className="grid gap-4">
-                            {questionPaper.sections.map((section, index) => (
-                              <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                                <h4 className="font-medium mb-2">Section {index + 1}</h4>
-                                <div className="space-y-1 text-sm">
-                                  {section.questions.map((question, qIndex) => (
-                                    <div
-                                      key={qIndex}
-                                      className="flex justify-between items-center"
-                                    >
-                                      <span>
-                                        Q{qIndex + 1}. {question.text}
-                                      </span>
-                                      <Badge>{question.marks} marks</Badge>
-                                    </div>
-                                  ))}
+                      {questionPaper.sections &&
+                        questionPaper.sections.length > 0 && (
+                          <div className="md:col-span-2 p-4 border rounded-lg">
+                            <h3 className="font-medium mb-4">
+                              Question Paper Preview
+                            </h3>
+                            <div className="grid gap-4">
+                              {questionPaper.sections.map((section, index) => (
+                                <div
+                                  key={index}
+                                  className="p-4 bg-gray-50 rounded-lg"
+                                >
+                                  <h4 className="font-medium mb-2">
+                                    Section {index + 1}
+                                  </h4>
+                                  <div className="space-y-1 text-sm">
+                                    {section.questions.map(
+                                      (question, qIndex) => (
+                                        <div
+                                          key={qIndex}
+                                          className="flex justify-between items-center"
+                                        >
+                                          <span>
+                                            Q{qIndex + 1}. {question.text}
+                                          </span>
+                                          <Badge>{question.marks} marks</Badge>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   ) : (
                     <div className="text-center p-4 text-red-500">
@@ -891,7 +1055,9 @@ export default function ImportQuestionPaperPage() {
                 <h2 className="text-xl font-semibold text-gray-800">
                   Paper Check Settings
                 </h2>
-                <p className="text-sm text-gray-500">Configure settings for paper checking</p>
+                <p className="text-sm text-gray-500">
+                  Configure settings for paper checking
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
@@ -904,7 +1070,11 @@ export default function ImportQuestionPaperPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <Label>Require Examiner Approval</Label>
-                        <Input type="checkbox" className="w-5 h-5" defaultChecked />
+                        <Input
+                          type="checkbox"
+                          className="w-5 h-5"
+                          defaultChecked
+                        />
                       </div>
                       <div className="flex items-center justify-between">
                         <Label>Marking Scheme Strictness</Label>
@@ -921,10 +1091,12 @@ export default function ImportQuestionPaperPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-4 border-t">
-                <Button variant="outline">
-                  Back
+                <Button variant="outline">Back</Button>
+                <Button
+                  onClick={() => router.push("/admin/qp/question-paper/master")}
+                >
+                  Complete Import
                 </Button>
-                <Button onClick={() => router.push('/admin/qp/question-paper/master')}>Complete Import</Button>
               </CardFooter>
             </Card>
           )}
