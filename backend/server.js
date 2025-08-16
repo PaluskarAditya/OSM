@@ -606,6 +606,7 @@ app.post("/api/v1/candidates/import", async (req, res) => {
 
       // ✅ Fetch all subjects that belong to this course + combined
       const subjects = await Subject.find({
+        uuid: generateUUID(),
         course: req.body.course,
         combined: req.body.combined,
         semester: req.body.sem,

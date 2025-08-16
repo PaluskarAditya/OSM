@@ -19,6 +19,7 @@ const candidateSchema = new mongoose.Schema(
     BookletName: { type: String },
     sem: { type: String, required: true },
     isActive: { type: Boolean, default: true },
+    uuid: { type: String, required: true }
   },
   {
     timestamps: true,

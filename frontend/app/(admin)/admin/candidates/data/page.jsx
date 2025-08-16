@@ -53,6 +53,11 @@ export default function page() {
   const [importDialogCourse, setImportDialogCourse] = useState(null);
   const [importDialogSemester, setImportDialogSemester] = useState(null);
 
+  const [exportDialog, setExportDialog] = useState(null);
+  const [exportDialogCombined, setExportDialogCombined] = useState(null);
+  const [exportDialogCourse, setExportDialogCourse] = useState(null);
+  const [exportDialogSemester, setExportDialogSemester] = useState(null);
+
   const [selectedCombined, setSelectedCombined] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState(null);
@@ -193,6 +198,89 @@ export default function page() {
     const combined = combineds.find((el) => el.uuid === id);
     const course = courses.find((el) => combined?.course.includes(el.name));
     return course?.name;
+  };
+
+  const excelTemplate = () => {
+    const candidate_subjects = subjects.filter(
+      (sub) =>
+        sub.combined === exportDialogCombined.uuid &&
+        sub.course === exportDialogCourse.uuid &&
+        sub.semester === String(exportDialogSemester)
+    );
+
+    const name_map = candidate_subjects.map((sub) => sub.name);
+
+    console.log(
+      "Query Data:",
+      exportDialogCombined.uuid,
+      exportDialogCourse.uuid,
+      String(exportDialogSemester),
+      "Subjects:",
+      name_map
+    );
+
+    const data = [
+      "RollNo",
+      "PRNNumber",
+      "Gender",
+      "Email",
+      "FirstName",
+      "MiddleName",
+      "LastName",
+      "MobileNo",
+      "IsPHCandidate",
+      "CampusName",
+      ...name_map,
+    ];
+
+    const data_row = [
+      "1234",
+      "1234",
+      "Male",
+      "Johndoe@test.com",
+      "John",
+      "Test",
+      "Doe",
+      "1234567890",
+      "Yes / No",
+      "Test Campus",
+    ];
+
+    const worksheetData = [data, data_row];
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    XLSX.writeFile(
+      workbook,
+      `Candidate_Template_Semesteer-${exportDialogSemester}.xlsx`
+    );
+
+    setExportDialog(false);
+  };
+
+  const excelCandidate = () => {
+    const mappedData = filteredCandidates.map((el) => ({
+      RollNo: el.RollNo,
+      PRNNumber: el.PRNNumber,
+      StudentId: el.uuid,
+      Name: `${el.FirstName} ${el.MiddleName} ${el.LastName}`,
+      EmailId: el.Email,
+      IsPHCandidate: el.IsPHCandidate,
+      Stream: getStreamName(el.combined),
+      Course: getCourseName(el.combined),
+      Subject: selectedSubject.name,
+      BookletName: el.BookletName,
+      CampusName: el.CampusName,
+      ExamAssignmentId: "",
+      AnswerSheetUploaded: el.sheetUploaded ? "Yes" : "No",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(mappedData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    XLSX.writeFile(workbook, "Candidates.xlsx");
   };
 
   useEffect(() => {
@@ -364,6 +452,119 @@ export default function page() {
         </DialogContent>
       </Dialog>
 
+      {/* Export Template Dialog */}
+      <Dialog open={exportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export</DialogTitle>
+            <DialogDescription>
+              Export Candidate template for selected filters
+            </DialogDescription>
+          </DialogHeader>
+          <main className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm">Stream | Degree | Year</label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex justify-between items-center"
+                  >
+                    <span>
+                      {exportDialogCombined
+                        ? exportDialogCombined.name
+                        : "Select"}
+                    </span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {combineds.map((el) => (
+                    <DropdownMenuItem
+                      onClick={() => setExportDialogCombined(el)}
+                      key={el.uuid}
+                    >
+                      {el.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm">Course</label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex justify-between items-center"
+                    disabled={exportDialogCombined === null}
+                  >
+                    <span>
+                      {exportDialogCourse ? exportDialogCourse.name : "Select"}
+                    </span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {exportDialogCombined &&
+                    courses
+                      .filter((el) =>
+                        exportDialogCombined.course.includes(el.name)
+                      )
+                      .map((el) => (
+                        <DropdownMenuItem
+                          onClick={() => setExportDialogCourse(el)}
+                          key={el.uuid}
+                        >
+                          {el.name}
+                        </DropdownMenuItem>
+                      ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm">Semester</label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex justify-between items-center"
+                    disabled={exportDialogCourse === null}
+                  >
+                    <span>
+                      {exportDialogSemester ? exportDialogSemester : "Select"}
+                    </span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuContent>
+                    {exportDialogCourse &&
+                      Array.from(
+                        { length: Number(exportDialogCourse.semester) },
+                        (_, i) => (
+                          <DropdownMenuItem
+                            onClick={() => setExportDialogSemester(i + 1)}
+                            key={i + 1}
+                          >
+                            Semester {i + 1}
+                          </DropdownMenuItem>
+                        )
+                      )}
+                  </DropdownMenuContent>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </main>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setExportDialog(false)}>
+              cancel
+            </Button>
+            <Button onClick={excelTemplate}>Export</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-5 bg-white flex flex-col gap-0 rounded-lg shadow-lg shadow-gray-200">
         <h1 className="text-lg font-semibold">Candidates</h1>
         <p className="text-sm text-gray-500">Import and Manage Candidates</p>
@@ -472,8 +673,12 @@ export default function page() {
               <DropdownMenuItem onClick={() => setImportDialog(true)}>
                 Import Candidate Data
               </DropdownMenuItem>
-              <DropdownMenuItem>Export Template</DropdownMenuItem>
-              <DropdownMenuItem>Export Candidate Data</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setExportDialog(true)}>
+                Export Template
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={excelCandidate}>
+                Export Candidate Data
+              </DropdownMenuItem>
               {viewType === "activated" ? (
                 <DropdownMenuItem onClick={() => setViewType("deactivated")}>
                   View Deactivated
