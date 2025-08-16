@@ -600,7 +600,7 @@ export default function page() {
                     { length: Number(selectedSubject?.semester) },
                     (_, i) => (
                       <DropdownMenuItem
-                        onClick={() => setEditSemester(`Semester ${i + 1}`)}
+                        onClick={() => setEditSemester(`${i + 1}`)}
                         key={i + 1}
                       >
                         Semester {i + 1}
@@ -762,7 +762,7 @@ export default function page() {
                     { length: Number(newDialogCourse?.semester) },
                     (_, i) => (
                       <DropdownMenuItem
-                        onClick={() => setNewSemester(`Semester ${i + 1}`)}
+                        onClick={() => setNewSemester(`${i + 1}`)}
                         key={i + 1}
                       >
                         Semester {i + 1}

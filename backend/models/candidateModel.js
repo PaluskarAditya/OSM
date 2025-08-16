@@ -17,6 +17,8 @@ const candidateSchema = new mongoose.Schema(
     combined: { type: String, required: true },
     course: { type: String, required: true },
     BookletName: { type: String },
+    sem: { type: String, required: true },
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,

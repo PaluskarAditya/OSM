@@ -562,6 +562,16 @@ app.post("/api/v1/courses/bulk", async (req, res) => {
   }
 });
 
+app.put("/api/v1/candidates/bulk-update", async (req, res) => {
+  try {
+    const { ids, isActive } = req.body;
+    await Candidate.updateMany({ _id: { $in: ids } }, { $set: { isActive } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+});
+
 // @POST - Csutom route to Add multiple candidates and return all
 app.post("/api/v1/candidates/import", async (req, res) => {
   try {
@@ -585,56 +595,53 @@ app.post("/api/v1/candidates/import", async (req, res) => {
 
       const combinedKey = `${candidate.RollNo} [${candidate.PRNNumber}]`;
 
-      // Skip duplicates in the current import batch
-      if (processedCombinedKeys.has(combinedKey)) {
-        continue;
-      }
+      if (processedCombinedKeys.has(combinedKey)) continue;
       processedCombinedKeys.add(combinedKey);
 
-      // Check if candidate already exists in DB
+      // Skip if candidate already exists
       const existingCandidate = await Candidate.findOne({
         $or: [{ RollNo: candidate.RollNo }, { PRNNumber: candidate.PRNNumber }],
       });
+      if (existingCandidate) continue;
 
-      if (existingCandidate) {
-        // Skip existing candidates to avoid duplicates
-        continue;
-      }
+      // ✅ Fetch all subjects that belong to this course + combined
+      const subjects = await Subject.find({
+        course: req.body.course,
+        combined: req.body.combined,
+        semester: req.body.sem,
+      }).select("uuid"); // only take uuid
 
-      // Find matching answer sheets
+      const subjectUUIDs = subjects.map((s) => s.uuid);
+
+      // ✅ Find matching answer sheets
       const answerSheets = await AnswerSheet.find({
         candidateId: combinedKey,
       });
 
       let sheetUploaded = false;
-
       if (answerSheets.length > 0) {
         sheetUploaded = true;
         await AnswerSheet.updateMany(
           { candidateId: combinedKey },
-          {
-            $set: {
-              attendance: true,
-            },
-          }
+          { $set: { attendance: true } }
         );
       }
 
-      // Prepare candidate object for insert
+      // ✅ Add subjects UUIDs in array
       formatted.push({
         ...candidate,
         course: req.body.course,
         combined: req.body.combined,
+        sem: req.body.sem,
+        subjects: subjectUUIDs,
         sheetUploaded,
       });
     }
 
-    // Insert all new candidates
     if (formatted.length > 0) {
       await Candidate.insertMany(formatted);
     }
 
-    // Return all candidates from DB
     const allCandidates = await Candidate.find();
     res.status(201).json(allCandidates);
   } catch (error) {
