@@ -572,6 +572,16 @@ app.put("/api/v1/candidates/bulk-update", async (req, res) => {
   }
 });
 
+app.put("/api/v1/candidates/subjects/bulk-update", async (req, res) => {
+  try {
+    const { ids, subjects } = req.body;
+    await Candidate.updateMany({ _id: { $in: ids } }, { $set: { subjects } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+});
+
 // @POST - Csutom route to Add multiple candidates and return all
 app.post("/api/v1/candidates/import", async (req, res) => {
   try {
@@ -1294,6 +1304,19 @@ app.post(
     }
   }
 );
+
+app.get("/api/v1/answersheet/:filename", (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(process.cwd(), "uploads", filename);
+
+  res.setHeader("Content-Type", "application/pdf");
+  // res.setHeader("Content-Disposition", "inline");
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: "File not found" });
+    }
+  });
+});
 
 // ----- Generic CRUD Factory -----
 function crudRoutes(app, path, Model, validation = []) {

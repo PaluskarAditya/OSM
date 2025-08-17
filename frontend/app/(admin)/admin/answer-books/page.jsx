@@ -474,33 +474,20 @@ const UploadDialog = ({ open, onOpenChange, dialogType }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="max-h-60 overflow-y-auto w-[var(--radix-dropdown-menu-trigger-width)]">
                 <DropdownMenuGroup>
-                  {selectedCourse &&
-                  subjects.filter(
-                    (subject) =>
-                      subject.courseId === selectedCourse.uuid ||
-                      subject.courseId === selectedCourse.id
-                  ).length > 0 ? (
-                    subjects
-                      .filter(
-                        (subject) =>
-                          subject.courseId === selectedCourse.uuid ||
-                          subject.courseId === selectedCourse.id
-                      )
-                      .map((subject) => (
-                        <DropdownMenuItem
-                          key={subject.uuid || subject.id}
-                          onSelect={() => setSelectedSubject(subject)}
-                        >
-                          {subject.name}
-                        </DropdownMenuItem>
-                      ))
-                  ) : (
-                    <DropdownMenuItem disabled>
-                      {selectedCourse
-                        ? "No subjects found"
-                        : "Select a course first"}
-                    </DropdownMenuItem>
-                  )}
+                  {subjects
+                    .filter(
+                      (el) =>
+                        el.isActive !== false &&
+                        el.course === selectedCourse?.uuid
+                    )
+                    .map((el) => (
+                      <DropdownMenuItem
+                        onClick={() => setSelectedSubject(el)}
+                        key={el.uuid}
+                      >
+                        {el.name}
+                      </DropdownMenuItem>
+                    ))}
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
