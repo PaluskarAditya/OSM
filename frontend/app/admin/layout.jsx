@@ -20,6 +20,7 @@ import {
   SidebarInset,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useRouter } from "next/navigation";
 import {
   Collapsible,
   CollapsibleContent,
@@ -55,9 +56,11 @@ import {
 import Link from "next/link";
 import Cookies from "js-cookie";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 const SidebarFooterMenu = () => {
   const { isMobile } = useSidebar();
+  const router = useRouter();
   const [role, setRole] = React.useState("");
   const [mail, setMail] = React.useState("");
 
@@ -65,6 +68,15 @@ const SidebarFooterMenu = () => {
     setRole(Cookies.get("role") || "");
     setMail(Cookies.get("mail") || "");
   }, []);
+
+  const logout = () => {
+    Cookies.remove("token");
+    Cookies.remove("role");
+    Cookies.remove("mail");
+
+    toast.success("Logged out successfully");
+    router.push("/");
+  };
 
   return (
     <SidebarFooter>
@@ -99,7 +111,7 @@ const SidebarFooterMenu = () => {
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 <LogOut />
                 Log out
               </DropdownMenuItem>
