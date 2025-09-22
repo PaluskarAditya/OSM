@@ -1,0 +1,42 @@
+# Create New Stream
+POST http://localhost:8000/api/v1/subject/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "name": "Discrete Mathematics",
+    "code": "BCA-MTHS-101",
+    "combined": "IBSYR4",
+    "course": "G8SJ0F",
+    "semester": 1,
+    "type": "Compulsory",
+    "exam": "20-03-2025"
+}
+
+###
+
+# Edit created stream
+PUT http://localhost:8000/api/v1/subject/AK3Y5J
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "name": "Discrete Mathematics",
+    "code": "BCA-MTHS-101",
+    "combined": "IBSYR4",
+    "course": "G8SJ0F",
+    "semester": 1,
+    "type": "Compulsory",
+    "exam": "20-03-2025"
+}
+
+###
+
+# Deactivate or Activate  Stream
+PUT http://localhost:8000/api/v1/subject/AK3Y5J/status
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "isActive": true
+}

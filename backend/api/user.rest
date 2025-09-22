@@ -1,0 +1,23 @@
+# Create New User
+POST http://localhost:8000/api/v1/users/create
+Content-Type: application/json
+
+{
+    "FirstName": "demo",
+    "LastName": "demo",
+    "Email": "demo@osm.com",
+    "MobileNo": "1234567890",
+    "AadharNo": "123456",
+    "Role": "Admin",
+    "PANNo": "123456",
+    "Designation": "Demo User",
+    "FacultyID": "DEMO-FAC1",
+    "CampusName": "Demo Campus",
+    "AccountHolderName": "Demo",
+    "BankName": "Demo",
+    "BranchName": "Demo",
+    "AccountNumber": "123456",
+    "IFSC": "123456",
+    "TIN": "123456",
+    "password": "demo"
+}

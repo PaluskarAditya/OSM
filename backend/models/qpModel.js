@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const qpSchema = new mongoose.Schema(
   {
@@ -28,8 +28,7 @@ const qpSchema = new mongoose.Schema(
     },
     specialization: {
       type: String,
-      required: true,
-      default: 'no specialization'
+      default: "no specialization",
     },
     fileUrl: {
       type: String,
@@ -47,11 +46,15 @@ const qpSchema = new mongoose.Schema(
     },
     validated: {
       type: Boolean,
-      default: false
+      default: false,
     },
     examinerAssigned: {
       type: Boolean,
       default: false,
+    },
+    examinerId: {
+      type: String,
+      default: "",
     },
     totalMarks: {
       type: String,
@@ -69,11 +72,12 @@ const qpSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    data: [{}]
+    data: [{}],
+    assignmentId: [{ type: String }],
   },
   {
     timestamps: true, // adds createdAt and updatedAt
   }
-)
+);
 
-module.exports = mongoose.models.QP || mongoose.model('QP', qpSchema);
+module.exports = mongoose.models.QP || mongoose.model("QP", qpSchema);

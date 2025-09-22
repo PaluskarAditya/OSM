@@ -1,0 +1,28 @@
+# Create New Stream
+POST http://localhost:8000/api/v1/stream/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY3MzM1MCwiZXhwIjoxNzU3Njc2OTUwfQ.H9U6BGj_EgJvwEUxXpB0lT4R0g8EINsBj97rbimj4FY
+
+{
+    "name": "STREAM-2"
+}
+
+###
+
+# Edit created stream
+PUT http://localhost:8000/api/v1/stream/U7L3T2
+Content-Type: application/json
+
+{
+    "name": "STREAM-1"
+}
+
+###
+
+# Deactivate or Activate  Stream
+PUT http://localhost:8000/api/v1/stream/U7L3T2/status
+Content-Type: application/json
+
+{
+    "isActive": true
+}

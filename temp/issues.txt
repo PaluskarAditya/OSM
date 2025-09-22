@@ -1,2 +1,0 @@
-Fetch Courses after selecting combined data - solved
-Fetch Semester count after subject - solved

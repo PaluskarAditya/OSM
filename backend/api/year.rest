@@ -1,0 +1,32 @@
+# Create New Stream
+POST http://localhost:8000/api/v1/academic-years/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "year": "YEAR-1",
+    "stream": "HHQDBW",
+    "degree": "9PQQR4"
+}
+
+###
+
+# Edit created stream
+PUT http://localhost:8000/api/v1/academic-years/MX4XBZ
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "year": "YEAR-1"
+}
+
+###
+
+# Deactivate or Activate  Stream
+PUT http://localhost:8000/api/v1/academic-years/MX4XBZ/status
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "isActive": true
+}

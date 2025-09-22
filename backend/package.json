@@ -1,27 +1,28 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start:backend": "node server.js",
+    "start:frontend": "cd ../frontend && npm run dev",
+    "start:all": "concurrently \"npm run start:backend\" \"npm run start:frontend\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "type": "commonjs",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "concurrently": "^9.2.1",
     "cors": "^2.8.5",
-    "dotenv": "^17.1.0",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
-    "express-validator": "^7.2.1",
-    "mongodb": "^6.17.0",
-    "mongoose": "^8.16.2",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.1",
     "multer": "^2.0.2",
-    "natural": "^8.1.0",
-    "pdf-parse": "^1.1.1",
-    "socket.io": "^4.8.1",
-    "uuid": "^11.1.0",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
   }
 }

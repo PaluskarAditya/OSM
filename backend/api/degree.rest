@@ -1,0 +1,31 @@
+# Create New Stream
+POST http://localhost:8000/api/v1/degree/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY3NzI2NywiZXhwIjoxNzU3NjgwODY3fQ.aUP_3dZstIfh7WLHH46IXJP7M7sPYOyviPfzB6PNwp8
+
+{
+    "name": "DEGREE1",
+    "stream": "U7L3T2"
+}
+
+###
+
+# Edit created stream
+PUT http://localhost:8000/api/v1/degree/WB0SIV
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY3NzI2NywiZXhwIjoxNzU3NjgwODY3fQ.aUP_3dZstIfh7WLHH46IXJP7M7sPYOyviPfzB6PNwp8
+
+{
+    "name": "DEGREE-1"
+}
+
+###
+
+# Deactivate or Activate  Stream
+PUT http://localhost:8000/api/v1/degree/WB0SIV/status
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY3NzI2NywiZXhwIjoxNzU3NjgwODY3fQ.aUP_3dZstIfh7WLHH46IXJP7M7sPYOyviPfzB6PNwp8
+
+{
+    "isActive": true
+}

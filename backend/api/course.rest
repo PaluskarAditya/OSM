@@ -1,0 +1,40 @@
+# Create New Stream
+POST http://localhost:8000/api/v1/course/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "name": "Bachelor in Accounting & Finance",
+    "code": "BAF101",
+    "stream": "AN4CGL",
+    "degree": "G1FIDO",
+    "year": "CYJOEO",
+    "semCount": 4
+}
+
+###
+
+# Edit created stream
+PUT http://localhost:8000/api/v1/course/95PKTW
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "name": "Bachelor in Accounting & Finance",
+    "code": "BAF1012",
+    "stream": "AN4CGL",
+    "degree": "IAVZIX",
+    "year": "CYJOEO",
+    "semCount": 5
+}
+
+###
+
+# Deactivate or Activate  Stream
+PUT http://localhost:8000/api/v1/course/95PKTW/status
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzMzMTFjYWVjNGVjNjBmMTgwMjViNSIsImlhdCI6MTc1NzY4NzMwOCwiZXhwIjoxNzU4MjkyMTA4fQ.IBJr-AAl85zC9vVxolx4iP2hmzdzv1WMo4bdYvC1hqs
+
+{
+    "isActive": true
+}
