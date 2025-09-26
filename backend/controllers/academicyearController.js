@@ -21,6 +21,7 @@ const create = async (req, res) => {
         year,
         streams,
         degrees,
+        iid: req.user.IID,
         uuid: generate(),
       });
     }
@@ -81,10 +82,10 @@ const status = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const years = await Year.find();
+    const years = await Year.find({ iid: req.user.IID });
 
     if (years.length < 1) {
-      res.status(500).json({ err: "Academic Years not found" });
+      res.status(204).json({ err: "Academic Years not found" });
       return;
     }
 

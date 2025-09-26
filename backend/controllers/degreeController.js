@@ -15,7 +15,11 @@ const createDegree = async (req, res) => {
       return;
     }
 
-    const degree = new Degree({ ...req.body, uuid: generate() });
+    const degree = new Degree({
+      ...req.body,
+      iid: req.user.IID,
+      uuid: generate(),
+    });
     await degree.save();
 
     if (degree) {
@@ -72,7 +76,7 @@ const statusDegree = async (req, res) => {
 
 const getAllDegrees = async (req, res) => {
   try {
-    const degrees = await Degree.find();
+    const degrees = await Degree.find({ iid: req.user.IID });
 
     if (degrees.length < 1) {
       res.status(500).json({ err: "Degrees not found" });

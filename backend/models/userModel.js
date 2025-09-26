@@ -98,7 +98,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    Institute: {
+    IID: {
       type: String,
       trim: true,
       default: '',

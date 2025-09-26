@@ -60,6 +60,7 @@ export default function page() {
         Cookies.set("token", data.token);
         Cookies.set("role", data.role);
         Cookies.set("mail", data.mail);
+        Cookies.set("iid", data.iid);
         toast.success("Login Successful");
         setLoading(false);
         router.push("/admin");

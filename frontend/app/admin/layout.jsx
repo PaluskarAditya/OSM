@@ -51,10 +51,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useState } from "react";
 
 const SidebarFooterMenu = () => {
   const { isMobile } = useSidebar();
-  const router = useRouter();
+
   const [role, setRole] = React.useState("");
   const [mail, setMail] = React.useState("");
 
@@ -67,6 +68,7 @@ const SidebarFooterMenu = () => {
     Cookies.remove("token");
     Cookies.remove("role");
     Cookies.remove("mail");
+    Cookies.remove("iid");
 
     toast.success("Logged out successfully");
     router.push("/");
@@ -133,6 +135,44 @@ export default function RootLayout({ children }) {
     Subjects: "subjects",
   };
 
+  const [iid, setIid] = useState(null);
+  const [institute, setInstitute] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setToken(Cookies.get("token"));
+    setIid(Cookies.get("iid"));
+  }, []);
+
+  useEffect(() => {
+    if (!token || !iid) return;
+
+    setLoading(true);
+    const getData = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/institute`,
+          {
+            headers: {
+              "content-type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const data = await res.json();
+        const user_ins = data.find(el => el.IID === Number(iid));
+        setInstitute(user_ins);
+        setLoading(false);
+      } catch (error) {
+        toast.error(error.message);
+        setLoading(false);
+      }
+    };
+
+    getData();
+  }, [token, iid]);
+
   return (
     <main className="flex h-screen">
       <SidebarProvider>
@@ -144,7 +184,9 @@ export default function RootLayout({ children }) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Evaluation</span>
-                <span className="truncate text-xs">XYZ College</span>
+                <span className="truncate text-xs">
+                  {loading ? "Loading..." : institute && institute.name}
+                </span>
               </div>
             </SidebarMenuButton>
           </SidebarHeader>

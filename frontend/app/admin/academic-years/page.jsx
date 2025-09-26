@@ -97,6 +97,8 @@ export default function StreamsPage() {
           setStreams(activeStreams);
           setDegrees(degreeData);
 
+          console.log(activeStreams, degreeData)
+
           if (yearData.err) {
             setYears([]);
             setFilteredYears([]);
@@ -111,7 +113,7 @@ export default function StreamsPage() {
         }
         setLoading(false);
       } catch (error) {
-        toast.error(error.message);
+        toast.error("Failed to fetch Academic Years");
         setLoading(false);
       }
     };

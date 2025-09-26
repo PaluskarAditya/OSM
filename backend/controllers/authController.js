@@ -33,6 +33,7 @@ const login = async (req, res) => {
         }),
         role: user.Role,
         mail: user.Email,
+        iid: user.IID
       });
       return;
     }

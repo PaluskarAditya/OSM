@@ -20,6 +20,8 @@ const authMiddleware = async (req, res, next) => {
 
     // Fetch user from DB (fresh)
     const user = await User.findById(decoded.id).select("-password"); // exclude password
+    // console.log(user);
+     
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }

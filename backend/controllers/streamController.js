@@ -14,7 +14,13 @@ const createStream = async (req, res) => {
       return;
     }
 
-    const stream = new Stream({ ...req.body, uuid: generate() });
+    console.log(req.user.uuid);
+
+    const stream = new Stream({
+      ...req.body,
+      iid: req.user.IID,
+      uuid: generate(),
+    });
     await stream.save();
 
     if (stream) {
@@ -71,7 +77,7 @@ const statusStream = async (req, res) => {
 
 const getAllStreams = async (req, res) => {
   try {
-    const streams = await Stream.find();
+    const streams = await Stream.find({ iid: req.user.IID });
 
     if (streams.length < 1) {
       res.status(500).json({ err: "Streams not found" });
