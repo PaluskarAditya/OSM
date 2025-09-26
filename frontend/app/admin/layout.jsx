@@ -1,7 +1,10 @@
 "use client";
 
-import React from "react";
-
+import React, { useEffect } from "react";
+import Link from "next/link";
+import Cookies from "js-cookie";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Sidebar,
   SidebarContent,
@@ -13,32 +16,28 @@ import {
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarMenuAction,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarInset,
   useSidebar,
+  SidebarMenuAction,
 } from "@/components/ui/sidebar";
-import { useRouter } from "next/navigation";
 import {
   Collapsible,
-  CollapsibleContent,
   CollapsibleTrigger,
+  CollapsibleContent,
 } from "@/components/ui/collapsible";
 import {
   BookCheckIcon,
   BookOpenCheckIcon,
   ChevronRight,
   ChevronsUpDown,
-  Expand,
   Layers3Icon,
   LibraryBigIcon,
   LogOut,
-  PackageIcon,
   PaperclipIcon,
   SheetIcon,
-  Sparkles,
   UserCheckIcon,
   UserCircleIcon,
   UserIcon,
@@ -49,14 +48,9 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
-import Cookies from "js-cookie";
-import { useEffect } from "react";
-import { toast } from "sonner";
 
 const SidebarFooterMenu = () => {
   const { isMobile } = useSidebar();
@@ -84,10 +78,7 @@ const SidebarFooterMenu = () => {
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              >
+              <SidebarMenuButton size="lg">
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <UserCheckIcon className="size-4" />
                 </div>
@@ -99,19 +90,19 @@ const SidebarFooterMenu = () => {
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+              className="min-w-[14rem] rounded-lg"
               align="end"
               side={isMobile ? "bottom" : "right"}
               sideOffset={4}
             >
               <DropdownMenuGroup>
-                <DropdownMenuItem className="cursor-pointer">
+                <DropdownMenuItem>
                   <UserCircleIcon />
-                  <Link href={"/admin/institute"}>Insititute Management</Link>
+                  <Link href={"/admin/institute"}>Institute Management</Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="cursor-pointer">
+              <DropdownMenuItem onClick={logout}>
                 <LogOut />
                 Log out
               </DropdownMenuItem>
@@ -129,9 +120,10 @@ export default function RootLayout({ children }) {
     "Degrees",
     "Academic Years",
     "Courses",
-    "Specilizations",
+    "Specializations",
     "Subjects",
   ];
+
   const PATH_MAP = {
     Streams: "streams",
     Degrees: "degrees",
@@ -144,322 +136,233 @@ export default function RootLayout({ children }) {
   return (
     <main className="flex h-screen">
       <SidebarProvider>
-        <div className="h-full border-r">
-          <Sidebar collapsible="icons" className="h-full">
-            <SidebarHeader>
-              <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              >
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Layers3Icon className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Evaluation</span>
-                  <span className="truncate text-xs">XYZ College</span>
-                </div>
-              </SidebarMenuButton>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupLabel>Platform</SidebarGroupLabel>
-                <SidebarMenu>
+        <Sidebar collapsible="icon" className="h-full border-r">
+          <SidebarHeader>
+            <SidebarMenuButton size="lg">
+              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                <Layers3Icon className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">Evaluation</span>
+                <span className="truncate text-xs">XYZ College</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarHeader>
+
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Platform</SidebarGroupLabel>
+              <SidebarMenu>
+                {/* Exams */}
+                <SidebarMenuItem>
                   <Collapsible>
-                    <SidebarMenuItem>
-                      {/* --- Exam main button --- */}
-                      <SidebarMenuButton asChild>
-                        <Link href={"/admin"}>
-                          <span className="text-sm flex gap-1 justify-center items-center">
-                            <BookCheckIcon className="h-4 w-4" />
-                            <p>Exams</p>
-                          </span>
-                        </Link>
+                    <CollapsibleTrigger className="group/collapsible" asChild>
+                      <SidebarMenuButton className="w-full">
+                        <BookCheckIcon className="h-4 w-4" />
+                        <span>Exams</span>
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {/* Subjects */}
+                        <SidebarMenuSubItem>
+                          <Collapsible className="group/subjects">
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuSubButton className="w-full">
+                                <WalletCardsIcon className="h-4 w-4" />
+                                <span>Subjects</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/subjects:rotate-90 rotate-0 h-4 w-4" />
+                              </SidebarMenuSubButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                {EXAM_SUBJECT_ITEMS.map((el) => (
+                                  <SidebarMenuSubItem key={el}>
+                                    <SidebarMenuSubButton asChild>
+                                      <Link href={`/admin/${PATH_MAP[el]}`}>
+                                        {el}
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                ))}
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </SidebarMenuSubItem>
 
-                      <>
-                        {/* --- Exam collapsible --- */}
-                        <CollapsibleTrigger asChild className="cursor-pointer">
-                          <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Toggle</span>
-                          </SidebarMenuAction>
-                        </CollapsibleTrigger>
-
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {/* --- Subjects Collapsible --- */}
-                            <Collapsible>
-                              <SidebarMenuSubItem>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  className="w-full"
-                                >
-                                  <span className="text-sm flex gap-1 justify-start w-full items-center cursor-pointer">
-                                    <WalletCardsIcon className="h-4 w-4" />
-                                    <p>Subjects</p>
-                                  </span>
-                                </SidebarMenuSubButton>
-
-                                <>
-                                  <CollapsibleTrigger
-                                    asChild
-                                    className="cursor-pointer"
-                                  >
-                                    <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                                      <ChevronRight className="h-4 w-4" />
-                                      <span className="sr-only">Toggle</span>
-                                    </SidebarMenuAction>
-                                  </CollapsibleTrigger>
-
-                                  <CollapsibleContent>
-                                    <SidebarMenuSub>
-                                      {EXAM_SUBJECT_ITEMS.map((el) => (
-                                        <SidebarMenuSubItem key={el}>
-                                          <SidebarMenuSubButton asChild>
-                                            <Link
-                                              href={`/admin/${PATH_MAP[el]}`}
-                                            >
-                                              <span className="text-sm">
-                                                {el}
-                                              </span>
-                                            </Link>
-                                          </SidebarMenuSubButton>
-                                        </SidebarMenuSubItem>
-                                      ))}
-                                    </SidebarMenuSub>
-                                  </CollapsibleContent>
-                                </>
-                              </SidebarMenuSubItem>
-                            </Collapsible>
-
-                            {/* --- Question Paper Collapsible --- */}
-                            <Collapsible>
-                              <SidebarMenuSubItem>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  className="w-full"
-                                >
-                                  <span className="text-sm flex gap-1 justify-start w-full items-center cursor-pointer">
-                                    <PaperclipIcon className="h-4 w-4" />
-                                    <p>Question Paper</p>
-                                  </span>
-                                </SidebarMenuSubButton>
-                                <>
-                                  <CollapsibleTrigger
-                                    asChild
-                                    className="cursor-pointer"
-                                  >
-                                    <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                                      <ChevronRight className="h-4 w-4" />
-                                      <span className="sr-only">Toggle</span>
-                                    </SidebarMenuAction>
-                                  </CollapsibleTrigger>
-
-                                  <CollapsibleContent>
-                                    <SidebarMenuSub>
-                                      <SidebarMenuSubItem>
-                                        <SidebarMenuSubButton asChild>
-                                          <Link href={`/admin/qp/create`}>
-                                            <span className="text-sm">
-                                              Create Paper Excel
-                                            </span>
-                                          </Link>
-                                        </SidebarMenuSubButton>
-                                      </SidebarMenuSubItem>
-                                      <SidebarMenuSubItem>
-                                        <SidebarMenuSubButton asChild>
-                                          <Link href={`/admin/qp/master`}>
-                                            <span className="text-sm">
-                                              Manage Papers
-                                            </span>
-                                          </Link>
-                                        </SidebarMenuSubButton>
-                                      </SidebarMenuSubItem>
-                                    </SidebarMenuSub>
-                                  </CollapsibleContent>
-                                </>
-                              </SidebarMenuSubItem>
-                            </Collapsible>
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
-                    </SidebarMenuItem>
+                        {/* Question Paper */}
+                        <SidebarMenuSubItem>
+                          <Collapsible>
+                            <CollapsibleTrigger
+                              asChild
+                              className="group/question"
+                            >
+                              <SidebarMenuSubButton className="w-full">
+                                <PaperclipIcon className="h-4 w-4" />
+                                <span>Question Paper</span>
+                                <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/question:rotate-90 transition-transform duration-200" />
+                              </SidebarMenuSubButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild>
+                                    <Link href="/admin/qp/create">
+                                      Create Paper Excel
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild>
+                                    <Link href="/admin/qp/master">
+                                      Manage Papers
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </Collapsible>
+                </SidebarMenuItem>
+
+                {/* Inwards / Outwards */}
+                <SidebarMenuItem>
                   <Collapsible>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild>
-                        <Link href={"/admin"}>
-                          <span className="text-sm flex gap-1 justify-center items-center">
-                            <LibraryBigIcon className="h-4 w-4" />
-                            <p>Inward / Outward</p>
-                          </span>
-                        </Link>
+                    <CollapsibleTrigger className="group/inward" asChild>
+                      <SidebarMenuButton className="w-full">
+                        <LibraryBigIcon className="h-4 w-4" />
+                        <span>Inwards / Outwards</span>
+                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/inward:rotate-90 transition-transform duration-200" />
                       </SidebarMenuButton>
-                      <>
-                        <CollapsibleTrigger asChild className="cursor-pointer">
-                          <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Toggle</span>
-                          </SidebarMenuAction>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/inward/configure`}>
-                                  <span className="text-sm">
-                                    Inward Configurations
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/inward/view`}>
-                                  <span className="text-sm">View Inwards</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
-                    </SidebarMenuItem>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/inward/configure">
+                              Inward Configurations
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/inward/view">View Inwards</Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </Collapsible>
+                </SidebarMenuItem>
+
+                {/* Candidates */}
+                <SidebarMenuItem>
                   <Collapsible>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild>
-                        <Link href={"/admin"}>
-                          <span className="text-sm flex gap-1 justify-center items-center">
-                            <UserIcon className="h-4 w-4" />
-                            <p>Candidates</p>
-                          </span>
-                        </Link>
+                    <CollapsibleTrigger className="group/candidate" asChild>
+                      <SidebarMenuButton className="w-full">
+                        <UserIcon className="h-4 w-4" />
+                        <span>Candidates</span>
+                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/candidate:rotate-90 transition-transform duration-200" />
                       </SidebarMenuButton>
-                      <>
-                        <CollapsibleTrigger asChild className="cursor-pointer">
-                          <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Toggle</span>
-                          </SidebarMenuAction>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/candidates/data`}>
-                                  <span className="text-sm">
-                                    Candidates Data
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/candidates/attendance`}>
-                                  <span className="text-sm">
-                                    Candidates Attendance
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/candidates/subject`}>
-                                  <span className="text-sm">
-                                    Assign Subject
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/candidates/exam`}>
-                                  <span className="text-sm">Assign Exam</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
-                    </SidebarMenuItem>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/candidates/data">
+                              Candidates Data
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/candidates/attendance">
+                              Candidates Attendance
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/candidates/subject">
+                              Assign Subject
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/candidates/exam">
+                              Assign Exam
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </Collapsible>
+                </SidebarMenuItem>
+
+                {/* Answer Sheets */}
+                <SidebarMenuItem>
                   <Collapsible>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild>
-                        <Link href={"/admin"}>
-                          <span className="text-sm flex gap-1 justify-center items-center">
-                            <SheetIcon className="h-4 w-4" />
-                            <p>Answer Sheets</p>
-                          </span>
-                        </Link>
+                    <CollapsibleTrigger asChild className="group/sheet">
+                      <SidebarMenuButton className="w-full">
+                        <SheetIcon className="h-4 w-4" />
+                        <span>Answer Sheets</span>
+                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/sheet:rotate-90 transition-transform duration-200" />
                       </SidebarMenuButton>
-                      <>
-                        <CollapsibleTrigger asChild className="cursor-pointer">
-                          <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Toggle</span>
-                          </SidebarMenuAction>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/answer-sheets/upload`}>
-                                  <span className="text-sm">
-                                    Upload Answer Sheets
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/answer-sheets/view`}>
-                                  <span className="text-sm">View Sheets</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
-                    </SidebarMenuItem>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/answer-sheets/upload">
+                              Upload Answer Sheets
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/answer-sheets/view">
+                              View Sheets
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </Collapsible>
+                </SidebarMenuItem>
+
+                {/* Evaluation */}
+                <SidebarMenuItem>
                   <Collapsible>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton className="w-full" asChild>
-                        <span className="text-sm flex gap-1 justify-start w-full items-center">
-                          <BookOpenCheckIcon className="h-4 w-4" />
-                          <p>Evaluation</p>
-                        </span>
+                    <CollapsibleTrigger className="group/eval" asChild>
+                      <SidebarMenuButton className="w-full">
+                        <BookOpenCheckIcon className="h-4 w-4" />
+                        <span>Evaluation</span>
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-90 rotate-0" />
                       </SidebarMenuButton>
-                      <>
-                        <CollapsibleTrigger asChild className="cursor-pointer">
-                          <SidebarMenuAction className="data-[state=open]:rotate-90 cursor-pointer">
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Toggle</span>
-                          </SidebarMenuAction>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton asChild>
-                                <Link href={`/admin/evaluation/assign`}>
-                                  <span className="text-sm">
-                                    Assign Examiners
-                                  </span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
-                    </SidebarMenuItem>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/evaluation/assign">
+                              Assign Examiners
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </Collapsible>
-                </SidebarMenu>
-              </SidebarGroup>
-            </SidebarContent>
-            <SidebarFooterMenu />
-          </Sidebar>
-        </div>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarFooterMenu />
+        </Sidebar>
 
         <SidebarInset>{children}</SidebarInset>
       </SidebarProvider>
