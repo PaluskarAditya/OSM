@@ -14,7 +14,10 @@ app.use(cors());
 conn();
 
 // Test Route
-app.get("/foo", (req, res) => res.send("Bar"));
+app.get("/foo", (req, res) => res.send("Welcome"));
+
+// Ins Route
+app.post('/ins', (req, res) => res.send(req.body))
 
 // Auth Routes
 app.use("/api/v1/auth", require("./routes/authRoutes"));
@@ -74,6 +77,9 @@ app.get("/api/v1/combined", async (req, res) => {
 
   res.status(200).json(combineds);
 });
+
+// Institute Routes
+app.use('/api/v1/institute', require('./routes/instituteRoutes'));
 
 app.listen(process.env.NODE_PORT, () =>
   console.log(`Server running on ${process.env.NODE_PORT}`)

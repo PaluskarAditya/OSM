@@ -160,7 +160,7 @@ export default function RootLayout({ children }) {
                       <SidebarMenuButton className="w-full">
                         <BookCheckIcon className="h-4 w-4" />
                         <span>Exams</span>
-                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -172,7 +172,7 @@ export default function RootLayout({ children }) {
                               <SidebarMenuSubButton className="w-full">
                                 <WalletCardsIcon className="h-4 w-4" />
                                 <span>Subjects</span>
-                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/subjects:rotate-90 rotate-0 h-4 w-4" />
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/subjects:rotate-0rotate-90 h-4 w-4" />
                               </SidebarMenuSubButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
@@ -201,7 +201,7 @@ export default function RootLayout({ children }) {
                               <SidebarMenuSubButton className="w-full">
                                 <PaperclipIcon className="h-4 w-4" />
                                 <span>Question Paper</span>
-                                <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/question:rotate-90 transition-transform duration-200" />
+                                <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/question:rotate-0 transition-transform duration-200" />
                               </SidebarMenuSubButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
@@ -236,7 +236,7 @@ export default function RootLayout({ children }) {
                       <SidebarMenuButton className="w-full">
                         <LibraryBigIcon className="h-4 w-4" />
                         <span>Inwards / Outwards</span>
-                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/inward:rotate-90 transition-transform duration-200" />
+                        <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/inward:rotate-0 transition-transform duration-200" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -265,7 +265,7 @@ export default function RootLayout({ children }) {
                       <SidebarMenuButton className="w-full">
                         <UserIcon className="h-4 w-4" />
                         <span>Candidates</span>
-                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/candidate:rotate-90 transition-transform duration-200" />
+                        <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/candidate:rotate-0 transition-transform duration-200" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -310,7 +310,7 @@ export default function RootLayout({ children }) {
                       <SidebarMenuButton className="w-full">
                         <SheetIcon className="h-4 w-4" />
                         <span>Answer Sheets</span>
-                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/sheet:rotate-90 transition-transform duration-200" />
+                        <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/sheet:rotate-0 transition-transform duration-200" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -341,7 +341,7 @@ export default function RootLayout({ children }) {
                       <SidebarMenuButton className="w-full">
                         <BookOpenCheckIcon className="h-4 w-4" />
                         <span>Evaluation</span>
-                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-90 rotate-0" />
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-0rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>

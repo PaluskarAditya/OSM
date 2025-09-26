@@ -1,0 +1,21 @@
+POST http://localhost:8000/api/v1/institute
+Content-Type: application/json
+
+{
+  "name": "XYZ College",
+  "email": "adityapaluskar@gmail.com",
+  "password": "Gamer"
+}
+
+###
+
+GET http://localhost:8000/foo
+
+###
+
+POST http://localhost:8000/ins
+Content-Type: application/json
+
+{
+  "data":"this is some data"
+}

@@ -1,5 +1,4 @@
 "use client";
-
 import {
   Select,
   SelectTrigger,
@@ -27,10 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useEffect } from "react";
-import { toast } from "sonner";
-import { useState } from "react";
-import Cookies from "js-cookie";
+import { useEffect, useRef, useState } from "react";
 import {
   Loader2,
   Search,
@@ -42,86 +38,85 @@ import {
   XIcon,
   UploadCloud,
 } from "lucide-react";
+import { toast } from "sonner";
+import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
-import { useRef } from "react";
 
 export default function StreamsPage() {
   const [streams, setStreams] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [years, setYears] = useState([]);
-  const [filteredYears, setFilteredYears] = useState(years);
+  const [filteredYears, setFilteredYears] = useState([]);
   const [viewMode, setViewMode] = useState("active");
   const [search, setSearch] = useState("");
   const [dialogAction, setDialogAction] = useState("");
-  const [addDialogName, setAddDialogName] = useState("");
   const [editDialogName, setEditDialogName] = useState("");
   const token = Cookies.get("token");
   const [loading, setLoading] = useState(false);
   const [selectedStreams, setSelectedStreams] = useState([]);
-  const [selectedDegrees, setselectedDegrees] = useState([]);
-  const [newYear, setNewYear] = useState("");
+  const [selectedDegrees, setSelectedDegrees] = useState([]);
+  const [selectedStream, setSelectedStream] = useState(null);
+  const [selectedDegree, setSelectedDegree] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
   const [filterStream, setFilterStream] = useState(null);
   const [filterDegree, setFilterDegree] = useState(null);
-  const [newStream, setNewStream] = useState("");
-  const [newDegree, setNewDegree] = useState("");
+  const [newYear, setNewYear] = useState("");
   const [file, setFile] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
-    getData();
-  }, []);
-
-  const getData = async () => {
-    setLoading(true);
-    try {
-      const [streamRes, degreeRes, yearRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degree`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-      ]);
-
-      if (streamRes.ok && degreeRes.ok && yearRes.ok) {
-        const [streamData, degreeData, yearData] = await Promise.all([
-          streamRes.json(),
-          degreeRes.json(),
-          yearRes.json(),
+    const getData = async () => {
+      setLoading(true);
+      try {
+        const [streamRes, degreeRes, yearRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degree`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
         ]);
 
-        const activeStreams = streamData.filter((el) => el.isActive);
-        setStreams(activeStreams);
-        setDegrees(degreeData);
+        if (streamRes.ok && degreeRes.ok && yearRes.ok) {
+          const [streamData, degreeData, yearData] = await Promise.all([
+            streamRes.json(),
+            degreeRes.json(),
+            yearRes.json(),
+          ]);
 
-        if (yearData.err) {
-          setYears([]);
-          setFilteredYears([]);
-          setLoading(false);
-          return;
+          const activeStreams = streamData.filter((el) => el.isActive);
+          setStreams(activeStreams);
+          setDegrees(degreeData);
+
+          if (yearData.err) {
+            setYears([]);
+            setFilteredYears([]);
+            setLoading(false);
+            return;
+          }
+
+          setYears(yearData);
+          setFilteredYears(yearData);
+        } else {
+          toast.error("Failed to fetch one or more resources");
         }
-
-        setYears(yearData);
-        setFilteredYears(yearData);
-      } else {
-        toast.error("Failed to fetch one or more resources");
+        setLoading(false);
+      } catch (error) {
+        toast.error(error.message);
+        setLoading(false);
       }
-      setLoading(false);
-    } catch (error) {
-      toast.error(error.message);
-      setLoading(false);
-    }
-  };
+    };
+    getData();
+  }, []);
 
   useEffect(() => {
     if (dialogAction === "export") handleExport();
@@ -132,8 +127,7 @@ export default function StreamsPage() {
       setFilteredYears(years);
       return;
     }
-
-    const data = filteredYears.filter((el) =>
+    const data = years.filter((el) =>
       el.year.toLowerCase().includes(search.toLowerCase())
     );
     setFilteredYears(data);
@@ -141,15 +135,12 @@ export default function StreamsPage() {
 
   useEffect(() => {
     let data = years;
-
     if (filterStream) {
       data = data.filter((el) => el.streams.includes(filterStream));
     }
-
     if (filterDegree) {
       data = data.filter((el) => el.degrees.includes(filterDegree));
     }
-
     setFilteredYears(data);
   }, [filterStream, filterDegree, years]);
 
@@ -157,9 +148,26 @@ export default function StreamsPage() {
     if (dialogAction === "edit" && selectedYear) {
       setEditDialogName(selectedYear.year);
       setSelectedStreams(selectedYear.streams || []);
-      setselectedDegrees(selectedYear.degrees || []);
+      setSelectedDegrees(selectedYear.degrees || []);
     }
   }, [dialogAction, selectedYear]);
+
+  useEffect(() => {
+    if (!years.length) {
+      setFilteredYears([]);
+      return;
+    }
+    const newFiltered = years.filter((year) => {
+      const hasActiveStream = year.streams?.some((sid) =>
+        streams.some((s) => s.uuid === sid && s.isActive)
+      );
+      const hasActiveDegree = year.degrees?.some((did) =>
+        degrees.some((d) => d.uuid === did && d.isActive)
+      );
+      return hasActiveStream && hasActiveDegree;
+    });
+    setFilteredYears(newFiltered);
+  }, [years, streams, degrees]);
 
   const clearFilters = () => {
     setFilterStream(null);
@@ -169,14 +177,13 @@ export default function StreamsPage() {
   const handleCreate = async () => {
     try {
       if (
-        (!newYear && selectedYear.length === 0) ||
+        (!newYear && !selectedYear) ||
         selectedStreams.length === 0 ||
         selectedDegrees.length === 0
       ) {
         toast.error("Please select year, stream(s), and degree(s)");
         return;
       }
-
       setLoading(true);
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`,
@@ -193,17 +200,16 @@ export default function StreamsPage() {
           }),
         }
       );
-
       if (res.ok) {
         const data = await res.json();
         setYears([...years, data.new_year]);
-        setFilteredYears([...years, data.new_year]);
+        setFilteredYears([...filteredYears, data.new_year]);
         toast.success("Academic Year added successfully");
         setLoading(false);
         setDialogAction("");
         setNewYear("");
         setSelectedStreams([]);
-        setselectedDegrees([]);
+        setSelectedDegrees([]);
         setSelectedYear(null);
       } else {
         const err = await res.json();
@@ -216,21 +222,15 @@ export default function StreamsPage() {
     }
   };
 
-  useEffect(() => {
-    setFilteredYears(years);
-  }, [years]);
-
   const handleUpdate = async () => {
     try {
       setLoading(true);
-
       const payload = {
         year: editDialogName,
-        streams: selectedStreams, // <-- include streams
-        degrees: selectedDegrees, // <-- include degrees
-        isActive: selectedYear.isActive, // keep active state unless you edit it in UI
+        streams: selectedStreams,
+        degrees: selectedDegrees,
+        isActive: selectedYear.isActive,
       };
-
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/${selectedYear.uuid}`,
         {
@@ -242,12 +242,16 @@ export default function StreamsPage() {
           body: JSON.stringify(payload),
         }
       );
-
       if (res.ok) {
-        await getData();
         toast.success("Academic year updated successfully 🎉");
         setDialogAction("");
         setLoading(false);
+        // Update local state
+        const updatedYears = years.map((y) =>
+          y.uuid === selectedYear.uuid ? { ...y, ...payload } : y
+        );
+        setYears(updatedYears);
+        setFilteredYears(updatedYears);
       } else {
         const err = await res.json();
         toast.error(err.err || "Update failed");
@@ -264,32 +268,24 @@ export default function StreamsPage() {
       toast.error("No data to export");
       return;
     }
-
-    // prepare cleaned export data
     const cleaned_data = filteredYears.map((el) => ({
       uuid: el.uuid,
       year: el.year,
-      // join all degree names into comma separated string
       degrees: el.degrees?.map((d) => getDegreeName(d)).join(", ") || "",
-      // join all stream names into comma separated string
       streams: el.streams?.map((s) => getStreamName(s)).join(", ") || "",
-      isActive: el.isActive ? "Active" : "Inactive", // optional extra column
+      isActive: el.isActive ? "Active" : "Inactive",
     }));
-
     try {
       const worksheet = XLSX.utils.json_to_sheet(cleaned_data);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Academic Years");
-
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
       });
-
       const blob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -297,7 +293,6 @@ export default function StreamsPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       toast.success("Export successful 🎉");
       setDialogAction("");
     } catch (error) {
@@ -319,12 +314,18 @@ export default function StreamsPage() {
           body: JSON.stringify({ isActive: !year.isActive }),
         }
       );
-
       if (res.ok) {
-        await getData();
         toast.success(
           `Year ${!year.isActive ? "activated" : "deactivated"} successfully`
         );
+        // Update local state
+        const updatedYears = years.map((y) =>
+          y.uuid === year.uuid ? { ...y, isActive: !year.isActive } : y
+        );
+        setYears(updatedYears);
+        setFilteredYears(updatedYears);
+        setLoading(false);
+      } else {
         setLoading(false);
       }
     } catch (error) {
@@ -336,7 +337,6 @@ export default function StreamsPage() {
   const handleExcelTemplate = async () => {
     try {
       const headers = ["Academic Year", "Stream Name", "Degree Name"];
-
       const worksheet = XLSX.utils.aoa_to_sheet([
         headers,
         ["Test Year", "Test Stream", "Test Degree"],
@@ -347,16 +347,13 @@ export default function StreamsPage() {
         worksheet,
         "Academic Years Template"
       );
-
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
       });
-
       const blob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -364,73 +361,30 @@ export default function StreamsPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       toast.success("Template downloaded 🎉");
     } catch (error) {
       toast.error(error.message);
     }
   };
 
-  useEffect(() => {
-    if (!years.length) {
-      setFilteredYears([]);
-      return;
-    }
-
-    const newFiltered = years.filter((year) => {
-      const hasActiveStream = year.streams?.some((sid) =>
-        streams.some((s) => s.uuid === sid && s.isActive)
-      );
-
-      const hasActiveDegree = year.degrees?.some((did) =>
-        degrees.some((d) => d.uuid === did && d.isActive)
-      );
-
-      return hasActiveStream && hasActiveDegree;
-    });
-
-    setFilteredYears(newFiltered);
-  }, [years, streams, degrees]);
-
-  const displayedYears = filteredYears.filter((year) =>
-    viewMode === "active" ? year.isActive : !year.isActive
-  );
-
-  const getStreamName = (id) => {
-    const stream = streams.find((el) => el.uuid === id);
-    return stream?.name;
-  };
-
-  const getDegreeName = (id) => {
-    const degree = degrees.find((el) => el.uuid === id);
-    return degree?.name;
-  };
-
   const handleExcelImport = async () => {
     try {
       setLoading(true);
       const data = await file.arrayBuffer();
-
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const json_data = XLSX.utils.sheet_to_json(worksheet);
-
       const seen = new Set();
       const sanitized_data = [];
-
       json_data.forEach((row, index) => {
         let stream = (row["Stream Name"] || "").toString().trim();
         let degree = (row["Degree Name"] || "").toString().trim();
         let year = (row["Academic Year"] || "").toString().trim();
-
         stream = stream.replace(/\s+/g, " ");
         degree = degree.replace(/\s+/g, " ");
         year = year.replace(/\s+/g, " ");
-
         if (!stream || !degree || !year) return;
-
         const key = `${stream}-${degree}-${year}`;
-
         if (!seen.has(key)) {
           seen.add(key);
           sanitized_data.push({
@@ -442,7 +396,6 @@ export default function StreamsPage() {
           console.warn(`Duplicate row at index ${index + 2}:`, row);
         }
       });
-
       if (sanitized_data.length > 0) {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years/bulk`,
@@ -455,13 +408,11 @@ export default function StreamsPage() {
             body: JSON.stringify(sanitized_data),
           }
         );
-
         if (res.ok) {
           const data = await res.json();
           toast.success(`${sanitized_data.length} academic years imported`);
           setDialogAction("");
           setLoading(false);
-
           setStreams((prev) => [...prev, ...data.data.streams]);
           setDegrees((prev) => [...prev, ...data.data.degrees]);
           setYears((prev) => [...prev, ...data.data.years]);
@@ -469,14 +420,31 @@ export default function StreamsPage() {
         } else {
           const err = await res.json();
           toast.error(err.error || "Failed to import academic years");
+          setLoading(false);
         }
       } else {
         toast.error("No valid rows found to import");
+        setLoading(false);
       }
     } catch (error) {
       toast.error(error.message);
+      setLoading(false);
     }
   };
+
+  const getStreamName = (id) => {
+    const stream = streams.find((el) => el.uuid === id);
+    return stream?.name || "";
+  };
+
+  const getDegreeName = (id) => {
+    const degree = degrees.find((el) => el.uuid === id);
+    return degree?.name || "";
+  };
+
+  const displayedYears = filteredYears.filter((year) =>
+    viewMode === "active" ? year.isActive : !year.isActive
+  );
 
   return (
     <div className="min-h-screen bg-white p-6 text-sm w-full border-0">
@@ -508,7 +476,6 @@ export default function StreamsPage() {
               </div>
             </div>
           </div>
-
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Button
               onClick={() => setDialogAction("new")}
@@ -518,7 +485,6 @@ export default function StreamsPage() {
               <Plus size={16} />
               Add Academic Year
             </Button>
-
             <Button
               onClick={() => setDialogAction("import")}
               className="flex items-center gap-2 cursor-pointer text-sm"
@@ -527,7 +493,6 @@ export default function StreamsPage() {
               <ImportIcon size={16} />
               Import Academic Years
             </Button>
-
             <Button
               variant="outline"
               onClick={() => setDialogAction("export")}
@@ -537,7 +502,6 @@ export default function StreamsPage() {
               <Download size={16} />
               Export
             </Button>
-
             {(filterStream || filterDegree) && (
               <Button
                 variant="outline"
@@ -620,7 +584,6 @@ export default function StreamsPage() {
               </Select>
             )}
           </div>
-
           <div className="flex gap-2">
             <Button
               variant={viewMode === "active" ? "default" : "outline"}
@@ -641,7 +604,7 @@ export default function StreamsPage() {
           </div>
         </div>
       </div>
-      {/* Streams Table Section */}
+      {/* Academic Years Table Section */}
       <div className="bg-white rounded-lg">
         <Table className="border">
           <TableHeader>
@@ -700,7 +663,6 @@ export default function StreamsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setEditDialogName(year.year);
                           setSelectedYear(year);
                           setDialogAction("edit");
                         }}
@@ -725,7 +687,7 @@ export default function StreamsPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No {viewMode} academic years found.
                 </TableCell>
               </TableRow>
@@ -733,7 +695,7 @@ export default function StreamsPage() {
           </TableBody>
         </Table>
       </div>
-      {/* Create Degree Dialog */}
+      {/* Create Academic Year Dialog */}
       <Dialog
         open={dialogAction === "new"}
         onOpenChange={(open) => !open && setDialogAction("")}
@@ -745,15 +707,13 @@ export default function StreamsPage() {
               Add a new academic year to the system.
             </DialogDescription>
           </DialogHeader>
-
           <div className="flex flex-col gap-3">
             {/* Multi-select Streams */}
             <div className="flex flex-col gap-1">
               <label className="text-sm">Stream(s)</label>
               <Select
-                value={selectedStreams}
-                onValueChange={(val) => setSelectedStreams(val)}
-                multiple
+                value={selectedStream}
+                onValueChange={val => setSelectedStream(val)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select streams" />
@@ -771,15 +731,13 @@ export default function StreamsPage() {
                 </SelectContent>
               </Select>
             </div>
-
             {/* Multi-select Degrees (filtered by selected streams) */}
             <div className="flex flex-col gap-1">
               <label className="text-sm">Degree(s)</label>
               <Select
-                value={selectedDegrees}
-                onValueChange={(val) => setselectedDegrees(val)}
-                multiple
-                disabled={selectedStreams.length === 0}
+                value={selectedDegree}
+                onValueChange={setSelectedDegree}
+                // disabled={!selectedStream}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select degrees" />
@@ -790,7 +748,6 @@ export default function StreamsPage() {
                       ?.filter(
                         (el) =>
                           el.isActive &&
-                          selectedStreams.length > 0 &&
                           selectedStreams.includes(el.stream)
                       )
                       .map((el) => (
@@ -802,7 +759,6 @@ export default function StreamsPage() {
                 </SelectContent>
               </Select>
             </div>
-
             {/* Academic Year */}
             <div className="flex flex-col gap-1">
               <label>Academic Year</label>
@@ -814,14 +770,11 @@ export default function StreamsPage() {
                     placeholder="Enter new year"
                     disabled={!!selectedYear}
                     onKeyDown={(e) =>
-                      e.key === "Enter" &&
-                      (newYear || selectedYear) &&
-                      handleCreate()
+                      e.key === "Enter" && (newYear || selectedYear) && handleCreate()
                     }
                   />
                   <span className="text-xs text-gray-500">Type a new year</span>
                 </div>
-
                 <div className="flex flex-col gap-1">
                   <Select
                     value={selectedYear || ""}
@@ -848,7 +801,6 @@ export default function StreamsPage() {
               </div>
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogAction("")}>
               Cancel
@@ -858,7 +810,8 @@ export default function StreamsPage() {
               disabled={
                 loading ||
                 selectedStreams.length === 0 ||
-                selectedDegrees.length === 0
+                selectedDegrees.length === 0 ||
+                (!newYear && !selectedYear)
               }
             >
               {loading ? (
@@ -873,8 +826,7 @@ export default function StreamsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Edit Degree Dialog */}
+      {/* Edit Academic Year Dialog */}
       <Dialog
         open={dialogAction === "edit"}
         onOpenChange={(open) => !open && setDialogAction("")}
@@ -886,7 +838,6 @@ export default function StreamsPage() {
               Make changes to the academic year here.
             </DialogDescription>
           </DialogHeader>
-
           <div className="flex flex-col gap-4">
             {/* Academic Year */}
             <div className="flex flex-col gap-1">
@@ -900,11 +851,9 @@ export default function StreamsPage() {
                 }
               />
             </div>
-
             {/* Streams Section */}
             <div className="flex flex-col gap-2">
               <label className="text-sm">Streams</label>
-
               {/* Selected Streams */}
               <div className="flex flex-wrap gap-2">
                 {selectedStreams.map((s) => (
@@ -927,7 +876,6 @@ export default function StreamsPage() {
                   </Badge>
                 ))}
               </div>
-
               {/* Add New Stream */}
               <div className="flex flex-col gap-1">
                 <label>Add new stream</label>
@@ -957,11 +905,9 @@ export default function StreamsPage() {
                 </Select>
               </div>
             </div>
-
             {/* Degrees Section */}
             <div className="flex flex-col gap-2">
               <label className="text-sm">Degrees</label>
-
               {/* Selected Degrees */}
               <div className="flex flex-wrap gap-2">
                 {selectedDegrees.map((d) => (
@@ -974,7 +920,7 @@ export default function StreamsPage() {
                     <button
                       className="cursor-pointer"
                       onClick={() =>
-                        setselectedDegrees(
+                        setSelectedDegrees(
                           selectedDegrees.filter((x) => x !== d)
                         )
                       }
@@ -984,7 +930,6 @@ export default function StreamsPage() {
                   </Badge>
                 ))}
               </div>
-
               {/* Add New Degree (only from selected streams) */}
               <div className="flex flex-col gap-1">
                 <label>Add new degree</label>
@@ -993,7 +938,7 @@ export default function StreamsPage() {
                     if (selectedDegrees.includes(value)) {
                       toast.error(`${getDegreeName(value)} already exists`);
                     } else {
-                      setselectedDegrees([...selectedDegrees, value]);
+                      setSelectedDegrees([...selectedDegrees, value]);
                     }
                   }}
                 >
@@ -1005,7 +950,7 @@ export default function StreamsPage() {
                       {degrees
                         .filter(
                           (d) =>
-                            selectedStreams.includes(d.stream) && d.isActive // ✅ degree belongs to selected stream
+                            selectedStreams.includes(d.stream) && d.isActive
                         )
                         .map((d) => (
                           <SelectItem key={d.uuid} value={d.uuid}>
@@ -1018,7 +963,6 @@ export default function StreamsPage() {
               </div>
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogAction("")}>
               Cancel
@@ -1039,7 +983,7 @@ export default function StreamsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Import Degrees Dialog */}
+      {/* Import Academic Years Dialog */}
       <Dialog
         open={dialogAction === "import"}
         onOpenChange={(open) => !open && setDialogAction("")}
