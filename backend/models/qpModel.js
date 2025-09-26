@@ -6,6 +6,10 @@ const qpSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    iid: {
+      type: String,
+      required: true,
+    },
     stream: {
       type: String,
       required: true,

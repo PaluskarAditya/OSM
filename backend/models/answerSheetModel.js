@@ -13,7 +13,11 @@ const answerSheetSchema = new mongoose.Schema(
     candidateId: { type: String }, // secret
     sheetUploaded: { type: Boolean, default: false },
     assignmentId: { type: String, required: true },
+    status: { type: String, default: "Pending" },
+    totalMarks: { type: Number, required: true, default: 0 },
     isEvaluated: { type: Boolean, default: false },
+    annotations: {},
+    result: {},
   },
   { timestamps: true }
 );

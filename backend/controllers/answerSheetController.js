@@ -166,8 +166,42 @@ const getAll = async (req, res) => {
   }
 };
 
+const status = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+
+    const sheet = await AnswerSheet.findOneAndUpdate(
+      { assignmentId },
+      { status: req.body.status },
+      { new: true }
+    );
+
+    res.status(200).json(sheet);
+  } catch (error) {
+    res.status(500).json({ err: "Internal Server Error" });
+  }
+};
+
+const eval = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const sheet = await AnswerSheet.findOneAndUpdate(
+      { assignmentId },
+      {
+        ...req.body,
+      }
+    );
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ err: "Internal server error" });
+  }
+};
+
 module.exports = {
   upload,
   getFile,
   getAll,
+  status,
+  eval,
 };

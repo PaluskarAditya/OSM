@@ -12,7 +12,7 @@ const create = async (req, res) => {
         .json({ error: "Inward already exists for this subject and date" });
     }
 
-    const inward = new Inward({ ...req.body });
+    const inward = new Inward({ ...req.body, iid: req.user.IID });
     await inward.save();
 
     await syncEvaluation(course, subject, req.user?._id);
@@ -25,7 +25,7 @@ const create = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const inwards = await Inward.find();
+    const inwards = await Inward.find({ iid: req.user.IID });
 
     if (!inwards) return res.status(500).json({ err: "No Inwards found" });
 

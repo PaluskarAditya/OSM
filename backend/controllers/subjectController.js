@@ -131,7 +131,7 @@ const bulk = async (req, res) => {
 
     const newStreamsToInsert = uniqueStreams
       .filter((name) => !streamMap[name])
-      .map((name) => ({ uuid: generate(), name }));
+      .map((name) => ({ uuid: generate(), name, iid: req.user.IID }));
 
     const createdStreams = newStreamsToInsert.length
       ? await Stream.insertMany(newStreamsToInsert)
@@ -155,6 +155,7 @@ const bulk = async (req, res) => {
         uuid: generate(),
         name: d.name,
         stream: streamMap[d.stream].uuid,
+        iid: req.user.IID
       }));
 
     const createdDegrees = newDegreesToInsert.length
@@ -177,6 +178,7 @@ const bulk = async (req, res) => {
         streams: [], // will update after courses are created
         degrees: [], // will update after courses are created
         isActive: true,
+        iid: req.user.IID
       }));
 
     const createdYears = newYearsToInsert.length
@@ -216,6 +218,7 @@ const bulk = async (req, res) => {
         year: yearDoc.uuid,
         semCount: c.semCount,
         isActive: true,
+        iid: req.user.IID
       };
     });
 
@@ -261,6 +264,7 @@ const bulk = async (req, res) => {
           degree: degreeDoc.uuid,
           year: yearDoc.uuid,
           course: [course.uuid],
+          iid: req.user.IID
         });
         combinedMap[combinedKey] = combinedDoc;
       } else {
@@ -310,6 +314,7 @@ const bulk = async (req, res) => {
         semester: y.semester,
         type: y.type,
         isActive: true,
+        iid: req.user.IID
       };
     });
 

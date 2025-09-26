@@ -83,6 +83,9 @@ const create = async (req, res) => {
     const hashed = await bcrypt.hash(req.body.password, 10);
 
     const institute = new Institute({ ...req.body, password: hashed });
+
+    await institute.save();
+
     const user = new User({
       IID: institute.IID,
       Email: req.body.email,
@@ -91,7 +94,6 @@ const create = async (req, res) => {
     });
     console.log("Institute:", institute, " User:", user);
 
-    await institute.save();
     await user.save();
 
     const html = generateCredentialsEmail({

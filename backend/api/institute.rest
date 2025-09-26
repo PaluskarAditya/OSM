@@ -1,9 +1,9 @@
 POST http://localhost:8000/api/v1/institute
 Content-Type: application/json
-x-institute-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3Rpb24iOiJjcmVhdGVfYWN0aW9uIiwiaWF0IjoxNzU4ODg5MDMyLCJleHAiOjE3NTg4ODkzMzJ9.M-38aZKOUwcD6IKHRaZsel0gY7vYiI9-4JG_2rJniLo
+x-institute-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3Rpb24iOiJjcmVhdGVfYWN0aW9uIiwiaWF0IjoxNzU4OTAxNjk0LCJleHAiOjE3NTg5MDE5OTR9.JBfBigBGKlXKpsnZCoOL_n4roMkrOwUyFBLheN8okeQ
 
 {
-  "name": "XYZ College",
+  "name": "My New College",
   "email": "adityapaluskar@gmail.com",
   "password": "Gamer"
 }

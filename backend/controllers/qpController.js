@@ -155,6 +155,7 @@ const create = async (req, res) => {
       subQuestionsCount,
       actualQuestionsCount,
       combined,
+      iid: req.user.IID
     });
 
     // Cleanup uploaded file
@@ -189,7 +190,7 @@ const create = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const qps = await QP.find();
+    const qps = await QP.find({ iid: req.user.IID });
 
     if (!qps) {
       return res.status(500).json({ err: "Question Papers not found" });

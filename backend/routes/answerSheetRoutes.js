@@ -5,6 +5,8 @@ const {
   getAll,
   upload,
   getFile,
+  status,
+  eval
 } = require("../controllers/answerSheetController");
 const router = express.Router();
 
@@ -51,5 +53,7 @@ const uploader = multer({
 router.get("/", getAll);
 router.post("/multiple", uploader.array("files"), upload);
 router.get("/:assignmentId", getFile);
+router.put("/status/:assignmentId", status);
+router.put("/update/:assignmentId", eval);
 
 module.exports = router;
