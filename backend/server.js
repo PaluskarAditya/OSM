@@ -28,7 +28,7 @@ app.post("/ins", (req, res) => res.send(req.body));
 app.use("/api/v1/auth", require("./routes/authRoutes"));
 
 // User Routes
-app.use("/api/v1/users", require("./routes/userRoutes"));
+app.use("/api/v1/users", authMiddleware, require("./routes/userRoutes"));
 
 // Stream Routes
 app.use("/api/v1/stream", authMiddleware, require("./routes/streamRoutes"));
