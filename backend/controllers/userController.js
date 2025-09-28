@@ -37,7 +37,7 @@ const createUser = async (req, res) => {
 
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find({ iid: req.user.IID });
 
     if (!users) {
       return res.status(500).json({ err: "Users not found" });

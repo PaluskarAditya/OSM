@@ -5,6 +5,11 @@ const conn = require("./lib/db");
 const authMiddleware = require("./middlewares/authMiddleware");
 const Combined = require("./models/combinedModel");
 
+//TEMP IMPORTS
+const path = require("path");
+const fs = require("fs");
+const AnswerSheet = require("./models/answerSheetModel");
+
 require("dotenv").config();
 
 app.use(express.json());
@@ -17,7 +22,7 @@ conn();
 app.get("/foo", (req, res) => res.send("Welcome"));
 
 // Ins Route
-app.post('/ins', (req, res) => res.send(req.body))
+app.post("/ins", (req, res) => res.send(req.body));
 
 // Auth Routes
 app.use("/api/v1/auth", require("./routes/authRoutes"));
@@ -57,6 +62,24 @@ app.use(
   require("./routes/candidateRoutes")
 );
 
+// Custom route to view sheets in iframe
+app.get("/api/v1/answer-sheet/iframe/:filename", async (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    const filepath = path.join(__dirname, "uploads/", filename);
+
+    res.sendFile(filepath, (err) => {
+      if (err) {
+        console.error(err);
+        res.status(404).json({ err: "File not found" });
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ err: "Internal Server Error" });
+  }
+});
+
 // Answer Sheet Routes
 app.use(
   "/api/v1/answer-sheet",
@@ -79,7 +102,7 @@ app.get("/api/v1/combined", async (req, res) => {
 });
 
 // Institute Routes
-app.use('/api/v1/institute', require('./routes/instituteRoutes'));
+app.use("/api/v1/institute", require("./routes/instituteRoutes"));
 
 app.listen(process.env.NODE_PORT, () =>
   console.log(`Server running on ${process.env.NODE_PORT}`)

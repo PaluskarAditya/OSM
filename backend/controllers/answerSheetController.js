@@ -152,6 +152,22 @@ const getFile = async (req, res) => {
   }
 };
 
+const getFullFile = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+
+    const answerSheet = await AnswerSheet.findOne({ assignmentId });
+    if (!answerSheet) {
+      return res.status(404).json({ error: "Answer sheet not found" });
+    }
+
+    res.status(200).json(answerSheet);
+  } catch (error) {
+    console.error("Fetch error:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 const getAll = async (req, res) => {
   try {
     const sheets = await AnswerSheet.find();
@@ -201,6 +217,7 @@ const eval = async (req, res) => {
 module.exports = {
   upload,
   getFile,
+  getFullFile,
   getAll,
   status,
   eval,

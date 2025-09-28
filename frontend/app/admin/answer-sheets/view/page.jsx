@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,16 +27,22 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ChevronDown, XIcon, EyeClosedIcon } from "lucide-react";
-import { useState } from "react";
-import { useEffect } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ChevronDown, XIcon } from "lucide-react";
+import { Document, Page, pdfjs } from "react-pdf";
 import { toast } from "sonner";
+import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+
+// PDF worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default function page() {
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
   const [combineds, setCombineds] = useState([]);
+  const [tabValue, setTabValue] = useState("scanned");
   const [streams, setStreams] = useState([]);
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -46,6 +52,7 @@ export default function page() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [evaluatedAnswer, setEvaluatedAnswer] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState(null);
   const [selectedCampus, setSelectedCampus] = useState(null);
   const [filteredAnswers, setFilteredAnswers] = useState([]);
@@ -53,10 +60,14 @@ export default function page() {
   const [selectAll, setSelectAll] = useState(false);
   const [viewType, setViewType] = useState("activated");
   const [search, setSearch] = useState("");
+  const [sheetBlob, setSheetBlob] = useState(null);
   const [viewAnswerSheetModal, setViewAnswerSheetModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const router = useRouter();
   const auth_token = Cookies.get("token");
+  const canvasRef = useRef(null);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
 
   useEffect(() => {
     if (!auth_token) {
@@ -64,6 +75,59 @@ export default function page() {
       return;
     }
   }, []);
+
+  useEffect(() => {
+    const getSheet = async () => {
+      const res = await fetch(
+        `${API_URL}/api/v1/answer-sheet/full/${
+          answers.find((answer) => answer._id === selectedRow)?.assignmentId
+        }`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth_token}`,
+          },
+        }
+      );
+      const blobres = await fetch(
+        `${API_URL}/api/v1/answer-sheet/${
+          answers.find((answer) => answer._id === selectedRow)?.assignmentId
+        }`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth_token}`,
+          },
+        }
+      );
+      if (res.ok && blobres.ok) {
+        const data = await res.json();
+        const blobdata = await blobres.json();
+        setSheetBlob(blobdata);
+        setEvaluatedAnswer(data);
+      }
+    };
+    if (selectedRow) {
+      getSheet();
+    }
+  }, [selectedRow, tabValue]);
+
+  useEffect(() => {
+    if (!evaluatedAnswer || !canvasRef.current) return;
+
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+    evaluatedAnswer.annotations?.forEach((ann) => {
+      ctx.strokeStyle = ann.color || "red";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+
+      if (ann.text) {
+        ctx.fillStyle = ann.color || "red";
+        ctx.font = "14px Arial";
+        ctx.fillText(ann.text, ann.x, ann.y - 4);
+      }
+    });
+  }, [evaluatedAnswer, pageNumber]);
 
   useEffect(() => {
     const getData = async () => {
@@ -78,42 +142,41 @@ export default function page() {
         ] = await Promise.all([
           fetch(`${API_URL}/api/v1/stream`, {
             headers: {
-              "content-type": "appliction/json",
+              "content-type": "application/json",
               Authorization: `Bearer ${auth_token}`,
             },
           }),
           fetch(`${API_URL}/api/v1/combined`, {
             headers: {
-              "content-type": "appliction/json",
+              "content-type": "application/json",
               Authorization: `Bearer ${auth_token}`,
             },
           }),
           fetch(`${API_URL}/api/v1/course`, {
             headers: {
-              "content-type": "appliction/json",
+              "content-type": "application/json",
               Authorization: `Bearer ${auth_token}`,
             },
           }),
           fetch(`${API_URL}/api/v1/subject`, {
             headers: {
-              "content-type": "appliction/json",
+              "content-type": "application/json",
               Authorization: `Bearer ${auth_token}`,
             },
           }),
           fetch(`${API_URL}/api/v1/answer-sheet`, {
             headers: {
-              "content-type": "appliction/json",
+              "content-type": "application/json",
               Authorization: `Bearer ${auth_token}`,
             },
           }),
           fetch(`${API_URL}/api/v1/candidate`, {
             headers: {
-              "content-type": "appliction/json",
+              "content-type": "application/json",
               Authorization: `Bearer ${auth_token}`,
             },
           }),
         ]);
-
         const [
           streamsData,
           combinedData,
@@ -129,7 +192,6 @@ export default function page() {
           answerRes.json(),
           candidateRes.json(),
         ]);
-
         setStreams(streamsData);
         setCombineds(combinedData);
         setCourses(courseData);
@@ -141,7 +203,6 @@ export default function page() {
         toast.error(error.message);
       }
     };
-
     getData();
   }, []);
 
@@ -166,9 +227,8 @@ export default function page() {
 
   const handleSelectAll = () => {
     if (selectAll) {
-      setSelectedRows([]); // clear selection
+      setSelectedRows([]);
     } else {
-      // add all row IDs
       setSelectedRows(filteredAnswers.map((row) => row._id));
     }
     setSelectAll(!selectAll);
@@ -176,15 +236,14 @@ export default function page() {
 
   const handleRowSelect = (id) => {
     if (selectedRow === id) {
-      setSelectedRow(null); // deselect if clicking the same one
+      setSelectedRow(null);
     } else {
-      setSelectedRow(id); // select new one, old one auto removed
+      setSelectedRow(id);
     }
   };
 
   const getCandidateName = (id) => {
     const candidate = candidates.find((el) => el.RollNo === id);
-
     if (candidate) {
       return `${candidate.FirstName} ${candidate.MiddleName} ${candidate.LastName}`;
     } else {
@@ -195,7 +254,6 @@ export default function page() {
   useEffect(() => {
     const data = answers.filter((el) => {
       const name = getCandidateName(el.name);
-
       if (name.toLowerCase().includes(search.toLowerCase())) {
         return el;
       }
@@ -205,21 +263,15 @@ export default function page() {
 
   useEffect(() => {
     let data = answers;
-    console.log("Answer Sheets:", data);
-
     if (selectedCombined) {
       data = data.filter((el) => el.combined === selectedCombined.uuid);
     }
-
     if (selectedCourse) {
       data = data.filter((el) => el.course === selectedCourse.uuid);
     }
-
     if (selectedSubject) {
       data = data.filter((el) => el.subject === selectedSubject.uuid);
     }
-
-    console.log("Answer Sheets:", data);
     setFilteredAnswers(data);
   }, [selectedCombined, selectedSubject, selectedCourse, selectedSemester]);
 
@@ -231,14 +283,12 @@ export default function page() {
       Course: getCourseName(el.combined),
       "Subject (Code)": `${selectedSubject.name} (${selectedSubject.code})`,
       ExamAssignmentId: el.uuid,
-      CandidateAttendance: el.attendance ? "PRESENT" : "ASBENT",
+      CandidateAttendance: el.attendance ? "PRESENT" : "ABSENT",
       AnswerSheetUploaded: el.sheetUploaded ? "Yes" : "No",
       AnswerSheetPath: el.path,
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(mappedData);
     const workbook = XLSX.utils.book_new();
-
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
     XLSX.writeFile(workbook, "Candidates.xlsx");
   };
@@ -248,35 +298,126 @@ export default function page() {
     return file?.path.split("\\").pop();
   };
 
+  const handleDownloadScanned = async () => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/v1/answer-sheet/${getFileName()}`,
+        {
+          headers: { Authorization: `Bearer ${auth_token}` },
+        }
+      );
+      const blob = await res.blob();
+      saveAs(blob, getFileName() || "answer-sheet.pdf");
+    } catch (err) {
+      toast.error("Failed to download scanned sheet");
+    }
+  };
+
+  const handleDownloadEvaluated = () => {
+    if (!canvasRef.current) return;
+    canvasRef.current.toBlob((blob) => {
+      saveAs(blob, "evaluated-answer-sheet.png");
+    });
+  };
+
   return (
     <div className="bg-gray-100 w-full p-6 gap-6 flex flex-col">
-      {/* View Answer Sheet Modal */}
       <Dialog open={viewAnswerSheetModal}>
-        <DialogContent className="w-1/2 min-h-[90vh] min-w-1/2 max-h-[90vh]">
+        <DialogContent className="w-3/4 min-h-[90vh]">
           <DialogHeader className="h-max">
             <DialogTitle>Answer Sheet</DialogTitle>
-            <DialogDescription>view selected answer sheet</DialogDescription>
+            <DialogDescription>
+              View scanned and evaluated answer sheets
+            </DialogDescription>
           </DialogHeader>
-          <main className="flex-grow min-h-[60vh]">
-            <iframe
-              className="h-full w-full"
-              src={`${
-                process.env.NEXT_PUBLIC_BACKEND_URL
-              }/api/v1/answersheet/${getFileName()}`}
-            />
-          </main>
+          <Tabs
+            defaultValue={tabValue}
+            value={tabValue}
+            onValueChange={(val) => setTabValue(val)}
+            className="w-full h-full"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="scanned">Scanned</TabsTrigger>
+              <TabsTrigger value="evaluated">Evaluated</TabsTrigger>
+            </TabsList>
+            <TabsContent
+              value="scanned"
+              className="flex flex-col gap-2 min-h-[70vh]"
+            >
+              <Document
+                file={`${API_URL}/api/v1/answer-sheet/${getFileName()}`}
+                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              >
+                <Page pageNumber={pageNumber} width={600} />
+              </Document>
+              <div className="flex gap-4 items-center">
+                <Button
+                  disabled={pageNumber <= 1}
+                  onClick={() => setPageNumber((p) => p - 1)}
+                >
+                  Prev
+                </Button>
+                <span>
+                  Page {pageNumber} of {numPages}
+                </span>
+                <Button
+                  disabled={pageNumber >= numPages}
+                  onClick={() => setPageNumber((p) => p + 1)}
+                >
+                  Next
+                </Button>
+                <Button onClick={handleDownloadScanned}>Download</Button>
+              </div>
+            </TabsContent>
+            <TabsContent
+              value="evaluated"
+              className="flex flex-col gap-2 min-h-[70vh]"
+            >
+              <div className="relative">
+                <Document
+                  file={`${API_URL}/api/v1/answer-sheet/${getFileName()}`}
+                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                >
+                  <Page pageNumber={pageNumber} width={600} />
+                </Document>
+                <canvas
+                  ref={canvasRef}
+                  className="absolute top-0 left-0 pointer-events-none"
+                  width={600}
+                  height={800}
+                />
+              </div>
+              <div className="flex gap-4 items-center">
+                <Button
+                  disabled={pageNumber <= 1}
+                  onClick={() => setPageNumber((p) => p - 1)}
+                >
+                  Prev
+                </Button>
+                <span>
+                  Page {pageNumber} of {numPages}
+                </span>
+                <Button
+                  disabled={pageNumber >= numPages}
+                  onClick={() => setPageNumber((p) => p + 1)}
+                >
+                  Next
+                </Button>
+                <Button onClick={handleDownloadEvaluated}>Download</Button>
+              </div>
+            </TabsContent>
+          </Tabs>
           <DialogFooter className="h-max">
             <Button
               variant="outline"
               className="cursor-pointer"
               onClick={() => setViewAnswerSheetModal(false)}
             >
-              close
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <div className="flex flex-col gap-1 bg-white p-6 shadow-lg shadow-black/5 rounded-lg">
         <h1 className="text-xl font-medium">View Answer Sheets</h1>
         <p className="text-sm text-gray-500">view and manage answer sheets</p>
@@ -327,15 +468,6 @@ export default function page() {
                   Export
                 </DropdownMenuItem>
                 <DropdownMenuItem>Export Coursewise Data</DropdownMenuItem>
-                {/* {viewType === "activated" ? (
-                <DropdownMenuItem onClick={() => setViewType("deactivated")}>
-                  View Deactivated
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => setViewType("activated")}>
-                  View Activated
-                </DropdownMenuItem>
-              )} */}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -523,7 +655,6 @@ export default function page() {
                         onChange={() => handleRowSelect(el._id)}
                       />
                     </TableCell>
-
                     <TableCell className="border border-gray-200 p-2 text-center align-middle">
                       {i + 1}
                     </TableCell>

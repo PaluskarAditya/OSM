@@ -5,6 +5,7 @@ const {
   getAll,
   upload,
   getFile,
+  getFullFile,
   status,
   eval
 } = require("../controllers/answerSheetController");
@@ -53,6 +54,7 @@ const uploader = multer({
 router.get("/", getAll);
 router.post("/multiple", uploader.array("files"), upload);
 router.get("/:assignmentId", getFile);
+router.get("/full/:assignmentId", getFullFile);
 router.put("/status/:assignmentId", status);
 router.put("/update/:assignmentId", eval);
 

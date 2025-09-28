@@ -1,11 +1,11 @@
 POST http://localhost:8000/api/v1/institute
 Content-Type: application/json
-x-institute-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3Rpb24iOiJjcmVhdGVfYWN0aW9uIiwiaWF0IjoxNzU4OTAxNjk0LCJleHAiOjE3NTg5MDE5OTR9.JBfBigBGKlXKpsnZCoOL_n4roMkrOwUyFBLheN8okeQ
+x-institute-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3Rpb24iOiJjcmVhdGVfYWN0aW9uIiwiaWF0IjoxNzU5MDUyMjM3LCJleHAiOjE3NTkwNTI1Mzd9.4Mp0zTdmFVS66blgnZCFwPwEpezE8qUl5b23JVGdloI
 
 {
-  "name": "My New College",
-  "email": "adityapaluskar@gmail.com",
-  "password": "Gamer"
+  "name": "Arpan's College",
+  "email": "admin@intelbuzz.in",
+  "password": "demo"
 }
 
 ###

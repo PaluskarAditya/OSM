@@ -511,6 +511,10 @@ export default function Page() {
     );
   };
 
+  const handlePaperFinish = async () => {
+    tryca
+  }
+
   return (
     <div className="flex flex-col w-full min-h-screen">
       <nav className="p-2 bg-gray-100 border-b border-gray-200 text-sm flex justify-between items-center w-full">
