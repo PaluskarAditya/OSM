@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "esbuild server.js --bundle --platform=node --outfile=dist/app.js",
+    "start": "node dist/app.js",
     "start:backend": "node server.js",
     "start:frontend": "cd ../frontend && npm run dev",
     "start:all": "concurrently \"npm run start:backend\" \"npm run start:frontend\""
@@ -17,6 +19,7 @@
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
+    "esbuild": "^0.25.10",
     "express": "^5.1.0",
     "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.2",

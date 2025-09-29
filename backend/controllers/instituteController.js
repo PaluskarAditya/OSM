@@ -6,66 +6,68 @@ const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
 function generateCredentialsEmail({ name, email, password }) {
+  const currentYear = new Date().getFullYear();
+
   return `
-  <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px;">
-    <div style="max-width:480px; margin:auto; background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.1);">
-      <div style="background: linear-gradient(135deg, #000000 0%, #333333 100%); padding: 32px 20px; text-align:center;">
-        <div style="font-size:28px; font-weight:700; color:#ffffff; letter-spacing:-0.5px;">NEXA</div>
-        <div style="height:2px; width:60px; background:linear-gradient(90deg, #667eea, #764ba2); margin:16px auto;"></div>
-        <p style="color:#a0a0a0; font-size:14px; margin:8px 0 0; font-weight:500;">Account Credentials</p>
-      </div>
-      
-      <div style="padding:40px 32px; color:#2d3748; line-height:1.6;">
-        <p style="font-size:18px; font-weight:600; margin:0 0 8px;">Hi ${
-          name || "there"
-        },</p>
-        <p style="color:#718096; margin:0 0 24px;">Your NEXA account has been created successfully.</p>
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; background-color: #ffffff; padding: 20px 0;">
+      <div style="max-width: 600px; margin: auto; padding: 20px; text-align: left; border: 1px solid #eaeaea; border-radius: 4px;">
         
-        <div style="background:#f8fafc; padding:24px; border-radius:12px; border-left:4px solid #667eea; margin:24px 0;">
-          <p style="font-size:14px; color:#4a5568; margin:0 0 12px; font-weight:600;">YOUR LOGIN DETAILS</p>
-          <div style="display:flex; align-items:center; margin:12px 0;">
-            <div style="background:#e2e8f0; padding:8px; border-radius:6px; margin-right:12px;">
-              <span style="color:#4a5568; font-size:14px;">📧</span>
-            </div>
-            <div>
-              <p style="font-size:12px; color:#718096; margin:0; font-weight:500;">Email</p>
-              <p style="font-size:15px; color:#2d3748; margin:0; font-weight:600;">${email}</p>
-            </div>
-          </div>
-          <div style="display:flex; align-items:center; margin:12px 0;">
-            <div style="background:#e2e8f0; padding:8px; border-radius:6px; margin-right:12px;">
-              <span style="color:#4a5568; font-size:14px;">🔑</span>
-            </div>
-            <div>
-              <p style="font-size:12px; color:#718096; margin:0; font-weight:500;">Password</p>
-              <p style="font-size:15px; color:#2d3748; margin:0; font-weight:600; font-family: 'Courier New', monospace;">${password}</p>
-            </div>
-          </div>
+        <div style="text-align: center; padding-bottom: 20px;">
+          <div style="width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 15px solid #000000; display: inline-block;"></div>
         </div>
         
-        <div style="background:#fff5f5; padding:16px; border-radius:8px; border:1px solid #fed7d7; margin:24px 0;">
-          <p style="font-size:13px; color:#c53030; margin:0; text-align:center; font-weight:500;">
-            ⚠️ For security, please change your password after first login
+        <p style="font-size: 14px; color: #000000; margin-top: 20px;">
+          Hi <strong style="font-weight: 600;">${name || "there"}</strong>,
+        </p>
+        <p style="font-size: 14px; color: #000000; margin: 8px 0 20px 0;">
+          Your NEXA account has been created successfully. Below are your login credentials.
+        </p>
+
+        <div style="border-top: 1px solid #eaeaea; border-bottom: 1px solid #eaeaea; padding: 16px 0; margin-bottom: 24px;">
+          
+          <p style="font-size: 12px; color: #666666; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Login Details</p>
+          
+          <div style="margin-bottom: 12px;">
+            <p style="font-size: 13px; color: #444444; margin: 0 0 4px 0;">Email:</p>
+            <p style="font-size: 14px; color: #000000; margin: 0; font-weight: 600;">${email}</p>
+          </div>
+          
+          <div>
+            <p style="font-size: 13px; color: #444444; margin: 0 0 4px 0;">Password:</p>
+            <p style="font-size: 14px; color: #000000; margin: 0; font-weight: 600; font-family: 'Courier New', monospace;">${password}</p>
+          </div>
+          
+        </div>
+
+        <div style="padding: 12px; background-color: #fff9e6; border: 1px solid #ffe0b2; border-radius: 4px; margin-bottom: 24px;">
+          <p style="font-size: 13px; color: #a0522d; margin: 0; text-align: center;">
+            ⚠️ For security, please change your password after first login.
           </p>
         </div>
         
-        <div style="text-align:center; margin-top:32px;">
-          <a href="https://nexa.intelbuzz.in" style="background:linear-gradient(135deg, #000000, #333333); color:white; padding:12px 32px; text-decoration:none; border-radius:8px; font-weight:600; font-size:14px; display:inline-block;">
-            Access Your Account
+        <p style="font-size: 14px; margin: 0;">
+          <a href="https://nexa.intelbuzz.in" style="color: #0070f3; text-decoration: none; font-weight: 500;">
+            Access Your Account &rarr;
           </a>
+        </p>
+
+        <div style="border-top: 1px solid #eaeaea; margin-top: 30px;"></div>
+
+        <div style="padding-top: 20px; text-align: center;">
+          <p style="font-size: 12px; color: #666666; margin: 0 0 4px 0;">
+            If you have questions, visit our support page.
+          </p>
+          <p style="font-size: 11px; color: #999999; margin: 0;">
+            Copyright © ${currentYear} NEXA Inc. All rights reserved.<br>
+            Secure • Premium • Innovative
+          </p>
+          <p style="font-size: 11px; margin-top: 10px;">
+            <a href="#" style="color: #0070f3; text-decoration: none;">Manage your notification settings</a>
+          </p>
         </div>
+        
       </div>
-      
-      <div style="background:#f8fafc; padding:24px; text-align:center; border-top:1px solid #e2e8f0;">
-        <p style="font-size:12px; color:#718096; margin:0 0 8px;">
-          © ${new Date().getFullYear()} NEXA. All rights reserved.
-        </p>
-        <p style="font-size:11px; color:#a0aec0; margin:0;">
-          Secure • Premium • Innovative
-        </p>
-      </div>
-    </div>
-  </div>`;
+    </div>`;
 }
 
 const create = async (req, res) => {
@@ -102,7 +104,7 @@ const create = async (req, res) => {
       password: req.body.password,
     });
 
-    await sendMail(req.body.email, "Your Logic Credentials Account", html);
+    await sendMail(req.body.email, "Nexa Login Credentials Account", html);
 
     res.json({ message: "Institute and user created, email sent." });
   } catch (error) {
@@ -113,7 +115,8 @@ const create = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const ins = await Institute.find();
+    const ins = await Institute.find({ IID: req.user.IID });
+    console.log("Institute Request:");
 
     if (!ins) {
       return res.statis(500).json({ err: "No Insititutes found" });

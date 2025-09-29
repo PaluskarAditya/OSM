@@ -59,6 +59,8 @@ const SidebarFooterMenu = () => {
   const [role, setRole] = React.useState("");
   const [mail, setMail] = React.useState("");
 
+  const router = useRouter();
+
   useEffect(() => {
     setRole(Cookies.get("role") || "");
     setMail(Cookies.get("mail") || "");

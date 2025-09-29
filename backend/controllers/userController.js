@@ -16,6 +16,7 @@ const createUser = async (req, res) => {
 
     const user = new User({
       ...req.body,
+      IID: req.user.IID,
       password: hashed,
     });
 
@@ -37,7 +38,11 @@ const createUser = async (req, res) => {
 
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({ iid: req.user.IID });
+    console.log("Users Request:", typeof req.user.IID);
+
+    const users = await User.find({ IID: req.user.IID });
+
+    console.log("Found Data:", users);
 
     if (!users) {
       return res.status(500).json({ err: "Users not found" });

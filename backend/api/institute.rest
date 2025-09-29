@@ -1,6 +1,6 @@
 POST http://localhost:8000/api/v1/institute
 Content-Type: application/json
-x-institute-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3Rpb24iOiJjcmVhdGVfYWN0aW9uIiwiaWF0IjoxNzU5MDUyMjM3LCJleHAiOjE3NTkwNTI1Mzd9.4Mp0zTdmFVS66blgnZCFwPwEpezE8qUl5b23JVGdloI
+x-institute-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY3Rpb24iOiJjcmVhdGVfYWN0aW9uIiwiaWF0IjoxNzU5MTI5MTA0LCJleHAiOjE3NTkxMjk0MDR9.Jt6wSZZSE2gvVc5PVvLIkppyC_RMfAVPkgtK7Gd30z8
 
 {
   "name": "Arpan's College",
