@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function StreamsPage() {
   const [streams, setStreams] = useState([]);
@@ -79,11 +80,14 @@ export default function StreamsPage() {
               Authorization: `Bearer ${token}`,
             },
           }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
+          fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          ),
         ]);
 
         if (streamRes.ok && degreeRes.ok && yearRes.ok) {
@@ -97,7 +101,7 @@ export default function StreamsPage() {
           setStreams(activeStreams);
           setDegrees(degreeData);
 
-          console.log(activeStreams, degreeData)
+          console.log(activeStreams, degreeData);
 
           if (yearData.err) {
             setYears([]);
@@ -452,9 +456,12 @@ export default function StreamsPage() {
     <div className="min-h-screen bg-white p-6 text-sm w-full border-0">
       {/* Header */}
       <div className="flex flex-col mb-6">
-        <h1 className="text-sm font-medium text-gray-800">
-          Academic Years Management
-        </h1>
+        <div className="flex justify-start items-center gap-2">
+          <SidebarTrigger className="cursor-pointer" />
+          <h1 className="text-sm font-medium text-gray-800">
+            Academic Years Management
+          </h1>
+        </div>
         <p className="text-sm text-gray-500">
           Create and manage evaluation academic years
         </p>
@@ -715,7 +722,7 @@ export default function StreamsPage() {
               <label className="text-sm">Stream(s)</label>
               <Select
                 value={selectedStream}
-                onValueChange={val => setSelectedStream(val)}
+                onValueChange={(val) => setSelectedStream(val)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select streams" />
@@ -749,8 +756,7 @@ export default function StreamsPage() {
                     {degrees
                       ?.filter(
                         (el) =>
-                          el.isActive &&
-                          selectedStreams.includes(el.stream)
+                          el.isActive && selectedStreams.includes(el.stream)
                       )
                       .map((el) => (
                         <SelectItem key={el.uuid} value={el.uuid}>
@@ -772,7 +778,9 @@ export default function StreamsPage() {
                     placeholder="Enter new year"
                     disabled={!!selectedYear}
                     onKeyDown={(e) =>
-                      e.key === "Enter" && (newYear || selectedYear) && handleCreate()
+                      e.key === "Enter" &&
+                      (newYear || selectedYear) &&
+                      handleCreate()
                     }
                   />
                   <span className="text-xs text-gray-500">Type a new year</span>
