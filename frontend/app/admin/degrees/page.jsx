@@ -25,6 +25,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useEffect } from "react";
@@ -391,7 +392,12 @@ export default function StreamsPage() {
     <div className="min-h-screen bg-white p-6 text-sm w-full border-0">
       {/* Header */}
       <div className="flex flex-col mb-6">
-        <h1 className="text-sm font-medium text-gray-800">Degree Management</h1>
+        <div className="flex justify-start items-center gap-2">
+          <SidebarTrigger className="cursor-pointer" />
+          <h1 className="text-sm font-medium text-gray-800">
+            Degree Management
+          </h1>
+        </div>
         <p className="text-sm text-gray-500">
           Create and manage evaluation degrees
         </p>
