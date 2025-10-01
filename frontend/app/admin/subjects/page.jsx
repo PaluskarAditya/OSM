@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useRef } from "react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function SubjectsPage() {
   const [streams, setStreams] = useState([]);
@@ -582,6 +583,34 @@ export default function SubjectsPage() {
     }
   };
 
+  useEffect(() => {
+    const newFiltered = subjects.filter((sub) => {
+      const combined = combineds.find((el) => el.uuid === sub.combined);
+
+      const hasActiveStream = streams.some(
+        (stream) => stream.uuid === combined.stream && stream.isActive
+      );
+
+      const hasActiveDegree = degrees.some(
+        (degree) => degree.uuid === combined.degree && degree.isActive
+      );
+
+      const hasActiveYear = years.some(
+        (year) => year.uuid === combined.year && year.isActive
+      );
+
+      const hasActiveCourse = courses.some(
+        (course) => course.uuid === sub.course && course.isActive
+      );
+
+      return (
+        hasActiveStream && hasActiveDegree && hasActiveYear && hasActiveCourse
+      );
+    });
+
+    setFilteredSubjects(newFiltered);
+  }, [streams, degrees, years, courses, subjects]);
+
   const displayedSubjects = filteredSubjects.filter((subject) =>
     viewMode === "active" ? subject.isActive : !subject.isActive
   );
@@ -590,9 +619,12 @@ export default function SubjectsPage() {
     <div className="flex flex-col h-full bg-white p-4 sm:p-6 text-sm">
       {/* Header */}
       <div className="flex flex-col mb-6">
-        <h1 className="text-sm font-medium text-gray-800">
-          Subjects Management
-        </h1>
+        <div className="flex gap-2 justify-start items-center">
+          <SidebarTrigger className="cursor-pointer" />
+          <h1 className="text-sm font-medium text-gray-800">
+            Subjects Management
+          </h1>
+        </div>
         <p className="text-sm text-gray-500">
           Create and manage evaluation subjects
         </p>
@@ -783,9 +815,6 @@ export default function SubjectsPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Code</TableHead>
-                <TableHead>Stream</TableHead>
-                <TableHead>Degree</TableHead>
-                <TableHead>Year</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead>Semester</TableHead>
                 <TableHead>Type</TableHead>
@@ -816,15 +845,6 @@ export default function SubjectsPage() {
                     </TableCell>
                     <TableCell className="text-xs text-gray-500 font-mono">
                       {subject.code}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm w-max">
-                      {getStreamName(subject.combined)}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm w-max">
-                      {getDegreeName(subject.combined)}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm w-max">
-                      {getYear(subject.combined)}
                     </TableCell>
                     <TableCell className="font-medium text-sm w-max">
                       {getCourseName(subject.course)}...

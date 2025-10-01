@@ -170,6 +170,7 @@ export default function StreamsPage() {
       const hasActiveDegree = year.degrees?.some((did) =>
         degrees.some((d) => d.uuid === did && d.isActive)
       );
+      console.log("Filtered Data:", hasActiveStream, hasActiveDegree);
       return hasActiveStream && hasActiveDegree;
     });
     setFilteredYears(newFiltered);

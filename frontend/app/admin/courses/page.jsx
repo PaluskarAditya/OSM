@@ -31,6 +31,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { useState } from "react";
 import Cookies from "js-cookie";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Loader2,
   Search,
@@ -409,21 +410,27 @@ export default function StreamsPage() {
 
   useEffect(() => {
     const newFiltered = courses.filter((course) => {
-      const hasActiveStream = streams.filter(
+      const hasActiveStream = streams.some(
         (s) => s.uuid === course.stream && s.isActive
       );
-
-      const hasActiveDegree = degrees.filter(
+      const hasActiveDegree = degrees.some(
         (d) => d.uuid === course.degree && d.isActive
       );
-
-      const hasActiveYear = years.filter(
-        (y) => y.year === course.year && y.isActive
+      const hasActiveYear = years.some(
+        (y) => y.uuid === course.year && y.isActive // Compare with y.uuid, not y.year
       );
-
+      console.log("Course Filter Result:", {
+        course: course.name,
+        stream: course.stream,
+        degree: course.degree,
+        year: course.year,
+        hasActiveStream,
+        hasActiveDegree,
+        hasActiveYear,
+      });
       return hasActiveStream && hasActiveDegree && hasActiveYear;
     });
-
+    console.log("Filtered Courses:", newFiltered);
     setFilteredCourses(newFiltered);
   }, [years, streams, degrees, courses]);
 
@@ -536,9 +543,12 @@ export default function StreamsPage() {
     <div className="min-h-screen bg-white p-6 text-sm flex-1 border-0">
       {/* Header */}
       <div className="flex flex-col mb-6">
-        <h1 className="text-sm font-medium text-gray-800">
-          Courses Management
-        </h1>
+        <div className="flex gap-2 justify-start items-center">
+          <SidebarTrigger className="cursor-pointer" />
+          <h1 className="text-sm font-medium text-gray-800">
+            Courses Management
+          </h1>
+        </div>
         <p className="text-sm text-gray-500">
           Create and manage evaluation courses
         </p>
@@ -1135,9 +1145,7 @@ export default function StreamsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Course</DialogTitle>
-            <DialogDescription>
-              Import courses through excel
-            </DialogDescription>
+            <DialogDescription>Import courses through excel</DialogDescription>
           </DialogHeader>
           <main className="flex flex-col gap-3">
             <div className="flex justify-between items-center p-3 border">
