@@ -16,6 +16,7 @@ import {
   TableCell,
   TableBody,
 } from "@/components/ui/table";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Dialog,
   DialogContent,
@@ -208,7 +209,11 @@ export default function StreamsPage() {
 
       if (res.ok) {
         await fetchStreams();
-        toast.success(`Stream ${!stream.isActive ? 'activated' : 'deactivated'} successfully`);
+        toast.success(
+          `Stream ${
+            !stream.isActive ? "activated" : "deactivated"
+          } successfully`
+        );
         setLoading(false);
       }
     } catch (error) {
@@ -217,7 +222,7 @@ export default function StreamsPage() {
     }
   };
 
-  const displayedStreams = filteredStreams.filter(stream => 
+  const displayedStreams = filteredStreams.filter((stream) =>
     viewMode === "active" ? stream.isActive : !stream.isActive
   );
 
@@ -225,8 +230,15 @@ export default function StreamsPage() {
     <div className="min-h-screen bg-white p-6 text-sm w-full border-0">
       {/* Header */}
       <div className="flex flex-col mb-6">
-        <h1 className="text-sm font-medium text-gray-800">Stream Management</h1>
-        <p className="text-sm text-gray-500">Create and manage evaluation streams</p>
+        <div className="flex justify-start items-center gap-2">
+          <SidebarTrigger className="cursor-pointer" />
+          <h1 className="text-sm font-medium text-gray-800">
+            Stream Management
+          </h1>
+        </div>
+        <p className="text-sm text-gray-500">
+          Create and manage evaluation streams
+        </p>
       </div>
 
       {/* Stats and Actions Section */}
@@ -234,19 +246,21 @@ export default function StreamsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-blue-100 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{streams.length}</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {streams.length}
+              </div>
               <div className="text-xs text-blue-500">Total Streams</div>
             </div>
             <div className="bg-green-100 p-3 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                {streams.filter(s => s.isActive).length}
+                {streams.filter((s) => s.isActive).length}
               </div>
               <div className="text-xs text-green-500">Active Streams</div>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button 
+            <Button
               onClick={() => setDialogAction("new")}
               className="flex items-center gap-2 cursor-pointer text-sm"
               size="sm"
@@ -254,9 +268,9 @@ export default function StreamsPage() {
               <Plus size={16} />
               Add Stream
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               onClick={() => setDialogAction("export")}
               className="flex items-center gap-2 cursor-pointer text-sm"
               size="sm"
@@ -272,7 +286,10 @@ export default function StreamsPage() {
       <div className="bg-white rounded-lg mb-6">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={18}
+            />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -280,7 +297,7 @@ export default function StreamsPage() {
               className="pl-10"
             />
           </div>
-          
+
           <div className="flex gap-2">
             <Button
               variant={viewMode === "active" ? "default" : "outline"}
@@ -319,8 +336,12 @@ export default function StreamsPage() {
               displayedStreams.map((stream, i) => (
                 <TableRow key={stream.uuid}>
                   <TableCell className="font-medium">{i + 1}</TableCell>
-                  <TableCell className="font-medium text-sm">{stream.name}</TableCell>
-                  <TableCell className="text-xs text-gray-500 font-mono">{stream.uuid}</TableCell>
+                  <TableCell className="font-medium text-sm">
+                    {stream.name}
+                  </TableCell>
+                  <TableCell className="text-xs text-gray-500 font-mono">
+                    {stream.uuid}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={stream.isActive ? "default" : "secondary"}>
                       {stream.isActive ? "Active" : "Inactive"}
@@ -366,7 +387,10 @@ export default function StreamsPage() {
       </div>
 
       {/* Create Stream Dialog */}
-      <Dialog open={dialogAction === "new"} onOpenChange={(open) => !open && setDialogAction("")}>
+      <Dialog
+        open={dialogAction === "new"}
+        onOpenChange={(open) => !open && setDialogAction("")}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Stream</DialogTitle>
@@ -380,7 +404,9 @@ export default function StreamsPage() {
                 value={addDialogName}
                 onChange={(e) => setAddDialogName(e.target.value)}
                 placeholder="Enter stream name"
-                onKeyDown={(e) => e.key === 'Enter' && addDialogName && handleCreateStream()}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && addDialogName && handleCreateStream()
+                }
               />
             </div>
           </div>
@@ -388,8 +414,8 @@ export default function StreamsPage() {
             <Button variant="outline" onClick={() => setDialogAction("")}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleCreateStream} 
+            <Button
+              onClick={handleCreateStream}
               disabled={loading || !addDialogName.trim()}
             >
               {loading ? (
@@ -406,7 +432,10 @@ export default function StreamsPage() {
       </Dialog>
 
       {/* Edit Stream Dialog */}
-      <Dialog open={dialogAction === "edit"} onOpenChange={(open) => !open && setDialogAction("")}>
+      <Dialog
+        open={dialogAction === "edit"}
+        onOpenChange={(open) => !open && setDialogAction("")}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Stream</DialogTitle>
@@ -420,7 +449,9 @@ export default function StreamsPage() {
                 value={editDialogName}
                 onChange={(e) => setEditDialogName(e.target.value)}
                 placeholder="Enter stream name"
-                onKeyDown={(e) => e.key === 'Enter' && editDialogName && handleUpdateStream()}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && editDialogName && handleUpdateStream()
+                }
               />
             </div>
           </div>
@@ -428,8 +459,8 @@ export default function StreamsPage() {
             <Button variant="outline" onClick={() => setDialogAction("")}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleUpdateStream} 
+            <Button
+              onClick={handleUpdateStream}
               disabled={loading || !editDialogName.trim()}
             >
               {loading ? (
