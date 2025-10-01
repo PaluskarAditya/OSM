@@ -27,17 +27,27 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import * as pdfjsLib from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChevronDown, XIcon } from "lucide-react";
-import { Document, Page, pdfjs } from "react-pdf";
+import dynamic from 'next/dynamic'
 import { toast } from "sonner";
 import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 
-// PDF worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+if (typeof window !== "undefined") {
+  const pdfjs = require("react-pdf").pdfjs;
+  pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+}
+
+const Document = dynamic(
+  () => import("react-pdf").then((mod) => mod.Document),
+  { ssr: false }
+);
+const Page = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
+  ssr: false,
+});
 
 export default function page() {
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;

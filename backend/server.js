@@ -10,6 +10,11 @@ const path = require("path");
 const fs = require("fs");
 const AnswerSheet = require("./models/answerSheetModel");
 
+app.use(
+  "/.well-known",
+  express.static(path.join(process.cwd(), "public"))
+);
+
 require("dotenv").config();
 
 app.use(express.json());

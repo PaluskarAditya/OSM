@@ -82,7 +82,7 @@ const SidebarFooterMenu = () => {
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size="lg">
+              <SidebarMenuButton size="lg" className="cursor-pointer">
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <UserCheckIcon className="size-4" />
                 </div>
@@ -106,7 +106,7 @@ const SidebarFooterMenu = () => {
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
+              <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 <LogOut />
                 Log out
               </DropdownMenuItem>
@@ -163,7 +163,7 @@ export default function RootLayout({ children }) {
           }
         );
         const data = await res.json();
-        const user_ins = data.find(el => el.IID === Number(iid));
+        const user_ins = data.find((el) => el.IID === Number(iid));
         setInstitute(user_ins);
         setLoading(false);
       } catch (error) {
@@ -179,19 +179,21 @@ export default function RootLayout({ children }) {
     <main className="flex h-screen">
       <SidebarProvider>
         <Sidebar collapsible="icon" className="h-full border-r">
-          <SidebarHeader>
-            <SidebarMenuButton size="lg">
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <Layers3Icon className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">Evaluation</span>
-                <span className="truncate text-xs">
-                  {loading ? "Loading..." : institute && institute.name}
-                </span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarHeader>
+          <Link href={"/admin"}>
+            <SidebarHeader>
+              <SidebarMenuButton size="lg" className="cursor-pointer">
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <Layers3Icon className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">Evaluation</span>
+                  <span className="truncate text-xs">
+                    {loading ? "Loading..." : institute && institute.name}
+                  </span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarHeader>
+          </Link>
 
           <SidebarContent>
             <SidebarGroup>
@@ -200,11 +202,14 @@ export default function RootLayout({ children }) {
                 {/* Exams */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/collapsible" asChild>
+                    <CollapsibleTrigger
+                      className="group/collapsible cursor-pointer"
+                      asChild
+                    >
                       <SidebarMenuButton className="w-full">
                         <BookCheckIcon className="h-4 w-4" />
                         <span>Exams</span>
-                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0" />
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 rotate-0" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -212,17 +217,20 @@ export default function RootLayout({ children }) {
                         {/* Subjects */}
                         <SidebarMenuSubItem>
                           <Collapsible className="group/subjects">
-                            <CollapsibleTrigger asChild>
+                            <CollapsibleTrigger asChild className="cursor-pointer">
                               <SidebarMenuSubButton className="w-full">
                                 <WalletCardsIcon className="h-4 w-4" />
                                 <span>Subjects</span>
-                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/subjects:rotate-0rotate-90 h-4 w-4" />
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/subjects:rotate-90 rotate-0 h-4 w-4" />
                               </SidebarMenuSubButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               <SidebarMenuSub>
                                 {EXAM_SUBJECT_ITEMS.map((el) => (
-                                  <SidebarMenuSubItem key={el}>
+                                  <SidebarMenuSubItem
+                                    key={el}
+                                    className="cursor-pointer"
+                                  >
                                     <SidebarMenuSubButton asChild>
                                       <Link href={`/admin/${PATH_MAP[el]}`}>
                                         {el}
@@ -240,12 +248,12 @@ export default function RootLayout({ children }) {
                           <Collapsible>
                             <CollapsibleTrigger
                               asChild
-                              className="group/question"
+                              className="group/question cursor-pointer"
                             >
                               <SidebarMenuSubButton className="w-full">
                                 <PaperclipIcon className="h-4 w-4" />
                                 <span>Question Paper</span>
-                                <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/question:rotate-0 transition-transform duration-200" />
+                                <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/question:rotate-90 transition-transform duration-200" />
                               </SidebarMenuSubButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
@@ -276,11 +284,11 @@ export default function RootLayout({ children }) {
                 {/* Inwards / Outwards */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/inward" asChild>
+                    <CollapsibleTrigger className="group/inward cursor-pointer" asChild>
                       <SidebarMenuButton className="w-full">
                         <LibraryBigIcon className="h-4 w-4" />
                         <span>Inwards / Outwards</span>
-                        <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/inward:rotate-0 transition-transform duration-200" />
+                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/inward:rotate-90 transition-transform duration-200" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -305,11 +313,11 @@ export default function RootLayout({ children }) {
                 {/* Candidates */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/candidate" asChild>
+                    <CollapsibleTrigger className="group/candidate cursor-pointer" asChild>
                       <SidebarMenuButton className="w-full">
                         <UserIcon className="h-4 w-4" />
                         <span>Candidates</span>
-                        <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/candidate:rotate-0 transition-transform duration-200" />
+                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/candidate:rotate-90 transition-transform duration-200" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -350,11 +358,11 @@ export default function RootLayout({ children }) {
                 {/* Answer Sheets */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger asChild className="group/sheet">
+                    <CollapsibleTrigger asChild className="group/sheet cursor-pointer">
                       <SidebarMenuButton className="w-full">
                         <SheetIcon className="h-4 w-4" />
                         <span>Answer Sheets</span>
-                        <ChevronRight className="ml-auto h-4 w-4rotate-90 group-data-[state=open]/sheet:rotate-0 transition-transform duration-200" />
+                        <ChevronRight className="ml-auto h-4 w-4 rotate-0 group-data-[state=open]/sheet:rotate-90 transition-transform duration-200" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -381,11 +389,11 @@ export default function RootLayout({ children }) {
                 {/* Evaluation */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/eval" asChild>
+                    <CollapsibleTrigger className="group/eval cursor-pointer" asChild>
                       <SidebarMenuButton className="w-full">
                         <BookOpenCheckIcon className="h-4 w-4" />
                         <span>Evaluation</span>
-                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-0rotate-90" />
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-90 rotate-0" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
