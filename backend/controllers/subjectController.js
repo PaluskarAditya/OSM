@@ -19,7 +19,7 @@ const create = async (req, res) => {
       return;
     }
 
-    const subject = new Subject({ ...req.body, uuid: generate() });
+    const subject = new Subject({ ...req.body, uuid: generate(), iid: req.user.IID });
     await subject.save();
 
     if (subject) {
@@ -88,7 +88,7 @@ const status = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const subjects = await Subject.find();
+    const subjects = await Subject.find({ iid: req.user.IID });
 
     if (subjects.length < 1) {
       res.status(500).json({ err: "Subjects not found" });
