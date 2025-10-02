@@ -8,6 +8,7 @@ const subjectSchema = new mongoose.Schema({
   course: { type: String, required: true },
   exam: { type: String, required: true },
   semester: { type: String, required: true },
+  iid: { type: String, required: true },
   type: { type: String, required: true, enum: ['Compulsory', 'Elective / Optional'] },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
