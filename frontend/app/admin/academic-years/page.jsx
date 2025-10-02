@@ -91,27 +91,36 @@ export default function StreamsPage() {
         ]);
 
         if (streamRes.ok && degreeRes.ok && yearRes.ok) {
+          const parseJson = async (res) => {
+            if (res.status === 204 || res.status === 304) return null; // no content
+            return res.json();
+          };
+
           const [streamData, degreeData, yearData] = await Promise.all([
-            streamRes.json(),
-            degreeRes.json(),
-            yearRes.json(),
+            parseJson(streamRes),
+            parseJson(degreeRes),
+            parseJson(yearRes),
           ]);
 
-          const activeStreams = streamData.filter((el) => el.isActive);
-          setStreams(activeStreams);
-          setDegrees(degreeData);
-
-          console.log(activeStreams, degreeData);
-
-          if (yearData.err) {
-            setYears([]);
-            setFilteredYears([]);
-            setLoading(false);
-            return;
+          if (streamData) {
+            const activeStreams = streamData.filter((el) => el.isActive);
+            setStreams(activeStreams);
           }
 
-          setYears(yearData);
-          setFilteredYears(yearData);
+          if (degreeData) {
+            setDegrees(degreeData);
+          }
+
+          if (yearData) {
+            if (yearData.err) {
+              setYears([]);
+              setFilteredYears([]);
+              setLoading(false);
+              return;
+            }
+            setYears(yearData);
+            setFilteredYears(yearData);
+          }
         } else {
           toast.error("Failed to fetch one or more resources");
         }
@@ -202,7 +211,7 @@ export default function StreamsPage() {
           },
           body: JSON.stringify({
             year: selectedYear || newYear,
-            streams: selectedStreams,
+            streams: [...new Set(selectedStreams)],
             degrees: selectedDegrees,
           }),
         }
@@ -452,6 +461,16 @@ export default function StreamsPage() {
   const displayedYears = filteredYears.filter((year) =>
     viewMode === "active" ? year.isActive : !year.isActive
   );
+
+  useEffect(() => {
+    if (selectedStream) {
+      setSelectedStreams((prev) => [...prev, selectedStream]);
+    }
+
+    if (selectedDegree) {
+      setSelectedDegrees((prev) => [...prev, selectedDegree]);
+    }
+  }, [selectedStream, selectedDegree]);
 
   return (
     <div className="min-h-screen bg-white p-6 text-sm w-full border-0">
@@ -756,8 +775,7 @@ export default function StreamsPage() {
                   <SelectGroup>
                     {degrees
                       ?.filter(
-                        (el) =>
-                          el.isActive && selectedStreams.includes(el.stream)
+                        (el) => el.isActive && el.stream === selectedStream
                       )
                       .map((el) => (
                         <SelectItem key={el.uuid} value={el.uuid}>
