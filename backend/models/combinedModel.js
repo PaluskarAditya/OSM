@@ -8,6 +8,7 @@ const combinedSchema = mongoose.Schema(
     stream: { type: String },
     degree: { type: String },
     year: { type: String },
+    iid: { type: String },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

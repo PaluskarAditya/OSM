@@ -96,8 +96,8 @@ app.use(
 app.use("/api/v1/eval", authMiddleware, require("./routes/evalRoutes"));
 
 // Custom combined route
-app.get("/api/v1/combined", async (req, res) => {
-  const combineds = await Combined.find();
+app.get("/api/v1/combined", authMiddleware, async (req, res) => {
+  const combineds = await Combined.find({ iid: req.user.IID });
 
   if (!combineds) {
     return res.status(500).json({ err: "Combineds not found" });
