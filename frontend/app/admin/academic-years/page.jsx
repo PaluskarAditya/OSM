@@ -640,7 +640,7 @@ export default function StreamsPage() {
             <TableRow>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Stream</TableHead>
+              <TableHead className="w-max">Stream</TableHead>
               <TableHead>Degree</TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Status</TableHead>
@@ -665,15 +665,19 @@ export default function StreamsPage() {
                   <TableCell className="font-medium text-sm w-max">
                     <div className="align-middle w-max text-sm grid grid-cols-2 gap-1 justify-start items-center">
                       {year.streams.map((el) => (
-                        <Badge key={el} variant="outline">
+                        <Badge key={el} variant="outline" className="w-max">
                           {getStreamName(el)}
                         </Badge>
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium align-middle text-sm grid grid-cols-2 gap-1 justify-start items-center">
+                  <TableCell className="font-medium align-middle text-sm grid sm:grid-cols-1 lg:grid-cols-2 gap-1 justify-start items-center">
                     {year.degrees.map((el) => (
-                      <Badge className="w-full" key={el} variant="outline">
+                      <Badge
+                        className="w-min"
+                        key={el}
+                        variant="outline"
+                      >
                         {getDegreeName(el)}
                       </Badge>
                     ))}

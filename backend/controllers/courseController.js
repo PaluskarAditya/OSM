@@ -18,7 +18,11 @@ const create = async (req, res) => {
       return;
     }
 
-    const course = new Course({ ...req.body, uuid: generate() });
+    const course = new Course({
+      ...req.body,
+      uuid: generate(),
+      iid: req.user.IID,
+    });
     await course.save();
 
     const stream = await Stream.findOne({ uuid: req.body.stream }).select(
@@ -38,6 +42,7 @@ const create = async (req, res) => {
       degree: req.body.degree,
       year: req.body.year,
       course: [course.uuid],
+      iid: req.user.IID,
     });
 
     await combined.save();
@@ -101,7 +106,7 @@ const status = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const courses = await Course.find();
+    const courses = await Course.find({ iid: req.user.IID });
 
     if (courses.length < 1) {
       res.status(500).json({ err: "Courses not found" });
