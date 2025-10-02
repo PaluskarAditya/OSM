@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const multer = require("multer");
-const { create, getAll, getById } = require("../controllers/qpController");
+const { create, getAll, getById, verify } = require("../controllers/qpController");
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = "uploads/";
@@ -45,5 +45,6 @@ const upload = multer({
 router.post("/upload", upload.single("file"), create);
 router.get('/', getAll);
 router.get('/:uuid', getById);
+router.put('/:uuid', verify);
 
 module.exports = router;

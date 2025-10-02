@@ -16,7 +16,7 @@ import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function page() {
+export default function Page() {
   const ROLES = [
     "Admin",
     "Observer",
@@ -74,16 +74,17 @@ export default function page() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-[url('/bg.jpg')] bg-cover">
-      <div className="p-4 bg-white rounded-lg flex flex-col gap-3 justify-center items-center w-1/4">
-        <div className="flex flex-col text-center">
-          <h1>Evaluation Login</h1>
-          <p className="text-sm text-gray-500">
+    <div className="flex justify-center items-center min-h-screen bg-[url('/bg.jpg')] bg-cover bg-center p-4">
+      <div className="p-6 bg-white rounded-lg flex flex-col gap-4 justify-center items-center w-full max-w-md sm:max-w-lg md:w-2/3 lg:w-1/2 xl:w-1/3 2xl:w-1/4">
+        <div className="flex flex-col text-center w-full">
+          <h1 className="text-xl sm:text-2xl font-semibold">Evaluation Login</h1>
+          <p className="text-sm text-gray-500 mt-1">
             Sign In to access your account
           </p>
         </div>
-        <div className="flex flex-col gap-1 w-full">
-          <label className="text-sm">Role</label>
+        
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-sm font-medium">Role</label>
           <Select
             value={creds.role}
             onValueChange={(value) => setCreds({ ...creds, role: value })}
@@ -106,33 +107,38 @@ export default function page() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col text-sm gap-1 w-full">
-          <label>Username/Email</label>
+        
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-sm font-medium">Username/Email</label>
           <Input
             value={creds.uname}
             onChange={(e) => setCreds({ ...creds, uname: e.target.value })}
             placeholder="john doe"
+            className="w-full"
           />
         </div>
-        <div className="flex flex-col text-sm gap-1 w-full">
-          <label>Password</label>
+        
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-sm font-medium">Password</label>
           <Input
             value={creds.pass}
             onChange={(e) => setCreds({ ...creds, pass: e.target.value })}
             type="password"
             placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"
+            className="w-full"
           />
         </div>
+        
         <Button
           onClick={handleLogin}
           disabled={loading}
-          className="text-sm w-full cursor-pointer font-normal"
+          className="text-sm w-full cursor-pointer font-normal mt-2"
         >
           {loading ? (
-            <>
+            <div className="flex items-center gap-2">
               <Loader2 className="animate-spin h-4 w-4" />
               Logging in...
-            </>
+            </div>
           ) : (
             "Login"
           )}

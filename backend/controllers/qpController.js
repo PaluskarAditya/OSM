@@ -217,8 +217,17 @@ const getById = async (req, res) => {
   }
 };
 
+const verify = async (req, res) => {
+  try {
+    
+  } catch (error) {
+    res.status(500).json({ err: "Internal Server Error" })
+  }
+}
+
 module.exports = {
   create,
   getAll,
-  getById
+  getById,
+  verify,
 };
