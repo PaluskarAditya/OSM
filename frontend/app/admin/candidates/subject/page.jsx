@@ -34,14 +34,16 @@ import {
   TrashIcon,
   UploadCloud,
   XIcon,
+  FilterIcon,
+  UsersIcon,
+  SidebarIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
-import { useState } from "react";
-import { useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Cookies from "js-cookie";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export default function page() {
+export default function Page() {
   const [streams, setStreams] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [years, setYears] = useState([]);
@@ -56,13 +58,13 @@ export default function page() {
   const [selectAll, setSelectAll] = useState(false);
   const [viewType, setViewType] = useState("activated");
 
-  const [importDialog, setImportDialog] = useState(null);
+  const [importDialog, setImportDialog] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importDialogCombined, setImportDialogCombined] = useState(null);
   const [importDialogCourse, setImportDialogCourse] = useState(null);
   const [importDialogSemester, setImportDialogSemester] = useState(null);
 
-  const [exportDialog, setExportDialog] = useState(null);
+  const [exportDialog, setExportDialog] = useState(false);
   const [exportDialogCombined, setExportDialogCombined] = useState(null);
   const [exportDialogCourse, setExportDialogCourse] = useState(null);
   const [exportDialogSemester, setExportDialogSemester] = useState(null);
@@ -76,15 +78,17 @@ export default function page() {
 
   const [assignSubjectModal, setAssignSubjectModal] = useState(false);
   const [assignedSubject, setAssignedSubject] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [tableKey, setTableKey] = useState(0);
 
   const token = Cookies.get("token");
 
   const handleSelectAll = () => {
     if (selectAll) {
-      setSelectedRows([]); // clear selection
+      setSelectedRows([]);
     } else {
-      // add all row IDs
-      setSelectedRows(filteredCandidates.map((row) => row._id));
+      const visibleCandidates = getVisibleCandidates();
+      setSelectedRows(visibleCandidates.map((row) => row._id));
     }
     setSelectAll(!selectAll);
   };
@@ -97,7 +101,7 @@ export default function page() {
     }
   };
 
-  const ref = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setFilteredCandidates(candidates);
@@ -105,6 +109,7 @@ export default function page() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const [
           streamsRes,
@@ -189,45 +194,71 @@ export default function page() {
         setCandidates(candidatesData);
         setFilteredCandidates(candidatesData);
       } catch (error) {
-        toast.error(error.message);
+        toast.error(error.message || "Failed to fetch data");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
   const clearFilters = () => {
     setSelectedCombined(null);
     setSelectedCourse(null);
     setSelectedSemester(null);
     setSelectedSubject(null);
+    setSelectedCampus(null);
+    setSearch("");
+    setSelectedRows([]);
+    setSelectAll(false);
   };
 
   const getStreamName = (id) => {
     const combined = combineds.find((el) => el.uuid === id);
     const stream = streams.find((el) => el.uuid === combined?.stream);
-    return stream?.name;
+    return stream?.name || "N/A";
   };
 
   const getCourseName = (id) => {
     const combined = combineds.find((el) => el.uuid === id);
     const course = courses.find((el) => combined?.course.includes(el.uuid));
-    return course?.name;
+    return course?.name || "N/A";
+  };
+
+  const getVisibleCandidates = () => {
+    return filteredCandidates.filter((candidate) =>
+      viewType === "activated"
+        ? candidate.isActive !== false
+        : candidate.isActive === false
+    );
   };
 
   const excelCandidate = () => {
-    const mappedData = filteredCandidates.map((el) => ({
-      RollNo: el.RollNo,
-      PRNNumber: el.PRNNumber,
-      StudentId: el.uuid,
-      Name: `${el.FirstName} ${el.MiddleName} ${el.LastName}`,
-      EmailId: el.Email,
-      IsPHCandidate: el.IsPHCandidate,
+    if (!selectedSubject) {
+      toast.error("Please select a subject first");
+      return;
+    }
+
+    if (filteredCandidates.length === 0) {
+      toast.error("No candidates to export");
+      return;
+    }
+
+    const mappedData = getVisibleCandidates().map((el) => ({
+      RollNo: el.RollNo || "N/A",
+      PRNNumber: el.PRNNumber || "N/A",
+      StudentId: el.uuid || "N/A",
+      Name: `${el.FirstName || ""} ${el.MiddleName || ""} ${
+        el.LastName || ""
+      }`.trim(),
+      EmailId: el.Email || "N/A",
+      IsPHCandidate: el.IsPHCandidate || "No",
       Stream: getStreamName(el.combined),
       Course: getCourseName(el.combined),
       Subject: selectedSubject.name,
-      BookletNames: el.bookletNames,
-      CampusName: el.CampusName,
+      BookletNames: el.bookletNames || "N/A",
+      CampusName: el.CampusName || "N/A",
       ExamAssignmentId: "",
       AnswerSheetUploaded: el.sheetUploaded ? "Yes" : "No",
     }));
@@ -236,35 +267,26 @@ export default function page() {
     const workbook = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-    XLSX.writeFile(workbook, "Candidates.xlsx");
+    XLSX.writeFile(workbook, `Candidates_${selectedSubject.name}.xlsx`);
   };
-
-  useEffect(() => {
-    const data = candidates.filter((el) => {
-      const name = `${el.FirstName?.toLowerCase()} ${el.MiddleName?.toLowerCase()} ${el.LastName?.toLowerCase()}`;
-
-      if (name.includes(search)) {
-        return el;
-      }
-    });
-    setFilteredCandidates(data);
-  }, [search]);
 
   useEffect(() => {
     let data = candidates;
 
-    // Apply search filter if search is present
     if (search) {
       const lowerSearch = search.toLowerCase();
       data = data.filter((el) => {
         const name = `${el.FirstName?.toLowerCase() ?? ""} ${
           el.MiddleName?.toLowerCase() ?? ""
         } ${el.LastName?.toLowerCase() ?? ""}`;
-        return name.includes(lowerSearch);
+        return (
+          name.includes(lowerSearch) ||
+          el.RollNo?.toLowerCase().includes(lowerSearch) ||
+          el.Email?.toLowerCase().includes(lowerSearch)
+        );
       });
     }
 
-    // Apply selector filters
     if (selectedCombined) {
       data = data.filter((el) => el.combined === selectedCombined.uuid);
     }
@@ -274,19 +296,19 @@ export default function page() {
     }
 
     if (selectedSemester) {
-      data = data.filter((el) => el.sem === selectedSemester); // Convert string '1' to number 1
+      data = data.filter((el) => el.sem == selectedSemester);
     }
 
     if (selectedSubject) {
-      data = candidates;
-      console.log("Before filtering:", selectedSubject.uuid, data);
       data = data.filter((el) =>
         el.subjects?.find((sub) => selectedSubject.uuid === sub)
       );
-      console.log("After filtering:", selectedSubject.uuid, data);
     }
 
     setFilteredCandidates(data);
+    setSelectedRows([]);
+    setSelectAll(false);
+    setTableKey((prev) => prev + 1);
   }, [
     candidates,
     search,
@@ -296,257 +318,355 @@ export default function page() {
     selectedSubject,
   ]);
 
+  const handleRemoveSubjects = async () => {
+    if (selectedRows.length === 0) {
+      toast.error("Please select at least one candidate");
+      return;
+    }
+
+    const selectedCandidates = candidates.filter((el) =>
+      selectedRows.includes(el._id)
+    );
+
+    const hasUploaded = selectedCandidates.some((el) => el.sheetUploaded);
+
+    if (hasUploaded) {
+      toast.error("Cannot remove subjects after answer sheets are uploaded");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/subjects`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ids: selectedRows,
+            subjects: [],
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const updated = candidates.map((candidate) =>
+          selectedRows.includes(candidate._id)
+            ? { ...candidate, subjects: [] }
+            : candidate
+        );
+
+        setCandidates(updated);
+        setFilteredCandidates(updated);
+        setSelectedRows([]);
+        toast.success("Subjects removed successfully");
+      } else {
+        throw new Error("Failed to remove subjects");
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const visibleCandidates = getVisibleCandidates();
+  const hasActiveFilters =
+    selectedCombined ||
+    selectedCourse ||
+    selectedSemester ||
+    selectedSubject ||
+    search;
+
   return (
-    <div className="bg-white p-6 flex flex-col gap-5">
+    <div className="bg-white p-4 lg:p-6 flex flex-col min-h-screen gap-4 lg:gap-5 overflow-hidden">
       {/* Assign Subject Modal */}
-      <Dialog open={assignSubjectModal}>
-        <DialogContent>
+      <Dialog open={assignSubjectModal} onOpenChange={setAssignSubjectModal}>
+        <DialogContent className="max-w-md lg:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Candidates</DialogTitle>
+            <DialogTitle>Assign Subject to Candidates</DialogTitle>
             <DialogDescription>
-              Assign subjects to selected candidates
+              Assign subject to selected candidates
             </DialogDescription>
           </DialogHeader>
-          <main>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full flex justify-between items-center gap-2"
-                >
-                  <span>
-                    {assignedSubject ? assignedSubject.name : "Select"}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {subjects
-                  .filter(
-                    (el) =>
-                      el.isActive == true &&
-                      el.course === selectedCourse?.uuid &&
-                      el.semester === selectedSemester
-                  )
-                  .map((el) => (
-                    <DropdownMenuItem
-                      onClick={() => setAssignedSubject(el)}
-                      key={el.uuid}
-                    >
-                      {el.name}
-                    </DropdownMenuItem>
-                  ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <main className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Select Subject</label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full flex justify-between items-center gap-2"
+                  >
+                    <span className="truncate">
+                      {assignedSubject
+                        ? assignedSubject.name
+                        : "Select Subject"}
+                    </span>
+                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
+                  {subjects
+                    .filter(
+                      (el) =>
+                        el.isActive == true &&
+                        el.course === selectedCourse?.uuid &&
+                        el.semester === selectedSemester
+                    )
+                    .map((el) => (
+                      <DropdownMenuItem
+                        onClick={() => setAssignedSubject(el)}
+                        key={el.uuid}
+                        className="truncate"
+                      >
+                        {el.name}
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {selectedRows.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  This will assign the subject to {selectedRows.length} selected
+                  candidate(s)
+                </p>
+              </div>
+            )}
           </main>
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setAssignSubjectModal(false)}
+              className="w-full sm:w-auto"
             >
-              close
+              Cancel
             </Button>
             <Button
               onClick={async () => {
-                // Get selected candidates
-                const selectedCandidates = candidates.filter((el) =>
-                  selectedRows.includes(el._id)
-                );
-
-                // Check if any selected candidate already has the subject
-                const alreadyAssigned = selectedCandidates.some((candidate) =>
-                  candidate.subjects.includes(assignedSubject.uuid)
-                );
-
-                if (alreadyAssigned) {
-                  toast.error(
-                    "One or more candidates already have this subject!"
-                  );
+                if (!assignedSubject) {
+                  toast.error("Please select a subject");
                   return;
                 }
 
-                // Prepare update payload
-                const res = await fetch(
-                  `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/subjects`,
-                  {
-                    method: "PUT",
-                    headers: {
-                      "Content-type": "application/json",
-                      AUthorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                      ids: selectedRows,
-                      subjects: [
-                        ...selectedCandidates[0].subjects, // take current subjects of first candidate
-                        assignedSubject.uuid,
-                      ],
-                    }),
-                  }
-                );
-
-                if (res.ok) {
-                  // Update frontend state
-                  const updated = candidates.map((candidate) =>
-                    selectedRows.includes(candidate._id)
-                      ? {
-                          ...candidate,
-                          subjects: [
-                            ...candidate.subjects,
-                            assignedSubject.uuid,
-                          ],
-                        }
-                      : candidate
-                  );
-
-                  setCandidates(updated);
-                  setFilteredCandidates(updated);
-
-                  toast.success("Subject assigned successfully");
+                if (selectedRows.length === 0) {
+                  toast.error("Please select at least one candidate");
+                  return;
                 }
 
-                setAssignSubjectModal(true);
+                setIsLoading(true);
+                try {
+                  const selectedCandidates = candidates.filter((el) =>
+                    selectedRows.includes(el._id)
+                  );
+
+                  const alreadyAssigned = selectedCandidates.some((candidate) =>
+                    candidate.subjects?.includes(assignedSubject.uuid)
+                  );
+
+                  if (alreadyAssigned) {
+                    toast.error(
+                      "One or more candidates already have this subject!"
+                    );
+                    return;
+                  }
+
+                  const res = await fetch(
+                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/subjects`,
+                    {
+                      method: "PUT",
+                      headers: {
+                        "Content-type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        ids: selectedRows,
+                        subjects: [
+                          ...(selectedCandidates[0]?.subjects || []),
+                          assignedSubject.uuid,
+                        ],
+                      }),
+                    }
+                  );
+
+                  if (res.ok) {
+                    const updated = candidates.map((candidate) =>
+                      selectedRows.includes(candidate._id)
+                        ? {
+                            ...candidate,
+                            subjects: [
+                              ...(candidate.subjects || []),
+                              assignedSubject.uuid,
+                            ],
+                          }
+                        : candidate
+                    );
+
+                    setCandidates(updated);
+                    setFilteredCandidates(updated);
+                    setAssignSubjectModal(false);
+                    setAssignedSubject(null);
+                    setSelectedRows([]);
+                    toast.success("Subject assigned successfully");
+                  } else {
+                    throw new Error("Failed to assign subject");
+                  }
+                } catch (error) {
+                  toast.error(error.message);
+                } finally {
+                  setIsLoading(false);
+                }
               }}
+              disabled={isLoading}
+              className="w-full sm:w-auto"
             >
-              Assign
+              {isLoading ? "Assigning..." : "Assign Subject"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <div className=" bg-white flex flex-col gap-0">
-        <h1 className="text-lg font-semibold">Candidates</h1>
+      {/* Header Section */}
+      <div className="bg-white flex flex-col gap-1">
+        <div className="flex gap-2 items-center">
+          <SidebarTrigger className="cursor-pointer flex-shrink-0" />
+          <h1 className="text-lg lg:text-xl font-semibold">Candidates</h1>
+        </div>
         <p className="text-sm text-gray-500">
           Assign and Remove Subjects to Candidates
         </p>
       </div>
-      <div className=" bg-white flex flex-col gap-6">
-        <div className="flex justify-between items-center">
+
+      {/* Main Content */}
+      <div className="bg-white flex flex-col gap-4 lg:gap-6">
+        {/* Controls Section */}
+        <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search candidates"
-            className="w-max"
+            placeholder="Search candidates by name, roll no, or email"
+            className="w-full lg:w-80"
           />
-          <DropdownMenu>
-            <div className="flex gap-3 justify-center items-center">
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex justify-end items-center"
-                >
-                  <span>Actions</span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <Button
-                onClick={clearFilters}
-                variant="outline"
-                disabled={selectedCombined === null}
-                className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-400 hover:text-red-500 justify-between items-center"
-              >
-                <span>Clear Filters</span>
-                <XIcon className="h-4 w-4" />
-              </Button>
-              {selectedSubject && selectedRows.length > 0 && (
-                <>
-                  <Button
-                    onClick={() => setAssignSubjectModal(true)}
-                    className="flex cursor-pointer bg-green-50 hover:bg-green-100 transition-all border border-green-300 text-green-400 hover:text-green-500 justify-between items-center"
-                    variant="outline"
-                  >
-                    <span>Assign Subject</span>
-                    <BookImage className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      // find candidates that are selected
-                      const selectedCandidates = candidates.filter((el) =>
-                        selectedRows.includes(el._id)
-                      );
-
-                      // check if any selected candidate has already uploaded sheet
-                      const hasUploaded = selectedCandidates.some(
-                        (el) => el.sheetUploaded
-                      );
-
-                      if (hasUploaded) {
-                        toast.error(
-                          "Cannot remove Subjects after Exam Assigned"
-                        );
-                        return;
-                      }
-
-                      // otherwise, reset subjects for selected candidates
-                      const updatedCandidates = candidates.map((el) =>
-                        selectedRows.includes(el._id)
-                          ? { ...el, subjects: [] }
-                          : el
-                      );
-
-                      console.log(updatedCandidates); // test before updating state
-                      // setCandidates(updatedCandidates); // if you have state to update
-                    }}
-                    className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-400 hover:text-red-500 justify-between items-center"
-                    variant="outline"
-                  >
-                    <span>Remove Assigned Subject</span>
-                    <TrashIcon className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={excelCandidate}>
-                Export Candidate Data
-              </DropdownMenuItem>
-              <DropdownMenuItem>Export Barcode Details</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="grid grid-cols-4 gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm">Stream | Degree | Year</label>
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex justify-between items-center cursor-pointer"
+                  className="flex justify-between items-center w-full sm:w-auto"
                 >
-                  <span>
-                    {selectedCombined ? selectedCombined.name : "Select"}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
+                  <span>Actions</span>
+                  <ChevronDown className="h-4 w-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {combineds.length > 0 &&
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={excelCandidate}>
+                  Export Candidate Data
+                </DropdownMenuItem>
+                <DropdownMenuItem>Export Barcode Details</DropdownMenuItem>
+                {viewType === "activated" ? (
+                  <DropdownMenuItem onClick={() => setViewType("deactivated")}>
+                    View Deactivated
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => setViewType("activated")}>
+                    View Activated
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              onClick={clearFilters}
+              variant="outline"
+              disabled={!hasActiveFilters}
+              className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-600 hover:text-red-700 justify-center items-center w-full sm:w-auto"
+            >
+              <span>Clear Filters</span>
+              <XIcon className="h-4 w-4 ml-2" />
+            </Button>
+
+            {selectedSubject && selectedRows.length > 0 && (
+              <>
+                <Button
+                  onClick={() => setAssignSubjectModal(true)}
+                  className="flex cursor-pointer bg-green-50 hover:bg-green-100 transition-all border border-green-300 text-green-600 hover:text-green-700 justify-center items-center w-full sm:w-auto"
+                  variant="outline"
+                >
+                  <span>Assign Subject</span>
+                  <BookImage className="h-4 w-4 ml-2" />
+                </Button>
+                <Button
+                  onClick={handleRemoveSubjects}
+                  disabled={isLoading}
+                  className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-600 hover:text-red-700 justify-center items-center w-full sm:w-auto"
+                  variant="outline"
+                >
+                  <span>{isLoading ? "Removing..." : "Remove Subjects"}</span>
+                  <TrashIcon className="h-4 w-4 ml-2" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Stream | Degree | Year
+            </label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex justify-between items-center w-full text-left"
+                >
+                  <span className="truncate">
+                    {selectedCombined ? selectedCombined.name : "Select"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
+                {combineds.length > 0 ? (
                   combineds.map((comb) => (
                     <DropdownMenuItem
                       onClick={() => setSelectedCombined(comb)}
                       key={comb.uuid}
+                      className="truncate"
                     >
-                      <span>{comb.name}</span>
+                      {comb.name}
                     </DropdownMenuItem>
-                  ))}
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>
+                    No options available
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
           {selectedCombined && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm">Course</label>
+              <label className="text-sm font-medium">Course</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center w-full text-left"
                   >
-                    <span>
+                    <span className="truncate">
                       {selectedCourse ? selectedCourse.name : "Select"}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {courses
                     .filter((course) =>
                       selectedCombined.course.includes(course.uuid)
@@ -555,6 +675,7 @@ export default function page() {
                       <DropdownMenuItem
                         onClick={() => setSelectedCourse(el)}
                         key={el.uuid}
+                        className="truncate"
                       >
                         {el.name}
                       </DropdownMenuItem>
@@ -563,22 +684,25 @@ export default function page() {
               </DropdownMenu>
             </div>
           )}
+
           {selectedCourse && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm">Semester/Trimester</label>
+              <label className="text-sm font-medium">Semester/Trimester</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center w-full text-left"
                   >
-                    <span>
-                      {selectedSemester ? selectedSemester : "Select"}
+                    <span className="truncate">
+                      {selectedSemester
+                        ? `Semester ${selectedSemester}`
+                        : "Select"}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full">
                   {Array.from(
                     { length: Number(selectedCourse.semCount) },
                     (_, i) => (
@@ -594,22 +718,23 @@ export default function page() {
               </DropdownMenu>
             </div>
           )}
+
           {selectedSemester && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm">Subject</label>
+              <label className="text-sm font-medium">Subject</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center w-full text-left"
                   >
-                    <span>
-                      {selectedSubject ? selectedSubject.name : "Selected"}
+                    <span className="truncate">
+                      {selectedSubject ? selectedSubject.name : "Select"}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {subjects
                     .filter(
                       (el) =>
@@ -620,6 +745,7 @@ export default function page() {
                       <DropdownMenuItem
                         onClick={() => setSelectedSubject(sub)}
                         key={sub.uuid}
+                        className="truncate"
                       >
                         {sub.name}
                       </DropdownMenuItem>
@@ -628,179 +754,179 @@ export default function page() {
               </DropdownMenu>
             </div>
           )}
-          {selectedSubject && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm">Campus</label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
-                  >
-                    <span>{selectedCampus ? selectedCampus : "Selected"}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>All</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="border bg-gray-100">
-              <TableHead className="border-r font-semibold">
-                {selectedSubject && (
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    onChange={handleSelectAll}
-                  />
-                )}
-              </TableHead>
-              <TableHead className="border-r font-semibold">Sr no</TableHead>
-              <TableHead className="border-r font-semibold">
-                Candidate ID
-              </TableHead>
-              <TableHead className="border-r font-semibold">Name</TableHead>
-              <TableHead className="border-r font-semibold">Email ID</TableHead>
-              <TableHead className="border-r font-semibold">
-                Roll Number
-              </TableHead>
-              <TableHead className="border-r font-semibold">
-                PRN Number
-              </TableHead>
-              <TableHead className="border-r font-semibold">
-                PH Candidate
-              </TableHead>
-              <TableHead className="border-r font-semibold">Stream</TableHead>
-              <TableHead className="border-r font-semibold">Course</TableHead>
-              <TableHead className="border-r font-semibold">Subject</TableHead>
-              <TableHead className="border-r font-semibold">
-                Booklet Name
-              </TableHead>
-              <TableHead className="border-r font-semibold">
-                Campus Name
-              </TableHead>
-              <TableHead className="font-semibold">
-                Answer Sheet Uploaded (Yes/No)
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          {viewType === "activated" ? (
-            <TableBody className="border">
-              {selectedSubject &&
-                filteredCandidates.length > 0 &&
-                filteredCandidates
-                  .filter((el) => el.isActive !== false)
-                  .map((el, i) => (
-                    <TableRow key={el.RollNo}>
-                      <TableCell className="border border-r">
+
+        {/* Data Display Section */}
+        {!selectedSubject ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 lg:p-12 text-center">
+            <FilterIcon className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Select a Subject to View Candidates
+            </h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              Please select a subject from the filters above to view and manage
+              candidate data. You need to select Stream, Course, Semester, and
+              then Subject to see the candidate list.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Table Section */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table key={tableKey}>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 hover:bg-gray-50">
+                      <TableHead className="w-12 border-r font-semibold whitespace-nowrap">
                         <input
                           type="checkbox"
-                          checked={selectedRows.includes(el._id)}
-                          onChange={() => handleRowSelect(el._id)}
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          disabled={visibleCandidates.length === 0}
+                          className="w-4 h-4"
                         />
-                      </TableCell>
-                      <TableCell className="border border-r">{i + 1}</TableCell>
-                      <TableCell className="border border-r">
-                        {el._id}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.FirstName} {el.MiddleName} {el.LastName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.Email}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.RollNo}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.PRNNumber}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.IsPHCandidate}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getStreamName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getCourseName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {selectedSubject.name}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.BookletName ? el.BookletName : "Not Uploaded"}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.CampusName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.sheetUploaded === true ? "Yes" : "No"}
-                      </TableCell>
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Sr no
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Candidate ID
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Name
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Email ID
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Roll Number
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        PH Candidate
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Course
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Subject
+                      </TableHead>
+                      <TableHead className="border-r font-semibold whitespace-nowrap">
+                        Booklet Name
+                      </TableHead>
+                      <TableHead className="font-semibold whitespace-nowrap">
+                        Answer Sheet Uploaded
+                      </TableHead>
                     </TableRow>
-                  ))}
-            </TableBody>
-          ) : (
-            <TableBody className="border">
-              {selectedSubject &&
-                filteredCandidates.length > 0 &&
-                filteredCandidates
-                  .filter((el) => el.isActive === false)
-                  .map((el, i) => (
-                    <TableRow key={el.RollNo}>
-                      <TableCell className="border border-r">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(el._id)}
-                          onChange={() => handleRowSelect(el._id)}
-                        />
-                      </TableCell>
-                      <TableCell className="border border-r">{i + 1}</TableCell>
-                      <TableCell className="border border-r">
-                        {el._id}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.FirstName} {el.MiddleName} {el.LastName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.Email}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.RollNo}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.PRNNumber}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.IsPHCandidate}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getStreamName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getCourseName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {selectedSubject.name}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.BookletName ? el.BookletName : "Not Uploaded"}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.CampusName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.sheetUploaded === true ? "Yes" : "No"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          )}
-        </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={14} className="text-center py-8">
+                          <div className="flex justify-center items-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                            <span className="ml-2">Loading candidates...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : visibleCandidates.length > 0 ? (
+                      visibleCandidates.map((el, i) => (
+                        <TableRow
+                          key={el._id || i}
+                          className="hover:bg-gray-50"
+                        >
+                          <TableCell className="border border-r">
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.includes(el._id)}
+                              onChange={() => handleRowSelect(el._id)}
+                              className="w-4 h-4"
+                            />
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {i + 1}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap font-mono text-xs">
+                            {el._id?.slice(0, 10)}...
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {`${el.FirstName || ""} ${el.MiddleName || ""} ${
+                              el.LastName || ""
+                            }`.trim() || "N/A"}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {el.Email || "N/A"}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {el.RollNo || "N/A"}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                el.IsPHCandidate === "Yes"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {el.IsPHCandidate || "No"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {getCourseName(el.combined)}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {selectedSubject.name}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            {el.BookletName ? el.BookletName : "Not Uploaded"}
+                          </TableCell>
+                          <TableCell className="border border-r whitespace-nowrap">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                el.sheetUploaded
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {el.sheetUploaded ? "Yes" : "No"}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={14}
+                          className="text-center py-8 text-gray-500"
+                        >
+                          <UsersIcon className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                          <p>
+                            No candidates found
+                            {hasActiveFilters ? " matching your filters" : ""}.
+                          </p>
+                          {hasActiveFilters && (
+                            <p className="text-sm mt-2">
+                              Try adjusting your filters or search terms.
+                            </p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Selection Info */}
+            {selectedRows.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  {selectedRows.length} candidate(s) selected for bulk
+                  operations
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

@@ -26,14 +26,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ChevronDown, EyeClosedIcon, UploadCloud, XIcon } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  ChevronDown,
+  EyeClosedIcon,
+  UploadCloud,
+  XIcon,
+  EyeIcon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
-import { useState } from "react";
-import { useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Cookies from "js-cookie";
 
-export default function page() {
+export default function Page() {
   const [streams, setStreams] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [years, setYears] = useState([]);
@@ -48,13 +53,13 @@ export default function page() {
   const [selectAll, setSelectAll] = useState(false);
   const [viewType, setViewType] = useState("activated");
 
-  const [importDialog, setImportDialog] = useState(null);
+  const [importDialog, setImportDialog] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importDialogCombined, setImportDialogCombined] = useState(null);
   const [importDialogCourse, setImportDialogCourse] = useState(null);
   const [importDialogSemester, setImportDialogSemester] = useState(null);
 
-  const [exportDialog, setExportDialog] = useState(null);
+  const [exportDialog, setExportDialog] = useState(false);
   const [exportDialogCombined, setExportDialogCombined] = useState(null);
   const [exportDialogCourse, setExportDialogCourse] = useState(null);
   const [exportDialogSemester, setExportDialogSemester] = useState(null);
@@ -68,12 +73,19 @@ export default function page() {
   const [selectedCampus, setSelectedCampus] = useState(null);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [tableKey, setTableKey] = useState(0); // Force table re-render
+
   const handleSelectAll = () => {
     if (selectAll) {
-      setSelectedRows([]); // clear selection
+      setSelectedRows([]);
     } else {
-      // add all row IDs
-      setSelectedRows(filteredCandidates.map((row) => row._id));
+      const visibleCandidates = filteredCandidates.filter((candidate) =>
+        viewType === "activated"
+          ? candidate.isActive !== false
+          : candidate.isActive === false
+      );
+      setSelectedRows(visibleCandidates.map((row) => row._id));
     }
     setSelectAll(!selectAll);
   };
@@ -86,7 +98,7 @@ export default function page() {
     }
   };
 
-  const ref = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setFilteredCandidates(candidates);
@@ -94,6 +106,7 @@ export default function page() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const [
           streamsRes,
@@ -178,28 +191,45 @@ export default function page() {
         setCandidates(candidatesData);
         setFilteredCandidates(candidatesData);
       } catch (error) {
-        toast.error(error.message);
+        toast.error(error.message || "Failed to fetch data");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
   const clearFilters = () => {
     setSelectedCombined(null);
     setSelectedCourse(null);
     setSelectedSemester(null);
     setSelectedSubject(null);
+    setSelectedCampus(null);
+    setSearch("");
+    setSelectedRows([]);
+    setSelectAll(false);
   };
 
   const getSubjectUUID = (name, sem) => {
     const subject = subjects.find(
       (el) => el.name === name && el.semester.includes(sem)
     );
-    return subject.uuid;
+    return subject?.uuid || name;
   };
 
   const handleCandidateImport = async () => {
+    if (!importFile) {
+      toast.error("Please select a file to import");
+      return;
+    }
+
+    if (!importDialogCombined || !importDialogCourse || !importDialogSemester) {
+      toast.error("Please select all required fields");
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const buffer = await importFile.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
@@ -210,7 +240,6 @@ export default function page() {
         const filteredRow = {};
         const subjects = [];
 
-        // explicitly pick candidate details you want to keep
         filteredRow.Name = row.Name || "";
         filteredRow.RollNo = row.RollNo || "";
         filteredRow.PRNNumber = row.PRNNumber || "";
@@ -223,21 +252,15 @@ export default function page() {
         filteredRow.MiddleName = row.MiddleName || "";
         filteredRow.LastName = row.LastName || "";
 
-        // now process subject columns
         for (let key in row) {
           if (row[key] === 1) {
-            // ✅ push UUID (or subject name if you want names)
             subjects.push(getSubjectUUID(key, importDialogSemester));
           }
         }
 
         filteredRow.subjects = subjects;
-
         return filteredRow;
       });
-
-      // console.log("Excel Data:", json_data);
-      console.log("Cleaned Excel Data:", cleaned_data);
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/upload`,
@@ -257,30 +280,46 @@ export default function page() {
       );
 
       if (res.ok) {
-        const data = res.json();
-        toast.success(`Imported ${data?.length} candidates successfully`);
-        setCandidates(cleaned_data);
+        const data = await res.json();
+        toast.success(
+          `Imported ${
+            data?.length || cleaned_data.length
+          } candidates successfully`
+        );
+        setCandidates((prev) => [...prev, ...cleaned_data]);
+        setImportDialog(false);
+        setImportFile(null);
+        setImportDialogCombined(null);
+        setImportDialogCourse(null);
+        setImportDialogSemester(null);
+      } else {
+        throw new Error("Failed to import candidates");
       }
-
-      setImportDialog(false);
     } catch (error) {
       toast.error(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const getStreamName = (id) => {
     const combined = combineds.find((el) => el.uuid === id);
     const stream = streams.find((el) => el.uuid === combined?.stream);
-    return stream?.name;
+    return stream?.name || "N/A";
   };
 
   const getCourseName = (id) => {
     const combined = combineds.find((el) => el.uuid === id);
     const course = courses.find((el) => combined?.course.includes(el.name));
-    return course?.name;
+    return course?.name || "N/A";
   };
 
   const excelTemplate = () => {
+    if (!exportDialogCombined || !exportDialogCourse || !exportDialogSemester) {
+      toast.error("Please select all required fields");
+      return;
+    }
+
     const candidate_subjects = subjects.filter(
       (sub) =>
         sub.combined === exportDialogCombined.uuid &&
@@ -289,15 +328,6 @@ export default function page() {
     );
 
     const name_map = candidate_subjects.map((sub) => sub.name);
-
-    console.log(
-      "Query Data:",
-      exportDialogCombined.uuid,
-      exportDialogCourse.uuid,
-      String(exportDialogSemester),
-      "Subjects:",
-      name_map
-    );
 
     const data = [
       "RollNo",
@@ -324,6 +354,7 @@ export default function page() {
       "1234567890",
       "Yes / No",
       "Test Campus",
+      ...Array(name_map.length).fill(1),
     ];
 
     const worksheetData = [data, data_row];
@@ -333,25 +364,35 @@ export default function page() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
     XLSX.writeFile(
       workbook,
-      `Candidate_Template_Semesteer-${exportDialogSemester}.xlsx`
+      `Candidate_Template_Semester-${exportDialogSemester}.xlsx`
     );
 
     setExportDialog(false);
+    setExportDialogCombined(null);
+    setExportDialogCourse(null);
+    setExportDialogSemester(null);
   };
 
   const excelCandidate = () => {
+    if (filteredCandidates.length === 0) {
+      toast.error("No candidates to export");
+      return;
+    }
+
     const mappedData = filteredCandidates.map((el) => ({
-      RollNo: el.RollNo,
-      PRNNumber: el.PRNNumber,
-      StudentId: el.uuid,
-      Name: `${el.FirstName} ${el.MiddleName} ${el.LastName}`,
-      EmailId: el.Email,
-      IsPHCandidate: el.IsPHCandidate,
+      RollNo: el.RollNo || "N/A",
+      PRNNumber: el.PRNNumber || "N/A",
+      StudentId: el.uuid || "N/A",
+      Name: `${el.FirstName || ""} ${el.MiddleName || ""} ${
+        el.LastName || ""
+      }`.trim(),
+      EmailId: el.Email || "N/A",
+      IsPHCandidate: el.IsPHCandidate || "No",
       Stream: getStreamName(el.combined),
       Course: getCourseName(el.combined),
-      Subject: selectedSubject.name,
-      BookletNames: el.bookletNames,
-      CampusName: el.CampusName,
+      Subject: selectedSubject?.name || "N/A",
+      BookletNames: el.bookletNames || "N/A",
+      CampusName: el.CampusName || "N/A",
       ExamAssignmentId: "",
       AnswerSheetUploaded: el.sheetUploaded ? "Yes" : "No",
     }));
@@ -366,18 +407,20 @@ export default function page() {
   useEffect(() => {
     let data = candidates;
 
-    // Apply search filter if search is present
     if (search) {
       const lowerSearch = search.toLowerCase();
       data = data.filter((el) => {
         const name = `${el.FirstName?.toLowerCase() ?? ""} ${
           el.MiddleName?.toLowerCase() ?? ""
         } ${el.LastName?.toLowerCase() ?? ""}`;
-        return name.includes(lowerSearch);
+        return (
+          name.includes(lowerSearch) ||
+          el.RollNo?.toLowerCase().includes(lowerSearch) ||
+          el.Email?.toLowerCase().includes(lowerSearch)
+        );
       });
     }
 
-    // Apply selector filters
     if (selectedCombined) {
       data = data.filter((el) => el.combined === selectedCombined.uuid);
     }
@@ -387,19 +430,19 @@ export default function page() {
     }
 
     if (selectedSemester) {
-      data = data.filter((el) => el.sem === selectedSemester); // Convert string '1' to number 1
+      data = data.filter((el) => el.sem == selectedSemester);
     }
 
     if (selectedSubject) {
-      data = candidates;
-      console.log("Before filtering:", selectedSubject.uuid, data);
       data = data.filter((el) =>
         el.subjects?.find((sub) => selectedSubject.uuid === sub)
       );
-      console.log("After filtering:", selectedSubject.uuid, data);
     }
 
     setFilteredCandidates(data);
+    setSelectedRows([]);
+    setSelectAll(false);
+    setTableKey((prev) => prev + 1); // Force table re-render
   }, [
     candidates,
     search,
@@ -409,39 +452,48 @@ export default function page() {
     selectedSubject,
   ]);
 
+  const visibleCandidates = filteredCandidates.filter((candidate) =>
+    viewType === "activated"
+      ? candidate.isActive !== false
+      : candidate.isActive === false
+  );
+
   return (
-    <div className="bg-white p-6 flex max-h-screen min-h-screen flex-col gap-5">
+    <div className="bg-white p-4 lg:p-6 flex flex-col min-h-screen gap-4 lg:gap-5 overflow-hidden">
       {/* Import Candidate Dialog */}
-      <Dialog open={importDialog}>
-        <DialogContent>
+      <Dialog open={importDialog} onOpenChange={setImportDialog}>
+        <DialogContent className="max-w-md lg:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Import</DialogTitle>
+            <DialogTitle>Import Candidates</DialogTitle>
             <DialogDescription>
-              Import candiates through Excel
+              Import candidates through Excel template
             </DialogDescription>
           </DialogHeader>
-          <main className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">Stream | Degree | Year</label>
+          <main className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Stream | Degree | Year
+              </label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center"
+                    className="flex justify-between items-center w-full"
                   >
-                    <span>
+                    <span className="truncate">
                       {importDialogCombined
                         ? importDialogCombined.name
                         : "Select"}
                     </span>
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {combineds.map((el) => (
                     <DropdownMenuItem
                       onClick={() => setImportDialogCombined(el)}
                       key={el.uuid}
+                      className="truncate"
                     >
                       {el.name}
                     </DropdownMenuItem>
@@ -449,22 +501,22 @@ export default function page() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">Course</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Course</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center"
-                    disabled={importDialogCombined === null}
+                    className="flex justify-between items-center w-full"
+                    disabled={!importDialogCombined}
                   >
-                    <span>
+                    <span className="truncate">
                       {importDialogCourse ? importDialogCourse.name : "Select"}
                     </span>
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {importDialogCombined &&
                     courses
                       .filter((el) =>
@@ -474,6 +526,7 @@ export default function page() {
                         <DropdownMenuItem
                           onClick={() => setImportDialogCourse(el)}
                           key={el.uuid}
+                          className="truncate"
                         >
                           {el.name}
                         </DropdownMenuItem>
@@ -481,99 +534,121 @@ export default function page() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">Semester</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Semester</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center"
-                    disabled={importDialogCourse === null}
+                    className="flex justify-between items-center w-full"
+                    disabled={!importDialogCourse}
                   >
-                    <span>
-                      {importDialogSemester ? importDialogSemester : "Select"}
+                    <span className="truncate">
+                      {importDialogSemester
+                        ? `Semester ${importDialogSemester}`
+                        : "Select"}
                     </span>
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuContent>
-                    {importDialogCourse &&
-                      Array.from(
-                        { length: Number(importDialogCourse.semCount) },
-                        (_, i) => (
-                          <DropdownMenuItem
-                            onClick={() => setImportDialogSemester(i + 1)}
-                            key={i + 1}
-                          >
-                            Semester {i + 1}
-                          </DropdownMenuItem>
-                        )
-                      )}
-                  </DropdownMenuContent>
+                <DropdownMenuContent className="w-full">
+                  {importDialogCourse &&
+                    Array.from(
+                      { length: Number(importDialogCourse.semCount) },
+                      (_, i) => (
+                        <DropdownMenuItem
+                          onClick={() => setImportDialogSemester(i + 1)}
+                          key={i + 1}
+                        >
+                          Semester {i + 1}
+                        </DropdownMenuItem>
+                      )
+                    )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
             <div
-              onClick={() => ref.current.click()}
-              className="bg-gray-100 border-dashed flex flex-col gap-1 justify-center items-center border-gray-300 rounded-lg p-5"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-100 transition-colors"
             >
-              <span className="flex gap-1 justify-center items-center">
-                <UploadCloud className="w-6 h-6" />
-                <p>Upload Excel</p>
-              </span>
-              <span className="text-blue-500">
-                {importFile && importFile.name}
-              </span>
+              <UploadCloud className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm font-medium mb-1">Upload Excel File</p>
+              <p className="text-xs text-gray-500 mb-2">
+                Click to browse or drag and drop
+              </p>
+              {importFile && (
+                <span className="text-blue-600 text-sm font-medium block truncate">
+                  {importFile.name}
+                </span>
+              )}
             </div>
             <input
               onChange={(e) => setImportFile(e.target.files[0])}
               type="file"
               className="hidden"
-              ref={ref}
-              accept=".xlsx"
+              ref={fileInputRef}
+              accept=".xlsx,.xls"
             />
           </main>
-          <DialogFooter>
-            <Button onClick={() => setImportDialog(false)} variant="outline">
-              cancel
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={() => {
+                setImportDialog(false);
+                setImportFile(null);
+                setImportDialogCombined(null);
+                setImportDialogCourse(null);
+                setImportDialogSemester(null);
+              }}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              Cancel
             </Button>
-            <Button onClick={handleCandidateImport}>Import</Button>
+            <Button
+              onClick={handleCandidateImport}
+              disabled={isLoading || !importFile}
+              className="w-full sm:w-auto"
+            >
+              {isLoading ? "Importing..." : "Import"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Export Template Dialog */}
-      <Dialog open={exportDialog}>
-        <DialogContent>
+      <Dialog open={exportDialog} onOpenChange={setExportDialog}>
+        <DialogContent className="max-w-md lg:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Export</DialogTitle>
+            <DialogTitle>Export Template</DialogTitle>
             <DialogDescription>
               Export Candidate template for selected filters
             </DialogDescription>
           </DialogHeader>
-          <main className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">Stream | Degree | Year</label>
+          <main className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Stream | Degree | Year
+              </label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center"
+                    className="flex justify-between items-center w-full"
                   >
-                    <span>
+                    <span className="truncate">
                       {exportDialogCombined
                         ? exportDialogCombined.name
                         : "Select"}
                     </span>
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {combineds.map((el) => (
                     <DropdownMenuItem
                       onClick={() => setExportDialogCombined(el)}
                       key={el.uuid}
+                      className="truncate"
                     >
                       {el.name}
                     </DropdownMenuItem>
@@ -581,22 +656,22 @@ export default function page() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">Course</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Course</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center"
-                    disabled={exportDialogCombined === null}
+                    className="flex justify-between items-center w-full"
+                    disabled={!exportDialogCombined}
                   >
-                    <span>
+                    <span className="truncate">
                       {exportDialogCourse ? exportDialogCourse.name : "Select"}
                     </span>
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {exportDialogCombined &&
                     courses
                       .filter((el) =>
@@ -606,6 +681,7 @@ export default function page() {
                         <DropdownMenuItem
                           onClick={() => setExportDialogCourse(el)}
                           key={el.uuid}
+                          className="truncate"
                         >
                           {el.name}
                         </DropdownMenuItem>
@@ -613,221 +689,255 @@ export default function page() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">Semester</label>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Semester</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center"
-                    disabled={exportDialogCourse === null}
+                    className="flex justify-between items-center w-full"
+                    disabled={!exportDialogCourse}
                   >
-                    <span>
-                      {exportDialogSemester ? exportDialogSemester : "Select"}
+                    <span className="truncate">
+                      {exportDialogSemester
+                        ? `Semester ${exportDialogSemester}`
+                        : "Select"}
                     </span>
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuContent>
-                    {exportDialogCourse &&
-                      Array.from(
-                        { length: Number(exportDialogCourse.semCount) },
-                        (_, i) => (
-                          <DropdownMenuItem
-                            onClick={() => setExportDialogSemester(i + 1)}
-                            key={i + 1}
-                          >
-                            Semester {i + 1}
-                          </DropdownMenuItem>
-                        )
-                      )}
-                  </DropdownMenuContent>
+                <DropdownMenuContent className="w-full">
+                  {exportDialogCourse &&
+                    Array.from(
+                      { length: Number(exportDialogCourse.semCount) },
+                      (_, i) => (
+                        <DropdownMenuItem
+                          onClick={() => setExportDialogSemester(i + 1)}
+                          key={i + 1}
+                        >
+                          Semester {i + 1}
+                        </DropdownMenuItem>
+                      )
+                    )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </main>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setExportDialog(false)}>
-              cancel
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExportDialog(false);
+                setExportDialogCombined(null);
+                setExportDialogCourse(null);
+                setExportDialogSemester(null);
+              }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
             </Button>
-            <Button onClick={excelTemplate}>Export</Button>
+            <Button
+              onClick={excelTemplate}
+              disabled={
+                !exportDialogCombined ||
+                !exportDialogCourse ||
+                !exportDialogSemester
+              }
+              className="w-full sm:w-auto"
+            >
+              Export Template
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <div className="bg-white flex flex-col gap-0">
-        <h1 className="text-lg font-semibold">Candidates</h1>
+      {/* Header Section */}
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-2 items-center">
+          <SidebarTrigger className="cursor-pointer flex-shrink-0" />
+          <h1 className="text-lg lg:text-xl font-semibold">Candidates</h1>
+        </div>
         <p className="text-sm text-gray-500">Import and Manage Candidates</p>
       </div>
-      <div className=" bg-white flex flex-col gap-6">
-        <div className="flex justify-between items-center">
+
+      {/* Controls Section */}
+      <div className="bg-white flex flex-col gap-4 lg:gap-6">
+        <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search candidates"
-            className="w-max"
+            placeholder="Search candidates by name, roll no, or email"
+            className="w-full lg:w-80"
           />
-          <DropdownMenu>
-            <div className="flex gap-3 justify-center items-center">
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex justify-end items-center"
-                >
-                  <span>Actions</span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <Button
-                onClick={clearFilters}
-                variant="outline"
-                disabled={selectedCombined === null}
-                className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-400 hover:text-red-500 justify-between items-center"
-              >
-                <span>Clear Filters</span>
-                <XIcon className="h-4 w-4" />
-              </Button>
-              {selectedRows.length > 0 &&
-                (viewType === "activated" ? (
-                  <Button
-                    onClick={async () => {
-                      // Example: Update all selected rows isActive = false
-                      const updated = filteredCandidates.map((row) =>
-                        selectedRows.includes(row._id)
-                          ? { ...row, isActive: false }
-                          : row
-                      );
-                      setCandidates(updated);
-                      setSelectedRows([]);
-                      setSelectAll(false);
-                      const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/status`,
-                        {
-                          method: "PUT",
-                          headers: {
-                            "Content-type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                          },
-                          body: JSON.stringify({
-                            ids: selectedRows,
-                            isActive: false,
-                          }),
-                        }
-                      );
-
-                      if (res.ok) toast.success("Deactivated Successfully");
-                    }}
-                    className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-400 hover:text-red-500 justify-between items-center"
-                    variant="outline"
-                  >
-                    <span>Deactivate</span>
-                    <EyeClosedIcon className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={async () => {
-                      // Example: Update all selected rows isActive = false
-                      const updated = filteredCandidates.map((row) =>
-                        selectedRows.includes(row._id)
-                          ? { ...row, isActive: true }
-                          : row
-                      );
-                      setCandidates(updated);
-                      setSelectedRows([]);
-                      setSelectAll(false);
-                      setViewType("activated");
-                      const res = await fetch(
-                        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/status`,
-                        {
-                          method: "PUT",
-                          headers: {
-                            "Content-type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                          },
-                          body: JSON.stringify({
-                            ids: selectedRows,
-                            isActive: true,
-                          }),
-                        }
-                      );
-
-                      if (res.ok) toast.success("Activated Successfully");
-                    }}
-                    className="flex cursor-pointer bg-green-50 hover:bg-green-100 transition-all border border-green-300 text-green-400 hover:text-green-500 justify-between items-center"
-                    variant="outline"
-                  >
-                    <span>Activate</span>
-                    <EyeClosedIcon className="h-4 w-4" />
-                  </Button>
-                ))}
-            </div>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setImportDialog(true)}>
-                Import Candidate Data
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setExportDialog(true)}>
-                Export Template
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={excelCandidate}>
-                Export Candidate Data
-              </DropdownMenuItem>
-              {viewType === "activated" ? (
-                <DropdownMenuItem onClick={() => setViewType("deactivated")}>
-                  View Deactivated
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => setViewType("activated")}>
-                  View Activated
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="grid grid-cols-4 gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm">Stream | Degree | Year</label>
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex justify-between items-center cursor-pointer"
+                  className="flex justify-between items-center w-full sm:w-auto"
                 >
-                  <span>
-                    {selectedCombined ? selectedCombined.name : "Select"}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
+                  <span>Actions</span>
+                  <ChevronDown className="h-4 w-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {combineds.length > 0 &&
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setImportDialog(true)}>
+                  Import Candidate Data
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setExportDialog(true)}>
+                  Export Template
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={excelCandidate}>
+                  Export Candidate Data
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    setViewType(
+                      viewType === "activated" ? "deactivated" : "activated"
+                    )
+                  }
+                >
+                  {viewType === "activated"
+                    ? "View Deactivated"
+                    : "View Activated"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              onClick={clearFilters}
+              variant="outline"
+              disabled={
+                !selectedCombined &&
+                !selectedCourse &&
+                !selectedSemester &&
+                !selectedSubject &&
+                !search
+              }
+              className="flex cursor-pointer bg-red-50 hover:bg-red-100 transition-all border border-red-300 text-red-600 hover:text-red-700 justify-center items-center w-full sm:w-auto"
+            >
+              <span>Clear Filters</span>
+              <XIcon className="h-4 w-4 ml-2" />
+            </Button>
+
+            {selectedRows.length > 0 && (
+              <Button
+                onClick={async () => {
+                  const isActivating = viewType === "deactivated";
+                  try {
+                    const res = await fetch(
+                      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate/status`,
+                      {
+                        method: "PUT",
+                        headers: {
+                          "Content-type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          ids: selectedRows,
+                          isActive: isActivating,
+                        }),
+                      }
+                    );
+
+                    if (res.ok) {
+                      const updated = candidates.map((row) =>
+                        selectedRows.includes(row._id)
+                          ? { ...row, isActive: isActivating }
+                          : row
+                      );
+                      setCandidates(updated);
+                      setSelectedRows([]);
+                      setSelectAll(false);
+                      toast.success(
+                        isActivating
+                          ? "Activated Successfully"
+                          : "Deactivated Successfully"
+                      );
+                      if (isActivating) {
+                        setViewType("activated");
+                      }
+                    } else {
+                      throw new Error("Failed to update candidate status");
+                    }
+                  } catch (error) {
+                    toast.error(error.message);
+                  }
+                }}
+                className={`flex cursor-pointer justify-center items-center w-full sm:w-auto ${
+                  viewType === "activated"
+                    ? "bg-red-50 hover:bg-red-100 border-red-300 text-red-600 hover:text-red-700"
+                    : "bg-green-50 hover:bg-green-100 border-green-300 text-green-600 hover:text-green-700"
+                } transition-all border`}
+                variant="outline"
+              >
+                <span>
+                  {viewType === "activated" ? "Deactivate" : "Activate"}
+                </span>
+                {viewType === "activated" ? (
+                  <EyeClosedIcon className="h-4 w-4 ml-2" />
+                ) : (
+                  <EyeIcon className="h-4 w-4 ml-2" />
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Stream | Degree | Year
+            </label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex justify-between items-center w-full text-left"
+                >
+                  <span className="truncate">
+                    {selectedCombined ? selectedCombined.name : "Select"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
+                {combineds.length > 0 ? (
                   combineds.map((comb) => (
                     <DropdownMenuItem
                       onClick={() => setSelectedCombined(comb)}
                       key={comb.uuid}
+                      className="truncate"
                     >
-                      <span>{comb.name}</span>
+                      {comb.name}
                     </DropdownMenuItem>
-                  ))}
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>
+                    No options available
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
           {selectedCombined && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm">Course</label>
+              <label className="text-sm font-medium">Course</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center w-full text-left"
                   >
-                    <span>
+                    <span className="truncate">
                       {selectedCourse ? selectedCourse.name : "Select"}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {courses
                     .filter((course) =>
                       selectedCombined.course.includes(course.uuid)
@@ -836,6 +946,7 @@ export default function page() {
                       <DropdownMenuItem
                         onClick={() => setSelectedCourse(el)}
                         key={el.uuid}
+                        className="truncate"
                       >
                         {el.name}
                       </DropdownMenuItem>
@@ -844,22 +955,25 @@ export default function page() {
               </DropdownMenu>
             </div>
           )}
+
           {selectedCourse && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm">Semester/Trimester</label>
+              <label className="text-sm font-medium">Semester/Trimester</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center w-full text-left"
                   >
-                    <span>
-                      {selectedSemester ? selectedSemester : "Select"}
+                    <span className="truncate">
+                      {selectedSemester
+                        ? `Semester ${selectedSemester}`
+                        : "Select"}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full">
                   {Array.from(
                     { length: Number(selectedCourse.semCount) },
                     (_, i) => (
@@ -875,22 +989,23 @@ export default function page() {
               </DropdownMenu>
             </div>
           )}
+
           {selectedSemester && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm">Subject</label>
+              <label className="text-sm font-medium">Subject</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
+                    className="flex justify-between items-center w-full text-left"
                   >
-                    <span>
-                      {selectedSubject ? selectedSubject.name : "Selected"}
+                    <span className="truncate">
+                      {selectedSubject ? selectedSubject.name : "Select"}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full max-h-60 overflow-y-auto">
                   {subjects
                     .filter(
                       (el) =>
@@ -901,6 +1016,7 @@ export default function page() {
                       <DropdownMenuItem
                         onClick={() => setSelectedSubject(sub)}
                         key={sub.uuid}
+                        className="truncate"
                       >
                         {sub.name}
                       </DropdownMenuItem>
@@ -909,167 +1025,143 @@ export default function page() {
               </DropdownMenu>
             </div>
           )}
-          {selectedSubject && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm">Campus</label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex justify-between items-center cursor-pointer"
-                  >
-                    <span>{selectedCampus ? selectedCampus : "Selected"}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>All</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="border bg-gray-100">
-              <TableHead className="border-r font-semibold">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                />
-              </TableHead>
-              <TableHead className="border-r font-semibold">Sr no</TableHead>
-              <TableHead className="border-r font-semibold">
-                Candidate ID
-              </TableHead>
-              <TableHead className="border-r font-semibold">Name</TableHead>
-              <TableHead className="border-r font-semibold">
-                Roll Number
-              </TableHead>
-              <TableHead className="border-r font-semibold">
-                PRN Number
-              </TableHead>
-              <TableHead className="border-r font-semibold">
-                PH Candidate
-              </TableHead>
-              <TableHead className="border-r font-semibold">Subject</TableHead>
-              <TableHead className="border-r font-semibold">
-                Booklet Name
-              </TableHead>
-              <TableHead className="font-semibold">
-                Answer Sheet <br/>Uploaded (Yes/No)
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          {viewType === "activated" ? (
-            <TableBody className="border">
-              {selectedSubject &&
-                filteredCandidates.length > 0 &&
-                filteredCandidates
-                  .filter((el) => el.isActive !== false)
-                  .map((el, i) => (
-                    <TableRow key={el.RollNo}>
+
+        {/* Table Section */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table key={tableKey}>
+              <TableHeader>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="w-12 border-r font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      disabled={visibleCandidates.length === 0}
+                      className="w-4 h-4"
+                    />
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    Sr no
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    Candidate ID
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    Name
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    Roll Number
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    PRN Number
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    PH Candidate
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    Subject
+                  </TableHead>
+                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                    Booklet Name
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    Answer Sheet Uploaded
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">
+                      <div className="flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                        <span className="ml-2">Loading candidates...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : selectedSubject && visibleCandidates.length > 0 ? (
+                  visibleCandidates.map((el, i) => (
+                    <TableRow key={el._id || i} className="hover:bg-gray-50">
                       <TableCell className="border border-r">
                         <input
                           type="checkbox"
                           checked={selectedRows.includes(el._id)}
                           onChange={() => handleRowSelect(el._id)}
+                          className="w-4 h-4"
                         />
                       </TableCell>
-                      <TableCell className="border border-r">{i + 1}</TableCell>
-                      <TableCell className="border border-r">
-                        {el._id?.slice(0, 10)}
+                      <TableCell className="border border-r whitespace-nowrap">
+                        {i + 1}
                       </TableCell>
-                      <TableCell className="border border-r">
-                        {el.FirstName} {el.MiddleName} {el.LastName}
+                      <TableCell className="border border-r whitespace-nowrap font-mono text-xs">
+                        {el._id?.slice(0, 10)}...
                       </TableCell>
-                      <TableCell className="border border-r">
-                        {el.RollNo}
+                      <TableCell className="border border-r whitespace-nowrap">
+                        {`${el.FirstName || ""} ${el.MiddleName || ""} ${
+                          el.LastName || ""
+                        }`.trim() || "N/A"}
                       </TableCell>
-                      <TableCell className="border border-r">
-                        {el.PRNNumber}
+                      <TableCell className="border border-r whitespace-nowrap">
+                        {el.RollNo || "N/A"}
                       </TableCell>
-                      <TableCell className="border border-r">
-                        {el.IsPHCandidate}
+                      <TableCell className="border border-r whitespace-nowrap">
+                        {el.PRNNumber || "N/A"}
                       </TableCell>
-                      <TableCell className="border border-r">
-                        {selectedSubject.name}
+                      <TableCell className="border border-r whitespace-nowrap">
+                        {el.IsPHCandidate || "No"}
                       </TableCell>
-                      <TableCell className="border border-r">
+                      <TableCell className="border border-r whitespace-nowrap">
+                        {selectedSubject?.name || "N/A"}
+                      </TableCell>
+                      <TableCell className="border border-r whitespace-nowrap">
                         {el.bookletNames &&
-                        el.bookletNames[selectedSubject.uuid] &&
+                        el.bookletNames[selectedSubject?.uuid] &&
                         el.bookletNames[selectedSubject.uuid].trim() !== ""
-                          ? el.bookletNames[selectedSubject.uuid] // show name
+                          ? el.bookletNames[selectedSubject.uuid]
                           : "Not Uploaded"}
                       </TableCell>
-                      <TableCell className="border border-r">
+                      <TableCell className="border border-r whitespace-nowrap">
                         {el.bookletNames &&
-                        el.bookletNames[selectedSubject.uuid] &&
+                        el.bookletNames[selectedSubject?.uuid] &&
                         el.bookletNames[selectedSubject.uuid].trim() !== ""
                           ? "Yes"
                           : "No"}
                       </TableCell>
                     </TableRow>
-                  ))}
-            </TableBody>
-          ) : (
-            <TableBody className="border">
-              {selectedSubject &&
-                filteredCandidates.length > 0 &&
-                filteredCandidates
-                  .filter((el) => el.isActive === false)
-                  .map((el, i) => (
-                    <TableRow key={el.RollNo}>
-                      <TableCell className="border border-r">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(el._id)}
-                          onChange={() => handleRowSelect(el._id)}
-                        />
-                      </TableCell>
-                      <TableCell className="border border-r">{i + 1}</TableCell>
-                      <TableCell className="border border-r">
-                        {el._id}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.FirstName} {el.MiddleName} {el.LastName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.Email}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.RollNo}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.PRNNumber}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.IsPHCandidate}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getStreamName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getCourseName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {selectedSubject.name}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.BookletName ? el.BookletName : "Not Uploaded"}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.CampusName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.sheetUploaded === true ? "Yes" : "No"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          )}
-        </Table>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={10}
+                      className="text-center py-8 text-gray-500"
+                    >
+                      No candidates found
+                      {search ||
+                      selectedCombined ||
+                      selectedCourse ||
+                      selectedSemester ||
+                      selectedSubject
+                        ? " matching your filters"
+                        : ""}
+                      .
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Selection Info */}
+        {selectedRows.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-700">
+              {selectedRows.length} candidate(s) selected
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
