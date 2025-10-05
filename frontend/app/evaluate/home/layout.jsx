@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 export default function RootLayout({ children }) {
+  const router = useRouter();
   const [mail, setMail] = useState("");
   const [token, setToken] = useState("");
 
@@ -30,6 +31,15 @@ export default function RootLayout({ children }) {
       router.push("/evaluate");
     }
   }, []);
+
+  const handleLogout = () => {
+    Cookies.remove("token");
+    Cookies.remove("mail");
+    toast.success("Logout Successful");
+    setMail(null);
+    setToken(null);
+    router.push("/evaluate");
+  };
 
   return (
     <>
@@ -63,6 +73,7 @@ export default function RootLayout({ children }) {
           <Button
             variant="outline"
             size="sm"
+            onClick={handleLogout}
             className="flex cursor-pointer font-normal gap-2 justify-center items-center"
           >
             <span className="text-sm">Logout</span>
