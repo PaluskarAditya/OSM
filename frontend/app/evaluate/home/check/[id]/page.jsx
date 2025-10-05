@@ -14,7 +14,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function EvaluationDetail() {
   const { id } = useParams(); // eval uuid
@@ -22,6 +22,7 @@ export default function EvaluationDetail() {
   const [evaluation, setEvaluation] = useState([]);
   const [sheets, setSheets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const token = Cookies.get("token");
 
   useEffect(() => {
     const fetchEval = async () => {
@@ -56,6 +57,33 @@ export default function EvaluationDetail() {
 
     fetchEval();
   }, [id]);
+
+  const handleCheck = async (id) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "Checking" }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const new_sheets = sheets.map((el) =>
+          el._id === data._id ? data : el
+        );
+        setSheets(new_sheets);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Internal Error");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -188,16 +216,43 @@ export default function EvaluationDetail() {
                 {evaluation.sheets.map((el) => (
                   <TableRow key={el}>
                     <TableCell>{el}</TableCell>
-                    <TableCell>checking...</TableCell>
-                    <TableCell>no</TableCell>
-                    <TableCell>0</TableCell>
+                    <TableCell>
+                      {
+                        sheets.find((sheet) => sheet.assignmentId === el)
+                          ?.status
+                      }
+                    </TableCell>
+                    <TableCell>
+                      {sheets.find((sheet) => sheet.assignmentId === el)
+                        ?.isEvaluated
+                        ? "Evaluated"
+                        : "Not Evaluated"}
+                    </TableCell>
+                    <TableCell>
+                      {
+                        sheets.find((sheet) => sheet.assignmentId === el)
+                          ?.totalMarks
+                      }
+                    </TableCell>
                     <TableCell className="flex justify-center items-center gap-5">
-                      <span>Present</span>
-                      <Link href={`/evaluate/home/check/${id}/${el}`}>
-                        <Button size="sm" className="cursor-pointer text-sm">
-                          check
-                        </Button>
-                      </Link>
+                      <span>
+                        {sheets.find((sheet) => sheet.assignmentId === el)
+                          ?.attendance
+                          ? "Present"
+                          : "Absent"}
+                      </span>
+                      {sheets.find((sheet) => sheet.assignmentId === el)
+                        .isEvaluated === false && (
+                        <Link href={`/evaluate/home/check/${id}/${el}`}>
+                          <Button
+                            onClick={() => handleCheck(el)}
+                            size="sm"
+                            className="cursor-pointer text-sm"
+                          >
+                            check
+                          </Button>
+                        </Link>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

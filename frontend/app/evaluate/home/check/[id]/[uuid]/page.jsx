@@ -27,14 +27,18 @@ import {
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import * as pdfjsLib from "pdfjs-dist";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import Link from "next/link";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 // Fixed function to render only leaf-level questions (actual questions)
-const renderQuestionHierarchyTable = (data, onQuestionSelect, questionScores) => {
+const renderQuestionHierarchyTable = (
+  data,
+  onQuestionSelect,
+  questionScores
+) => {
   const questionData = Array.isArray(data) ? data[0] : data;
   const rows = [];
   const processedQuestions = new Set(); // Track processed questions to avoid duplicates
@@ -49,14 +53,22 @@ const renderQuestionHierarchyTable = (data, onQuestionSelect, questionScores) =>
     }
 
     // Check if this is a leaf question (has QuestionNo and Marks but no children to render)
-    const hasActualQuestions = question.actualQuestions && Object.keys(question.actualQuestions).length > 0;
-    const hasSubQuestions = question.subQuestions && Object.keys(question.subQuestions).length > 0;
-    
+    const hasActualQuestions =
+      question.actualQuestions &&
+      Object.keys(question.actualQuestions).length > 0;
+    const hasSubQuestions =
+      question.subQuestions && Object.keys(question.subQuestions).length > 0;
+
     // If it's a leaf question (no children to render), add it to the table
-    if (questionNo && typeof question.Marks !== 'undefined' && !hasActualQuestions && !hasSubQuestions) {
+    if (
+      questionNo &&
+      typeof question.Marks !== "undefined" &&
+      !hasActualQuestions &&
+      !hasSubQuestions
+    ) {
       const score = questionScores[questionNo] || 0;
       const maxMarks = question.Marks || 0;
-      
+
       rows.push(
         <TableRow
           key={questionNo}
@@ -74,7 +86,7 @@ const renderQuestionHierarchyTable = (data, onQuestionSelect, questionScores) =>
           <TableCell className="text-center p-2 text-sm">{score}</TableCell>
         </TableRow>
       );
-      
+
       processedQuestions.add(questionNo);
     }
 
@@ -119,6 +131,7 @@ export default function Page() {
   const canvasRef = useRef(null);
   const drawCanvasRef = useRef(null);
   const contextRef = useRef(null);
+  const router = useRouter();
 
   // Initialize canvas context
   useEffect(() => {
@@ -512,8 +525,47 @@ export default function Page() {
   };
 
   const handlePaperFinish = async () => {
-    tryca
-  }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            totalMarks: totalScore,
+            annotations,
+            result: questionScores,
+            isEvaluated: true,
+          }),
+        }
+      );
+
+      const statusRes = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "Completed",
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const sheetData = await sheetRes.json();
+        router.back();
+      }
+    } catch (error) {
+      toast.error("Internal Server Error");
+    }
+  };
 
   return (
     <div className="flex flex-col w-full min-h-screen">
@@ -682,6 +734,7 @@ export default function Page() {
                 Reject Paper
               </Button>
               <Button
+                onClick={handlePaperFinish}
                 size="sm"
                 className="bg-green-500 hover:bg-green-600 cursor-pointer text-xs w-1/2"
               >

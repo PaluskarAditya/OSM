@@ -185,16 +185,20 @@ const getAll = async (req, res) => {
 const status = async (req, res) => {
   try {
     const { assignmentId } = req.params;
+    const { status } = req.body;
+    console.log("Assignment ID:", assignmentId, "Status:", status);
 
     const sheet = await AnswerSheet.findOneAndUpdate(
       { assignmentId },
-      { status: req.body.status },
+      { status },
       { new: true }
     );
 
-    res.status(200).json(sheet);
+    console.log("Sheet:", sheet);
+    res.json(sheet);
   } catch (error) {
-    res.status(500).json({ err: "Internal Server Error" });
+    console.error("Error updating sheet:", error);
+    res.status(500).json({ error: error.message });
   }
 };
 
