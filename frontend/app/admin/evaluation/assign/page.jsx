@@ -333,7 +333,11 @@ export default function page() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            sheets: selectedRows.map(el => candidates.find(candidate => candidate._id === el).assignmentId),
+            sheets: selectedRows.map(
+              (el) =>
+                candidates.find((candidate) => candidate._id === el)
+                  .assignmentId
+            ),
             name: selectedSubject.name,
             course: selectedCourse.uuid,
             subject: selectedSubject.uuid,
@@ -705,103 +709,58 @@ export default function page() {
               </TableHead>
             </TableRow>
           </TableHeader>
-          {viewType === "activated" ? (
-            <TableBody className="border">
-              {selectedSubject &&
-                filteredCandidates.length > 0 &&
-                filteredCandidates
-                  .filter((el) => el.isActive !== false)
-                  .map((el, i) => (
-                    <TableRow key={el.RollNo}>
-                      <TableCell className="border border-r">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(el._id)}
-                          onChange={() => handleRowSelect(el._id)}
-                        />
-                      </TableCell>
-                      <TableCell className="border border-r">{i + 1}</TableCell>
-                      <TableCell className="border border-r">
-                        {el.FirstName} {el.MiddleName} {el.LastName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.RollNo}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.PRNNumber}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getCourseName(el.course).slice(0, 25)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {selectedSubject.name}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.bookletNames &&
-                        el.bookletNames[selectedSubject.uuid] &&
-                        el.bookletNames[selectedSubject.uuid].trim() !== ""
-                          ? el.bookletNames[selectedSubject.uuid] // show name
-                          : "Not Uploaded"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          ) : (
-            <TableBody className="border">
-              {selectedSubject &&
-                filteredCandidates.length > 0 &&
-                filteredCandidates
-                  .filter((el) => el.isActive === false)
-                  .map((el, i) => (
-                    <TableRow key={el.RollNo}>
-                      <TableCell className="border border-r">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(el._id)}
-                          onChange={() => handleRowSelect(el._id)}
-                        />
-                      </TableCell>
-                      <TableCell className="border border-r">{i + 1}</TableCell>
-                      <TableCell className="border border-r">
-                        {el._id}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.FirstName} {el.MiddleName} {el.LastName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.Email}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.RollNo}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.PRNNumber}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.IsPHCandidate}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getStreamName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {getCourseName(el.combined)}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {selectedSubject.name}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.BookletName ? el.BookletName : "Not Uploaded"}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.CampusName}
-                      </TableCell>
-                      <TableCell className="border border-r">
-                        {el.sheetUploaded === true ? "Yes" : "No"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          )}
+          {viewType === "activated" && selectedSubject
+            ? (() => {
+                // Filter candidates who are active and have uploaded sheet for the subject
+                const uploadedCandidates = filteredCandidates.filter(
+                  (el) =>
+                    el.isActive !== false &&
+                    el.bookletNames &&
+                    el.bookletNames[selectedSubject.uuid] &&
+                    el.bookletNames[selectedSubject.uuid].trim() !== ""
+                );
+
+                // If no candidates uploaded, render nothing
+                if (uploadedCandidates.length === 0) return null;
+
+                return (
+                  <TableBody className="border">
+                    {uploadedCandidates.map((el, i) => (
+                      <TableRow key={el.RollNo}>
+                        <TableCell className="border border-r">
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.includes(el._id)}
+                            onChange={() => handleRowSelect(el._id)}
+                          />
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {i + 1}
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {el.FirstName} {el.MiddleName} {el.LastName}
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {el.RollNo}
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {el.PRNNumber}
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {getCourseName(el.course).slice(0, 25)}
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {selectedSubject.name}
+                        </TableCell>
+                        <TableCell className="border border-r">
+                          {el.bookletNames[selectedSubject.uuid]}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                );
+              })()
+            : null}
         </Table>
       </div>
     </div>
