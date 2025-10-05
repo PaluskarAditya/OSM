@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
     setToken(token);
 
     if (!token) {
-      router.push("/evaluate");
+      router.push("/");
     }
   }, []);
 
