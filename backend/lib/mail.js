@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendMail(to, subject, html) {
   return transporter.sendMail({
-    from: `"Logic Credentials" <${process.env.MAIL_USER}>`,
+    from: `"NEXA - Evaluations" <${process.env.MAIL_USER}>`,
     to,
     subject,
     html,

@@ -1,3 +1,4 @@
+const sendMail = require("../lib/mail");
 const Evaluation = require("../models/evalModel");
 const generate = require("../lib/generate");
 
@@ -71,14 +72,14 @@ const statusEvaluation = async (req, res) => {
 const assignUsers = async (req, res) => {
   try {
     const { uuid } = req.params;
-    const { examiners, moderators } = req.body;
+    const { examiners = [], moderators = [] } = req.body;
 
     const evaluation = await Evaluation.findOneAndUpdate(
       { uuid },
       {
         $addToSet: {
-          examiners: { $each: examiners || [] },
-          moderators: { $each: moderators || [] },
+          examiners: { $each: examiners },
+          moderators: { $each: moderators },
         },
       },
       { new: true }
@@ -88,8 +89,32 @@ const assignUsers = async (req, res) => {
       return res.status(404).json({ err: "Evaluation not found" });
     }
 
+    // Collect all unique assigned user IDs
+    const assignedUserIds = [...examiners, ...moderators];
+    if (assignedUserIds.length > 0) {
+      // Fetch user details (emails, names)
+      const assignedUsers = await User.find({ _id: { $in: assignedUserIds } });
+
+      // Send emails to all
+      for (const user of assignedUsers) {
+        const mailHTML = `
+          <div style="font-family: Arial, sans-serif; color: #333;">
+            <h2>Hi ${user.name},</h2>
+            <p>You’ve been assigned to a new evaluation task on <b>NEXA - Evaluations</b>.</p>
+            <p><b>Evaluation:</b> ${evaluation.name}</p>
+            <p>Please login to your dashboard to review your assigned evaluation.</p>
+            <br/>
+            <p>Regards,<br/>NEXA Admin</p>
+          </div>
+        `;
+
+        await sendMail(user.email, "New Evaluation Assignment", mailHTML);
+      }
+    }
+
     res.status(200).json({ success: true, evaluation });
   } catch (error) {
+    console.error("❌ Mail error:", error);
     res.status(500).json({ err: error.message });
   }
 };
