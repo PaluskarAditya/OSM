@@ -86,6 +86,7 @@ const upload = async (req, res) => {
           candidateId: combinedKey,
           sheetUploaded: true,
           attendance,
+          iid: req.user.IID,
           originalName: file.originalname, // safe reference
         });
 
@@ -170,7 +171,7 @@ const getFullFile = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const sheets = await AnswerSheet.find();
+    const sheets = await AnswerSheet.find({ iid: req.user.IID });
 
     if (!sheets) {
       return res.status(500).json({ err: "No Answer Sheet found" });

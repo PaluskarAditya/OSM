@@ -255,7 +255,7 @@ function StatsCards({ data, exams, subjects, sheetsEval, sheetsUp }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {stats.map((stat, index) => (
         <Card
-          key={index}
+          key={stat.color}
           className="bg-muted/50 hover:bg-muted/70 transition-colors"
         >
           <CardContent className="p-6">
@@ -765,9 +765,7 @@ export default function Page() {
           exams={qps.length}
           subjects={subjects.length}
           sheetsEval={
-            sheets.filter((sheet) => sheet.status === "Completed").length > 0
-              ? sheets.filter((sheet) => sheet.status === "Completed")
-              : 0
+            sheets.filter((sheet) => sheet.status === "Completed").length
           }
           sheetsUp={sheets.length}
         />
