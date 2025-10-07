@@ -9,6 +9,8 @@ const {
   getByCreator,
   deleteEvaluation,
   getEvaluationByUuid,
+  status,
+  getAll,
 } = require("../controllers/evalController");
 
 const router = express.Router();
@@ -16,8 +18,12 @@ const router = express.Router();
 // Create
 router.post("/", createEvaluation);
 
+router.get('/', getAll);
+
 // Edit
 router.put("/:uuid", editEvaluation);
+
+router.put("/status/:uuid", status);
 
 // Get By ID
 router.get("/:uuid", getEvaluationByUuid);

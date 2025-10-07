@@ -312,626 +312,642 @@ const UsersTab = () => {
 
   return (
     <div className="h-full flex flex-col gap-5">
-      <Dialog open={action === "add"} onOpenChange={() => setAction("")}>
-        <DialogContent className="min-w-2/4  rounded-lg">
-          <DialogHeader className="pb-4 border-b">
-            <DialogTitle className="text-xl font-semibold">
-              Add New User
-            </DialogTitle>
-            <DialogDescription>
-              Add new users to the institute with appropriate permissions
-            </DialogDescription>
-          </DialogHeader>
-          <main className="grid w-full max-h-[50vh] grid-cols-2 gap-4 px-3 overflow-y-auto">
-            <div className="flex flex-col gap-2 col-span-2">
-              <label className="text-sm font-medium">Role</label>
-              <Select
-                value={user.Role}
-                onValueChange={(value) => setUser({ ...user, Role: value })}
-              >
-                <SelectTrigger className="w-full rounded-md">
-                  <SelectValue placeholder="Select Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Observer">Observer</SelectItem>
-                    <SelectItem value="Moderator">Moderator</SelectItem>
-                    <SelectItem value="Photocopy Viewer">
-                      Photocopy Viewer
-                    </SelectItem>
-                    <SelectItem value="Examiner">Examiner</SelectItem>
-                    <SelectItem value="Scanner">Scanner</SelectItem>
-                    <SelectItem value="Head Examiner">Head Examiner</SelectItem>
-                    <SelectItem value="COE Login">COE Login</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
+      {role === "Admin" && (
+        <Dialog open={action === "add"} onOpenChange={() => setAction("")}>
+          <DialogContent className="min-w-2/4  rounded-lg">
+            <DialogHeader className="pb-4 border-b">
+              <DialogTitle className="text-xl font-semibold">
+                Add New User
+              </DialogTitle>
+              <DialogDescription>
+                Add new users to the institute with appropriate permissions
+              </DialogDescription>
+            </DialogHeader>
+            <main className="grid w-full max-h-[50vh] grid-cols-2 gap-4 px-3 overflow-y-auto">
+              <div className="flex flex-col gap-2 col-span-2">
+                <label className="text-sm font-medium">Role</label>
+                <Select
+                  value={user.Role}
+                  onValueChange={(value) => setUser({ ...user, Role: value })}
+                >
+                  <SelectTrigger className="w-full rounded-md">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Observer">Observer</SelectItem>
+                      <SelectItem value="Moderator">Moderator</SelectItem>
+                      <SelectItem value="Photocopy Viewer">
+                        Photocopy Viewer
+                      </SelectItem>
+                      <SelectItem value="Examiner">Examiner</SelectItem>
+                      <SelectItem value="Scanner">Scanner</SelectItem>
+                      <SelectItem value="Head Examiner">
+                        Head Examiner
+                      </SelectItem>
+                      <SelectItem value="COE Login">COE Login</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">First Name</label>
-              <Input
-                className="rounded-md"
-                name="FirstName"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Last Name</label>
-              <Input
-                className="rounded-md"
-                name="LastName"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Mobile</label>
-              <Input
-                className="rounded-md"
-                name="MobileNo"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                className="rounded-md"
-                name="Email"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Faculty ID</label>
-              <Input
-                className="rounded-md"
-                name="FacultyID"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Campus</label>
-              <Input
-                className="rounded-md"
-                name="CampusName"
-                onChange={handleChange}
-              />
-            </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">First Name</label>
+                <Input
+                  className="rounded-md"
+                  name="FirstName"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Last Name</label>
+                <Input
+                  className="rounded-md"
+                  name="LastName"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Mobile</label>
+                <Input
+                  className="rounded-md"
+                  name="MobileNo"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  className="rounded-md"
+                  name="Email"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Faculty ID</label>
+                <Input
+                  className="rounded-md"
+                  name="FacultyID"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Campus</label>
+                <Input
+                  className="rounded-md"
+                  name="CampusName"
+                  onChange={handleChange}
+                />
+              </div>
 
-            <div className="col-span-2 mt-2">
-              <h3 className="text-md font-medium mb-2">Bank Details</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">
-                    Account Holder Name
-                  </label>
-                  <Input
-                    className="rounded-md"
-                    name="AccountHolderName"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Bank Name</label>
-                  <Input
-                    className="rounded-md"
-                    name="BankName"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Branch Name</label>
-                  <Input
-                    className="rounded-md"
-                    name="BranchName"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Account Number</label>
-                  <Input
-                    className="rounded-md"
-                    name="AccountNumber"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">IFSC Code</label>
-                  <Input
-                    className="rounded-md"
-                    name="IFSC"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">TIN</label>
-                  <Input
-                    className="rounded-md"
-                    name="TIN"
-                    onChange={handleChange}
-                  />
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">Bank Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Account Holder Name
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="AccountHolderName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Bank Name</label>
+                    <Input
+                      className="rounded-md"
+                      name="BankName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Branch Name</label>
+                    <Input
+                      className="rounded-md"
+                      name="BranchName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Account Number
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="AccountNumber"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">IFSC Code</label>
+                    <Input
+                      className="rounded-md"
+                      name="IFSC"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">TIN</label>
+                    <Input
+                      className="rounded-md"
+                      name="TIN"
+                      onChange={handleChange}
+                    />
+                  </div>
                 </div>
               </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">Security</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    className="accent-blue-500 rounded"
+                    name="AutoGeneratePassword"
+                    checked={autoGenPass}
+                    onChange={() => setAutoGenPass(!autoGenPass)}
+                  />
+                  <label className="text-sm">Auto Generate Password</label>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Password</label>
+                    <Input
+                      className="rounded-md"
+                      name="password"
+                      onChange={handleChange}
+                      disabled={autoGenPass}
+                      type="password"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Confirm Password
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="ConfirmPassword"
+                      onChange={handleChange}
+                      disabled={autoGenPass}
+                      type="password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">
+                  Additional Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Aadhar Card</label>
+                    <Input
+                      className="rounded-md"
+                      name="AadharNo"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">PAN Card</label>
+                    <Input
+                      className="rounded-md"
+                      name="PANNo"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Designation</label>
+                    <Input
+                      className="rounded-md"
+                      name="Designation"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 col-span-2">
+                    <label className="text-sm font-medium">Address</label>
+                    <textarea
+                      className="rounded-md border p-2 text-sm"
+                      name="Address"
+                      onChange={handleChange}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </main>
+            <DialogFooter className="pt-4 border-t">
+              <Button
+                className="rounded-md"
+                variant="outline"
+                onClick={() => setAction("")}
+              >
+                Cancel
+              </Button>
+              <Button className="rounded-md" onClick={handleUserCreate}>
+                Add User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {role === "Admin" && (
+        <Dialog open={action === "add"} onOpenChange={() => setAction("")}>
+          <DialogContent className="min-w-2/4  rounded-lg">
+            <DialogHeader className="pb-4 border-b">
+              <DialogTitle className="text-xl font-semibold">
+                Add New User
+              </DialogTitle>
+              <DialogDescription>
+                Add new users to the institute with appropriate permissions
+              </DialogDescription>
+            </DialogHeader>
+            <main className="grid w-full max-h-[50vh] grid-cols-2 gap-4 px-3 overflow-y-auto">
+              <div className="flex flex-col gap-2 col-span-2">
+                <label className="text-sm font-medium">Role</label>
+                <Select
+                  value={user.Role}
+                  onValueChange={(value) => setUser({ ...user, Role: value })}
+                >
+                  <SelectTrigger className="w-full rounded-md">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Observer">Observer</SelectItem>
+                      <SelectItem value="Moderator">Moderator</SelectItem>
+                      <SelectItem value="Photocopy Viewer">
+                        Photocopy Viewer
+                      </SelectItem>
+                      <SelectItem value="Examiner">Examiner</SelectItem>
+                      <SelectItem value="Scanner">Scanner</SelectItem>
+                      <SelectItem value="Head Examiner">
+                        Head Examiner
+                      </SelectItem>
+                      <SelectItem value="COE Login">COE Login</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">First Name</label>
+                <Input
+                  className="rounded-md"
+                  name="FirstName"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Last Name</label>
+                <Input
+                  className="rounded-md"
+                  name="LastName"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Mobile</label>
+                <Input
+                  className="rounded-md"
+                  name="MobileNo"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  className="rounded-md"
+                  name="Email"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Faculty ID</label>
+                <Input
+                  className="rounded-md"
+                  name="FacultyID"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Campus</label>
+                <Input
+                  className="rounded-md"
+                  name="CampusName"
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">Bank Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Account Holder Name
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="AccountHolderName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Bank Name</label>
+                    <Input
+                      className="rounded-md"
+                      name="BankName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Branch Name</label>
+                    <Input
+                      className="rounded-md"
+                      name="BranchName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Account Number
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="AccountNumber"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">IFSC Code</label>
+                    <Input
+                      className="rounded-md"
+                      name="IFSC"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">TIN</label>
+                    <Input
+                      className="rounded-md"
+                      name="TIN"
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">Security</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    className="accent-blue-500 rounded"
+                    name="AutoGeneratePassword"
+                    checked={autoGenPass}
+                    onChange={() => setAutoGenPass(!autoGenPass)}
+                  />
+                  <label className="text-sm">Auto Generate Password</label>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Password</label>
+                    <Input
+                      className="rounded-md"
+                      name="password"
+                      onChange={handleChange}
+                      disabled={autoGenPass}
+                      type="password"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Confirm Password
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="ConfirmPassword"
+                      onChange={handleChange}
+                      disabled={autoGenPass}
+                      type="password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">
+                  Additional Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Aadhar Card</label>
+                    <Input
+                      className="rounded-md"
+                      name="AadharNo"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">PAN Card</label>
+                    <Input
+                      className="rounded-md"
+                      name="PANNo"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Designation</label>
+                    <Input
+                      className="rounded-md"
+                      name="Designation"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 col-span-2">
+                    <label className="text-sm font-medium">Address</label>
+                    <textarea
+                      className="rounded-md border p-2 text-sm"
+                      name="Address"
+                      onChange={handleChange}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </main>
+            <DialogFooter className="pt-4 border-t">
+              <Button
+                className="rounded-md"
+                variant="outline"
+                onClick={() => setAction("")}
+              >
+                Cancel
+              </Button>
+              <Button className="rounded-md" onClick={handleUserCreate}>
+                Add User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {role === "Admin" && (
+        <Dialog open={action === "import"}>
+          <DialogContent className="rounded-lg max-w-2xl">
+            <DialogHeader className="pb-4 border-b">
+              <DialogTitle className="text-xl font-semibold">
+                Import Users
+              </DialogTitle>
+              <DialogDescription>
+                Add new users by importing through Excel
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex gap-3 p-4 border justify-between items-center bg-blue-50 rounded-lg border-blue-200">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-lg font-medium">Template</h1>
+                <p className="text-sm text-blue-700">
+                  Use this template to fill in proper details
+                </p>
+              </div>
+              <Button
+                onClick={handleTemplateDownload}
+                variant="outline"
+                className="rounded-md flex gap-2"
+              >
+                <DownloadIcon className="w-4 h-4" />
+                Download Template
+              </Button>
             </div>
 
-            <div className="col-span-2 mt-2">
-              <h3 className="text-md font-medium mb-2">Security</h3>
-              <div className="flex items-center gap-2 mb-3">
+            <main className="flex flex-col gap-4 py-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Role</label>
+                <Select value={role} onValueChange={(value) => setRole(value)}>
+                  <SelectTrigger className="w-full rounded-md">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Observer">Observer</SelectItem>
+                      <SelectItem value="Moderator">Moderator</SelectItem>
+                      <SelectItem value="Photocopy Viewer">
+                        Photocopy Viewer
+                      </SelectItem>
+                      <SelectItem value="Examiner">Examiner</SelectItem>
+                      <SelectItem value="Scanner">Scanner</SelectItem>
+                      <SelectItem value="Head Examiner">
+                        Head Examiner
+                      </SelectItem>
+                      <SelectItem value="COE Login">COE Login</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <input
-                  type="checkbox"
-                  className="accent-blue-500 rounded"
-                  name="AutoGeneratePassword"
                   checked={autoGenPass}
                   onChange={() => setAutoGenPass(!autoGenPass)}
-                />
-                <label className="text-sm">Auto Generate Password</label>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Password</label>
-                  <Input
-                    className="rounded-md"
-                    name="password"
-                    onChange={handleChange}
-                    disabled={autoGenPass}
-                    type="password"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">
-                    Confirm Password
-                  </label>
-                  <Input
-                    className="rounded-md"
-                    name="ConfirmPassword"
-                    onChange={handleChange}
-                    disabled={autoGenPass}
-                    type="password"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-2 mt-2">
-              <h3 className="text-md font-medium mb-2">
-                Additional Information
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Aadhar Card</label>
-                  <Input
-                    className="rounded-md"
-                    name="AadharNo"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">PAN Card</label>
-                  <Input
-                    className="rounded-md"
-                    name="PANNo"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Designation</label>
-                  <Input
-                    className="rounded-md"
-                    name="Designation"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2 col-span-2">
-                  <label className="text-sm font-medium">Address</label>
-                  <textarea
-                    className="rounded-md border p-2 text-sm"
-                    name="Address"
-                    onChange={handleChange}
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-          </main>
-          <DialogFooter className="pt-4 border-t">
-            <Button
-              className="rounded-md"
-              variant="outline"
-              onClick={() => setAction("")}
-            >
-              Cancel
-            </Button>
-            <Button className="rounded-md" onClick={handleUserCreate}>
-              Add User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={action === "add"} onOpenChange={() => setAction("")}>
-        <DialogContent className="min-w-2/4  rounded-lg">
-          <DialogHeader className="pb-4 border-b">
-            <DialogTitle className="text-xl font-semibold">
-              Add New User
-            </DialogTitle>
-            <DialogDescription>
-              Add new users to the institute with appropriate permissions
-            </DialogDescription>
-          </DialogHeader>
-          <main className="grid w-full max-h-[50vh] grid-cols-2 gap-4 px-3 overflow-y-auto">
-            <div className="flex flex-col gap-2 col-span-2">
-              <label className="text-sm font-medium">Role</label>
-              <Select
-                value={user.Role}
-                onValueChange={(value) => setUser({ ...user, Role: value })}
-              >
-                <SelectTrigger className="w-full rounded-md">
-                  <SelectValue placeholder="Select Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Observer">Observer</SelectItem>
-                    <SelectItem value="Moderator">Moderator</SelectItem>
-                    <SelectItem value="Photocopy Viewer">
-                      Photocopy Viewer
-                    </SelectItem>
-                    <SelectItem value="Examiner">Examiner</SelectItem>
-                    <SelectItem value="Scanner">Scanner</SelectItem>
-                    <SelectItem value="Head Examiner">Head Examiner</SelectItem>
-                    <SelectItem value="COE Login">COE Login</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">First Name</label>
-              <Input
-                className="rounded-md"
-                name="FirstName"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Last Name</label>
-              <Input
-                className="rounded-md"
-                name="LastName"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Mobile</label>
-              <Input
-                className="rounded-md"
-                name="MobileNo"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                className="rounded-md"
-                name="Email"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Faculty ID</label>
-              <Input
-                className="rounded-md"
-                name="FacultyID"
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Campus</label>
-              <Input
-                className="rounded-md"
-                name="CampusName"
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="col-span-2 mt-2">
-              <h3 className="text-md font-medium mb-2">Bank Details</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">
-                    Account Holder Name
-                  </label>
-                  <Input
-                    className="rounded-md"
-                    name="AccountHolderName"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Bank Name</label>
-                  <Input
-                    className="rounded-md"
-                    name="BankName"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Branch Name</label>
-                  <Input
-                    className="rounded-md"
-                    name="BranchName"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Account Number</label>
-                  <Input
-                    className="rounded-md"
-                    name="AccountNumber"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">IFSC Code</label>
-                  <Input
-                    className="rounded-md"
-                    name="IFSC"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">TIN</label>
-                  <Input
-                    className="rounded-md"
-                    name="TIN"
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-2 mt-2">
-              <h3 className="text-md font-medium mb-2">Security</h3>
-              <div className="flex items-center gap-2 mb-3">
-                <input
                   type="checkbox"
                   className="accent-blue-500 rounded"
-                  name="AutoGeneratePassword"
-                  checked={autoGenPass}
-                  onChange={() => setAutoGenPass(!autoGenPass)}
                 />
-                <label className="text-sm">Auto Generate Password</label>
+                <p className="text-sm">Auto Generate Password</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Password</label>
-                  <Input
-                    className="rounded-md"
-                    name="password"
-                    onChange={handleChange}
-                    disabled={autoGenPass}
-                    type="password"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">
-                    Confirm Password
-                  </label>
-                  <Input
-                    className="rounded-md"
-                    name="ConfirmPassword"
-                    onChange={handleChange}
-                    disabled={autoGenPass}
-                    type="password"
-                  />
-                </div>
-              </div>
-            </div>
 
-            <div className="col-span-2 mt-2">
-              <h3 className="text-md font-medium mb-2">
-                Additional Information
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Aadhar Card</label>
-                  <Input
-                    className="rounded-md"
-                    name="AadharNo"
-                    onChange={handleChange}
-                  />
+              {!autoGenPass && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Password</label>
+                    <Input
+                      type="password"
+                      className="rounded-md"
+                      placeholder="Password"
+                      value={dialogPassword}
+                      onChange={(e) => setDialogPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Confirm Password
+                    </label>
+                    <Input
+                      type="password"
+                      className="rounded-md"
+                      placeholder="Confirm Password"
+                      value={dialogConfPassword}
+                      onChange={(e) => setDialogConfPassword(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">PAN Card</label>
-                  <Input
-                    className="rounded-md"
-                    name="PANNo"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Designation</label>
-                  <Input
-                    className="rounded-md"
-                    name="Designation"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="flex flex-col gap-2 col-span-2">
-                  <label className="text-sm font-medium">Address</label>
-                  <textarea
-                    className="rounded-md border p-2 text-sm"
-                    name="Address"
-                    onChange={handleChange}
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-          </main>
-          <DialogFooter className="pt-4 border-t">
-            <Button
-              className="rounded-md"
-              variant="outline"
-              onClick={() => setAction("")}
-            >
-              Cancel
-            </Button>
-            <Button className="rounded-md" onClick={handleUserCreate}>
-              Add User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              )}
 
-      <Dialog open={action === "import"}>
-        <DialogContent className="rounded-lg max-w-2xl">
-          <DialogHeader className="pb-4 border-b">
-            <DialogTitle className="text-xl font-semibold">
-              Import Users
-            </DialogTitle>
-            <DialogDescription>
-              Add new users by importing through Excel
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex gap-3 p-4 border justify-between items-center bg-blue-50 rounded-lg border-blue-200">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-lg font-medium">Template</h1>
-              <p className="text-sm text-blue-700">
-                Use this template to fill in proper details
-              </p>
-            </div>
-            <Button
-              onClick={handleTemplateDownload}
-              variant="outline"
-              className="rounded-md flex gap-2"
-            >
-              <DownloadIcon className="w-4 h-4" />
-              Download Template
-            </Button>
-          </div>
-
-          <main className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Role</label>
-              <Select value={role} onValueChange={(value) => setRole(value)}>
-                <SelectTrigger className="w-full rounded-md">
-                  <SelectValue placeholder="Select Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Observer">Observer</SelectItem>
-                    <SelectItem value="Moderator">Moderator</SelectItem>
-                    <SelectItem value="Photocopy Viewer">
-                      Photocopy Viewer
-                    </SelectItem>
-                    <SelectItem value="Examiner">Examiner</SelectItem>
-                    <SelectItem value="Scanner">Scanner</SelectItem>
-                    <SelectItem value="Head Examiner">Head Examiner</SelectItem>
-                    <SelectItem value="COE Login">COE Login</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                checked={autoGenPass}
-                onChange={() => setAutoGenPass(!autoGenPass)}
-                type="checkbox"
-                className="accent-blue-500 rounded"
-              />
-              <p className="text-sm">Auto Generate Password</p>
-            </div>
-
-            {!autoGenPass && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Password</label>
-                  <Input
-                    type="password"
-                    className="rounded-md"
-                    placeholder="Password"
-                    value={dialogPassword}
-                    onChange={(e) => setDialogPassword(e.target.value)}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Upload Excel File</label>
+                <div
+                  onClick={() => ref.current?.click()}
+                  className="p-6 cursor-pointer flex flex-col justify-center items-center border-2 border-dashed bg-gray-50 rounded-lg border-gray-300 hover:border-blue-400 transition-colors"
+                >
+                  <input
+                    onChange={handleImportedExcel}
+                    type="file"
+                    accept=".xlsx"
+                    className="hidden"
+                    ref={ref}
                   />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">
-                    Confirm Password
-                  </label>
-                  <Input
-                    type="password"
-                    className="rounded-md"
-                    placeholder="Confirm Password"
-                    value={dialogConfPassword}
-                    onChange={(e) => setDialogConfPassword(e.target.value)}
-                  />
+                  {file ? (
+                    <div className="flex w-full justify-between items-center">
+                      <span className="text-blue-600 font-medium">
+                        {file.name}
+                      </span>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFile(null);
+                        }}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-gray-500">
+                      <UploadIcon className="w-8 h-8" />
+                      <span>Click to upload Excel file</span>
+                      <p className="text-xs">.xlsx files only</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </main>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Upload Excel File</label>
-              <div
-                onClick={() => ref.current?.click()}
-                className="p-6 cursor-pointer flex flex-col justify-center items-center border-2 border-dashed bg-gray-50 rounded-lg border-gray-300 hover:border-blue-400 transition-colors"
+            <DialogFooter className="pt-4 border-t">
+              <Button
+                className="rounded-md"
+                variant="outline"
+                onClick={() => setAction("")}
               >
-                <input
-                  onChange={handleImportedExcel}
-                  type="file"
-                  accept=".xlsx"
-                  className="hidden"
-                  ref={ref}
-                />
-                {file ? (
-                  <div className="flex w-full justify-between items-center">
-                    <span className="text-blue-600 font-medium">
-                      {file.name}
-                    </span>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFile(null);
-                      }}
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full"
-                    >
-                      <XIcon className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-gray-500">
-                    <UploadIcon className="w-8 h-8" />
-                    <span>Click to upload Excel file</span>
-                    <p className="text-xs">.xlsx files only</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </main>
-
-          <DialogFooter className="pt-4 border-t">
-            <Button
-              className="rounded-md"
-              variant="outline"
-              onClick={() => setAction("")}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={!file}
-              className="rounded-md"
-              onClick={handleImportedData}
-            >
-              Import Users
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                Cancel
+              </Button>
+              <Button
+                disabled={!file}
+                className="rounded-md"
+                onClick={handleImportedData}
+              >
+                Import Users
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <div className="bg-white rounded-lg">
         <div className="flex flex-col gap-1">
@@ -960,15 +976,19 @@ const UsersTab = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="add">Add User</SelectItem>
-                <SelectItem value="import">Import Users</SelectItem>
+                {role === "Admin" && (
+                  <SelectItem value="add">Add User</SelectItem>
+                )}
+                {role === "Admin" && (
+                  <SelectItem value="import">Import Users</SelectItem>
+                )}
                 <SelectItem value="export">Export Users</SelectItem>
                 <SelectItem value="active">Active Users</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
 
-          {(selectedAll || selectedRows.length >= 1) && (
+          {role === "Admin" && (selectedAll || selectedRows.length >= 1) && (
             <Button className="rounded-md">Assign Examiner Role</Button>
           )}
         </div>
@@ -1043,13 +1063,15 @@ const UsersTab = () => {
                     </span>
                   </TableCell>
                   <TableCell className="py-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-md h-8"
-                    >
-                      View Documents
-                    </Button>
+                    {role === "Admin" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-md h-8"
+                      >
+                        View Documents
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -1071,6 +1093,8 @@ const UsersTab = () => {
 };
 
 export default function page() {
+  const role = Cookies.get("role");
+
   return (
     <div className="w-full min-h-screen bg-white p-6">
       <Tabs defaultValue="users" className="w-full">
@@ -1083,12 +1107,14 @@ export default function page() {
             >
               Users
             </TabsTrigger>
-            <TabsTrigger
-              value="profile"
-              className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm"
-            >
-              Profile
-            </TabsTrigger>
+            {role === "Admin" && (
+              <TabsTrigger
+                value="profile"
+                className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
+                Profile
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
         <TabsContent value="users">

@@ -557,12 +557,30 @@ export default function Page() {
         }
       );
 
+      const evalRes = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "Completed",
+            isChecked: "Evaluated",
+            marks: totalScore,
+          }),
+        }
+      );
+
       if (res.ok) {
         const data = await res.json();
-        const sheetData = await sheetRes.json();
+        const sheetData = await statusRes.json();
+        const evalData = await evalRes.json();
         router.back();
       }
     } catch (error) {
+      console.error(error.message);
       toast.error("Internal Server Error");
     }
   };

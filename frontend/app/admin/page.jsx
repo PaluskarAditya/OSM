@@ -553,7 +553,7 @@ function PendingEvaluations() {
 }
 
 // Enhanced Progress Status Component
-function ProgressStatus() {
+function ProgressStatus({ evaluations, users }) {
   return (
     <Card className="h-full w-full bg-muted/50">
       <CardHeader>
@@ -566,35 +566,25 @@ function ProgressStatus() {
         <div>
           <h3 className="text-sm font-medium mb-3">Faculty Progress</h3>
           <div className="space-y-4">
-            {progressData.faculty.map((item) => (
-              <div key={item.name} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>{item.name}</span>
-                  <span className="font-medium">{item.progress}%</span>
-                </div>
-                <Progress value={item.progress} className="h-2" />
-                <div className="text-xs text-muted-foreground">
-                  Target: {item.target}%
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium mb-3">Course Progress</h3>
-          <div className="space-y-4">
-            {progressData.course.map((item) => (
-              <div key={item.name} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>{item.name}</span>
-                  <span className="font-medium">{item.progress}%</span>
-                </div>
-                <Progress value={item.progress} className="h-2" />
-                <div className="text-xs text-muted-foreground">
-                  Target: {item.target}%
-                </div>
-              </div>
-            ))}
+            {evaluations.map(
+              (item) => (
+                console.log(item),
+                (
+                  <div key={item.name} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{item.examiners}</span>
+                      <span className="font-medium">
+                        {item.progress.percent}%
+                      </span>
+                    </div>
+                    <Progress value={item.progress.percent} className="h-2" />
+                    <div className="text-xs text-muted-foreground">
+                      Target: 100%
+                    </div>
+                  </div>
+                )
+              )
+            )}
           </div>
         </div>
       </CardContent>
@@ -611,7 +601,38 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [sheets, setSheets] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [users, setUsers] = useState([]);
   const [qps, setQps] = useState([]);
+
+  const getUserEmail = (id) => {
+    const user = users.find((user) => user._id === id);
+    return user.FirstName + " " + user.LastName || "N/A";
+  };
+
+  const transformEvaluations = (rawData, users) => {
+    return rawData.map((evalItem) => {
+      const totalSheets = evalItem.sheets.length;
+      const checkedSheets = evalItem.progress?.checked || 0;
+
+      const progressPercent = totalSheets
+        ? Math.round((checkedSheets / totalSheets) * 100)
+        : 0;
+
+      return {
+        name: evalItem.name,
+        course: evalItem.course,
+        semester: evalItem.semester,
+        examiners: evalItem.examiners.map((el) => getUserEmail(el)), // comma-separated if multiple
+        status: evalItem.status,
+        progress: {
+          uploaded: evalItem.progress.uploaded,
+          checked: evalItem.progress.checked,
+          percent: progressPercent,
+        },
+      };
+    });
+  };
 
   useEffect(() => {
     setToken(Cookies.get("token"));
@@ -667,20 +688,46 @@ export default function Page() {
           }
         );
 
+        const evalRes = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval`,
+          {
+            headers: {
+              "content-type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const userRes = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users`,
+          {
+            headers: {
+              "content-type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
         if (!res.ok) throw new Error("Failed to fetch institute data");
         if (!qpRes.ok) throw new Error("Failed to fetch exams");
         if (!subRes.ok) throw new Error("Failed to fetch subjects");
         if (!sheetRes.ok) throw new Error("Failed to fetch answer sheets");
+        if (!evalRes.ok) throw new Error("Failed to fetch evaluations");
+        if (!userRes.ok) throw new Error("Failed to fetch users");
 
         const data = await res.json();
         const qpData = await qpRes.json();
         const subData = await subRes.json();
         const sheetData = await sheetRes.json();
+        const userData = await userRes.json();
+        const evalData = await evalRes.json();
         const user_ins = data.find((el) => el.IID === Number(iid));
         setInstitute(user_ins);
         setQps(qpData);
         setSubjects(subData);
         setSheets(sheetData);
+        setEvaluations(evalData);
+        setUsers(userData);
       } catch (error) {
         console.error("Error fetching data:", error.message);
       } finally {
@@ -776,7 +823,10 @@ export default function Page() {
           <div className="lg:col-span-2 space-y-6">
             {/* Progress and Pending Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ProgressStatus />
+              <ProgressStatus
+                users={users}
+                evaluations={transformEvaluations(evaluations)}
+              />
               <PendingEvaluations />
             </div>
 

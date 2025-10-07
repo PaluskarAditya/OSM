@@ -80,6 +80,7 @@ export default function SubjectsPage() {
   const [filterSemester, setFilterSemester] = useState(null);
   const [file, setFile] = useState(null);
   const ref = useRef(null);
+  const role = Cookies.get("role");
 
   useEffect(() => {
     getData();
@@ -648,23 +649,27 @@ export default function SubjectsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button
-              onClick={() => setDialogAction("new")}
-              className="flex items-center gap-2 cursor-pointer text-sm"
-              size="sm"
-            >
-              <Plus size={16} />
-              Add Subject
-            </Button>
+            {role === "Admin" && (
+              <>
+                <Button
+                  onClick={() => setDialogAction("new")}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                  size="sm"
+                >
+                  <Plus size={16} />
+                  Add Subject
+                </Button>
 
-            <Button
-              onClick={() => setDialogAction("import")}
-              className="flex items-center gap-2 cursor-pointer text-sm"
-              size="sm"
-            >
-              <ImportIcon size={16} />
-              Import Subjects
-            </Button>
+                <Button
+                  onClick={() => setDialogAction("import")}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                  size="sm"
+                >
+                  <ImportIcon size={16} />
+                  Import Subjects
+                </Button>
+              </>
+            )}
 
             <Button
               variant="outline"
@@ -865,32 +870,34 @@ export default function SubjectsPage() {
                         {subject.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedSubject(subject);
-                            setDialogAction("edit");
-                          }}
-                          className="h-8 cursor-pointer"
-                        >
-                          <Edit size={14} className="mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant={subject.isActive ? "outline" : "default"}
-                          size="sm"
-                          onClick={() => handleChangeStatus(subject)}
-                          disabled={loading}
-                          className="h-8 cursor-pointer"
-                        >
-                          <Power size={14} className="mr-1" />
-                          {subject.isActive ? "Deactivate" : "Activate"}
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {role === "Admin" && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSubject(subject);
+                              setDialogAction("edit");
+                            }}
+                            className="h-8 cursor-pointer"
+                          >
+                            <Edit size={14} className="mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant={subject.isActive ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => handleChangeStatus(subject)}
+                            disabled={loading}
+                            className="h-8 cursor-pointer"
+                          >
+                            <Power size={14} className="mr-1" />
+                            {subject.isActive ? "Deactivate" : "Activate"}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               ) : (

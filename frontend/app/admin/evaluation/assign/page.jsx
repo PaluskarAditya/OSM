@@ -64,6 +64,7 @@ export default function EvaluationPage() {
   const [candidates, setCandidates] = useState([]);
   const [campus, setCampus] = useState([]);
   const [users, setUsers] = useState([]);
+  const [sheets, setSheets] = useState([]);
   const [search, setSearch] = useState("");
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -97,6 +98,7 @@ export default function EvaluationPage() {
   const [isMobile, setIsMobile] = useState(false);
 
   const token = Cookies.get("token");
+  const role = Cookies.get("role");
 
   // Check screen size for responsiveness
   useEffect(() => {
@@ -105,9 +107,9 @@ export default function EvaluationPage() {
     };
 
     checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
+    window.addEventListener("resize", checkScreenSize);
+
+    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   const handleSelectAll = () => {
@@ -147,6 +149,7 @@ export default function EvaluationPage() {
           subjectsRes,
           candidatesRes,
           userRes,
+          sheetRes,
         ] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
             headers: {
@@ -199,6 +202,12 @@ export default function EvaluationPage() {
               Authorization: `Bearer ${token}`,
             },
           }),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`, {
+            headers: {
+              "content-type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }),
         ]);
 
         const [
@@ -210,6 +219,7 @@ export default function EvaluationPage() {
           subjectsData,
           candidatesData,
           userData,
+          sheetData,
         ] = await Promise.all([
           streamsRes.json(),
           degreesRes.json(),
@@ -219,6 +229,7 @@ export default function EvaluationPage() {
           subjectsRes.json(),
           candidatesRes.json(),
           userRes.json(),
+          sheetRes.json(),
         ]);
 
         setStreams(streamsData);
@@ -229,6 +240,7 @@ export default function EvaluationPage() {
         setSubjects(subjectsData);
         setCandidates(candidatesData);
         setFilteredCandidates(candidatesData);
+        setSheets(sheetData);
 
         const examiners = userData.filter(
           (el) => el.Role === "Examiner" || el.Role === "Moderator"
@@ -360,17 +372,31 @@ export default function EvaluationPage() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            sheets: selectedRows.map(
-              (el) =>
-                candidates.find((candidate) => candidate._id === el)
-                  ?.assignmentId
-            ).filter(Boolean),
+            sheets: selectedRows
+              .map((el) => {
+                const candidate = candidates.find((c) => c._id === el);
+                if (!candidate) return null;
+
+                return {
+                  assignmentId: candidate.assignmentId,
+                  status: "Pending",
+                  isChecked: "Not Evaluated",
+                  marks: 0,
+                  attendance: "Present",
+                };
+              })
+              .filter(Boolean),
             name: selectedSubject.name,
             course: selectedCourse.uuid,
             subject: selectedSubject.uuid,
             examiners: [selectedUser._id],
             endDate: selectedSubject.exam,
             semester: selectedSemester,
+            iid: Cookies.get("iid"),
+            progress: {
+              uploaded: sheets.length,
+              checked: 0,
+            },
           }),
         }
       );
@@ -391,7 +417,7 @@ export default function EvaluationPage() {
 
   const getUploadedCandidates = () => {
     if (!selectedSubject) return [];
-    
+
     return filteredCandidates.filter(
       (el) =>
         el.isActive !== false &&
@@ -402,7 +428,8 @@ export default function EvaluationPage() {
   };
 
   const uploadedCandidates = getUploadedCandidates();
-  const hasActiveFilters = selectedCombined || selectedCourse || selectedSemester || selectedSubject;
+  const hasActiveFilters =
+    selectedCombined || selectedCourse || selectedSemester || selectedSubject;
 
   return (
     <div className="bg-white p-4 md:p-6 max-h-screen w-full h-screen flex flex-col gap-4 md:gap-6 overflow-hidden">
@@ -425,7 +452,9 @@ export default function EvaluationPage() {
                     className="w-full flex justify-between items-center gap-2"
                   >
                     <span>
-                      {assignedSubject ? assignedSubject.name : "Select Subject"}
+                      {assignedSubject
+                        ? assignedSubject.name
+                        : "Select Subject"}
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
@@ -475,13 +504,16 @@ export default function EvaluationPage() {
                     return;
                   }
 
-                  const isExist = candidates.some((el) =>
-                    selectedRows.includes(el._id) && 
-                    el.subjects?.includes(assignedSubject.uuid)
+                  const isExist = candidates.some(
+                    (el) =>
+                      selectedRows.includes(el._id) &&
+                      el.subjects?.includes(assignedSubject.uuid)
                   );
 
                   if (isExist) {
-                    toast.error("Subject already exists in candidate's subjects!");
+                    toast.error(
+                      "Subject already exists in candidate's subjects!"
+                    );
                     return;
                   }
 
@@ -495,7 +527,10 @@ export default function EvaluationPage() {
                       },
                       body: JSON.stringify({
                         ids: selectedRows,
-                        subjects: [...(all_subs.subjects || []), assignedSubject.uuid],
+                        subjects: [
+                          ...(all_subs.subjects || []),
+                          assignedSubject.uuid,
+                        ],
                       }),
                     }
                   );
@@ -521,7 +556,9 @@ export default function EvaluationPage() {
 
       {/* Header Section */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-lg md:text-xl font-semibold text-gray-900">Evaluation Management</h1>
+        <h1 className="text-lg md:text-xl font-semibold text-gray-900">
+          Evaluation Management
+        </h1>
         <p className="text-sm text-gray-600">
           Assign examiners to complete evaluation process
         </p>
@@ -540,9 +577,9 @@ export default function EvaluationPage() {
               className="w-full lg:w-80 pl-10"
             />
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
                   <Filter className="h-4 w-4" />
@@ -560,7 +597,7 @@ export default function EvaluationPage() {
                   Export Barcode Details
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
 
             {hasActiveFilters && (
               <Button
@@ -578,7 +615,9 @@ export default function EvaluationPage() {
         {/* Filters Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">Stream | Degree | Year</label>
+            <label className="text-sm font-medium text-gray-700">
+              Stream | Degree | Year
+            </label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -607,7 +646,9 @@ export default function EvaluationPage() {
 
           {selectedCombined && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">Course</label>
+              <label className="text-sm font-medium text-gray-700">
+                Course
+              </label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -641,7 +682,9 @@ export default function EvaluationPage() {
 
           {selectedCourse && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">Semester/Trimester</label>
+              <label className="text-sm font-medium text-gray-700">
+                Semester/Trimester
+              </label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -649,7 +692,9 @@ export default function EvaluationPage() {
                     className="flex justify-between items-center w-full text-left"
                   >
                     <span className="truncate">
-                      {selectedSemester ? `Semester ${selectedSemester}` : "Select"}
+                      {selectedSemester
+                        ? `Semester ${selectedSemester}`
+                        : "Select"}
                     </span>
                     <ChevronDown className="h-4 w-4 flex-shrink-0" />
                   </Button>
@@ -673,7 +718,9 @@ export default function EvaluationPage() {
 
           {selectedSemester && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">Subject</label>
+              <label className="text-sm font-medium text-gray-700">
+                Subject
+              </label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -709,13 +756,13 @@ export default function EvaluationPage() {
         </div>
 
         {/* Examiner Assignment Section */}
-        {selectedSubject && selectedRows.length > 0 && (
+        {role === "Admin" && selectedSubject && selectedRows.length > 0 && (
           <div className="flex flex-col sm:flex-row gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3">
               <Select
                 value={selectedUser?._id || ""}
                 onValueChange={(value) => {
-                  const user = users.find(u => u._id === value);
+                  const user = users.find((u) => u._id === value);
                   setSelectedUser(user);
                 }}
               >
@@ -738,7 +785,7 @@ export default function EvaluationPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              
+
               <div className="flex gap-2">
                 <Button
                   onClick={handleAssignExaminer}
@@ -746,7 +793,9 @@ export default function EvaluationPage() {
                   className="flex items-center gap-2 flex-1"
                 >
                   <UserCheck className="h-4 w-4" />
-                  {isLoading ? "Assigning..." : `Assign to ${selectedRows.length} Candidate(s)`}
+                  {isLoading
+                    ? "Assigning..."
+                    : `Assign to ${selectedRows.length} Candidate(s)`}
                 </Button>
               </div>
             </div>
@@ -760,15 +809,17 @@ export default function EvaluationPage() {
           <div className="flex items-center justify-center h-32">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-600">Loading candidates...</p>
+              <p className="mt-2 text-sm text-gray-600">
+                Loading candidates...
+              </p>
             </div>
           </div>
         ) : uploadedCandidates.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-gray-500">
             <BookImage className="h-8 w-8 mb-2" />
             <p className="text-sm">
-              {selectedSubject 
-                ? "No candidates with uploaded answer sheets found" 
+              {selectedSubject
+                ? "No candidates with uploaded answer sheets found"
                 : "Please select filters to view candidates"}
             </p>
           </div>
@@ -787,15 +838,29 @@ export default function EvaluationPage() {
                       />
                     )}
                   </TableHead>
-                  <TableHead className="border-r font-semibold text-gray-700">#</TableHead>
-                  <TableHead className="border-r font-semibold text-gray-700">Name</TableHead>
-                  <TableHead className="border-r font-semibold text-gray-700">Roll No</TableHead>
-                  <TableHead className="border-r font-semibold text-gray-700">PRN No</TableHead>
+                  <TableHead className="border-r font-semibold text-gray-700">
+                    #
+                  </TableHead>
+                  <TableHead className="border-r font-semibold text-gray-700">
+                    Name
+                  </TableHead>
+                  <TableHead className="border-r font-semibold text-gray-700">
+                    Roll No
+                  </TableHead>
+                  <TableHead className="border-r font-semibold text-gray-700">
+                    PRN No
+                  </TableHead>
                   {!isMobile && (
                     <>
-                      <TableHead className="border-r font-semibold text-gray-700">Course</TableHead>
-                      <TableHead className="border-r font-semibold text-gray-700">Subject</TableHead>
-                      <TableHead className="border-r font-semibold text-gray-700">Booklet</TableHead>
+                      <TableHead className="border-r font-semibold text-gray-700">
+                        Course
+                      </TableHead>
+                      <TableHead className="border-r font-semibold text-gray-700">
+                        Subject
+                      </TableHead>
+                      <TableHead className="border-r font-semibold text-gray-700">
+                        Booklet
+                      </TableHead>
                     </>
                   )}
                 </TableRow>
@@ -811,7 +876,9 @@ export default function EvaluationPage() {
                         className="rounded border-gray-300"
                       />
                     </TableCell>
-                    <TableCell className="border-r font-medium">{i + 1}</TableCell>
+                    <TableCell className="border-r font-medium">
+                      {i + 1}
+                    </TableCell>
                     <TableCell className="border-r">
                       <div className="flex flex-col">
                         <span className="font-medium">
@@ -824,15 +891,23 @@ export default function EvaluationPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="border-r font-mono text-sm">{el.RollNo}</TableCell>
-                    <TableCell className="border-r font-mono text-sm">{el.PRNNumber}</TableCell>
+                    <TableCell className="border-r font-mono text-sm">
+                      {el.RollNo}
+                    </TableCell>
+                    <TableCell className="border-r font-mono text-sm">
+                      {el.PRNNumber}
+                    </TableCell>
                     {!isMobile && (
                       <>
                         <TableCell className="border-r">
-                          <span className="text-sm">{getCourseName(el.course)}</span>
+                          <span className="text-sm">
+                            {getCourseName(el.course)}
+                          </span>
                         </TableCell>
                         <TableCell className="border-r">
-                          <span className="text-sm">{selectedSubject.name}</span>
+                          <span className="text-sm">
+                            {selectedSubject.name}
+                          </span>
                         </TableCell>
                         <TableCell className="border-r">
                           <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">

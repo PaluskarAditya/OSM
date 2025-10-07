@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Calendar, BookOpen, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Calendar, BookOpen } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -19,8 +19,7 @@ import Link from "next/link";
 export default function EvaluationDetail() {
   const { id } = useParams(); // eval uuid
   const router = useRouter();
-  const [evaluation, setEvaluation] = useState([]);
-  const [sheets, setSheets] = useState([]);
+  const [evaluation, setEvaluation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const token = Cookies.get("token");
 
@@ -28,26 +27,18 @@ export default function EvaluationDetail() {
     const fetchEval = async () => {
       try {
         setIsLoading(true);
-        const [evalRes, sheetsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/${id}`, {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/${id}`,
+          {
             headers: {
-              Authorization: `Bearer ${Cookies.get("token")}`,
+              Authorization: `Bearer ${token}`,
             },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`, {
-            headers: {
-              Authorization: `Bearer ${Cookies.get("token")}`,
-            },
-          }),
-        ]);
-        if (!evalRes.ok || !sheetsRes.ok)
-          throw new Error("Failed to fetch evaluation");
-        const [evalData, sheetData] = await Promise.all([
-          evalRes.json(),
-          sheetsRes.json(),
-        ]);
-        setEvaluation(evalData);
-        setSheets(sheetData);
+          }
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch evaluation");
+        const data = await res.json();
+        setEvaluation(data);
       } catch (err) {
         toast.error(err.message || "Failed to load evaluation details");
       } finally {
@@ -56,12 +47,12 @@ export default function EvaluationDetail() {
     };
 
     fetchEval();
-  }, [id]);
+  }, [id, token]);
 
-  const handleCheck = async (id) => {
+  const handleCheck = async (assignmentId) => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${id}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${assignmentId}`,
         {
           method: "PUT",
           headers: {
@@ -74,10 +65,13 @@ export default function EvaluationDetail() {
 
       if (res.ok) {
         const data = await res.json();
-        const new_sheets = sheets.map((el) =>
-          el._id === data._id ? data : el
+
+        // update the sheet locally
+        const updatedSheets = evaluation.sheets.map((sheet) =>
+          sheet.assignmentId === data.assignmentId ? data : sheet
         );
-        setSheets(new_sheets);
+
+        setEvaluation((prev) => ({ ...prev, sheets: updatedSheets }));
       }
     } catch (error) {
       console.error(error);
@@ -88,15 +82,15 @@ export default function EvaluationDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6">
+        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6 animate-pulse">
           <div className="flex items-center mb-6">
-            <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse"></div>
+            <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
             <div className="ml-3 h-6 bg-gray-200 rounded w-1/4"></div>
           </div>
           <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((item) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div
-                key={item}
+                key={i}
                 className="flex justify-between items-center p-3 border border-gray-200 rounded-md"
               >
                 <div className="h-4 bg-gray-200 rounded w-1/4"></div>
@@ -125,9 +119,7 @@ export default function EvaluationDetail() {
             </Button>
           </div>
           <div className="text-center py-12">
-            <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
-              <FileText className="h-12 w-12" />
-            </div>
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Evaluation not found
             </h3>
@@ -191,7 +183,7 @@ export default function EvaluationDetail() {
             </p>
           </div>
 
-          {!evaluation.sheets || evaluation.sheets.length === 0 ? (
+          {!evaluation.sheets?.length ? (
             <div className="p-8 text-center">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -214,38 +206,19 @@ export default function EvaluationDetail() {
               </TableHeader>
               <TableBody>
                 {evaluation.sheets.map((el) => (
-                  <TableRow key={el}>
-                    <TableCell>{el}</TableCell>
-                    <TableCell>
-                      {
-                        sheets.find((sheet) => sheet.assignmentId === el)
-                          ?.status
-                      }
-                    </TableCell>
-                    <TableCell>
-                      {sheets.find((sheet) => sheet.assignmentId === el)
-                        ?.isEvaluated
-                        ? "Evaluated"
-                        : "Not Evaluated"}
-                    </TableCell>
-                    <TableCell>
-                      {
-                        sheets.find((sheet) => sheet.assignmentId === el)
-                          ?.totalMarks
-                      }
-                    </TableCell>
+                  <TableRow key={el.assignmentId}>
+                    <TableCell>{el.assignmentId}</TableCell>
+                    <TableCell>{el.status}</TableCell>
+                    <TableCell>{el.isChecked}</TableCell>
+                    <TableCell>{el.marks}</TableCell>
                     <TableCell className="flex justify-center items-center gap-5">
-                      <span>
-                        {sheets.find((sheet) => sheet.assignmentId === el)
-                          ?.attendance
-                          ? "Present"
-                          : "Absent"}
-                      </span>
-                      {sheets.find((sheet) => sheet.assignmentId === el)
-                        .isEvaluated === false && (
-                        <Link href={`/evaluate/home/check/${id}/${el}`}>
+                      <span>{el.attendance}</span>
+                      {el.isChecked === "Not Evaluated" && (
+                        <Link
+                          href={`/evaluate/home/check/${id}/${el.assignmentId}`}
+                        >
                           <Button
-                            onClick={() => handleCheck(el)}
+                            onClick={() => handleCheck(el.assignmentId)}
                             size="sm"
                             className="cursor-pointer text-sm"
                           >

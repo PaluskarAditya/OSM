@@ -224,6 +224,8 @@ export default function Page() {
     setAttendance("");
   };
 
+  const role = Cookies.get("role");
+
   const getStreamName = (id) => {
     const combined = combineds.find((el) => el.uuid === id);
     const stream = streams.find((el) => el.uuid === combined?.stream);
@@ -563,9 +565,11 @@ export default function Page() {
                   Export Candidate Data
                 </DropdownMenuItem>
                 <DropdownMenuItem>Export Barcode Details</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setAssignSubjectModal(true)}>
-                  Assign Subject
-                </DropdownMenuItem>
+                {role === "Admin" && (
+                  <DropdownMenuItem onClick={() => setAssignSubjectModal(true)}>
+                    Assign Subject
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 

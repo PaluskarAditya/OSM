@@ -76,6 +76,8 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [tableKey, setTableKey] = useState(0); // Force table re-render
 
+  const role = Cookies.get("role");
+
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedRows([]);
@@ -781,9 +783,11 @@ export default function Page() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setImportDialog(true)}>
-                  Import Candidate Data
-                </DropdownMenuItem>
+                {role === "Admin" && (
+                  <DropdownMenuItem onClick={() => setImportDialog(true)}>
+                    Import Candidate Data
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setExportDialog(true)}>
                   Export Template
                 </DropdownMenuItem>

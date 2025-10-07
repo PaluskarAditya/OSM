@@ -75,6 +75,7 @@ export default function StreamsPage() {
   const [newDegree, setNewDegree] = useState("");
   const [file, setFile] = useState(null);
   const ref = useRef(null);
+  const role = Cookies.get("role");
 
   useEffect(() => {
     getData();
@@ -572,23 +573,27 @@ export default function StreamsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button
-              onClick={() => setDialogAction("new")}
-              className="flex items-center gap-2 cursor-pointer text-sm"
-              size="sm"
-            >
-              <Plus size={16} />
-              Add Course
-            </Button>
+            {role === "Admin" && (
+              <>
+                <Button
+                  onClick={() => setDialogAction("new")}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                  size="sm"
+                >
+                  <Plus size={16} />
+                  Add Course
+                </Button>
 
-            <Button
-              onClick={() => setDialogAction("import")}
-              className="flex items-center gap-2 cursor-pointer text-sm"
-              size="sm"
-            >
-              <ImportIcon size={16} />
-              Import Courses
-            </Button>
+                <Button
+                  onClick={() => setDialogAction("import")}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                  size="sm"
+                >
+                  <ImportIcon size={16} />
+                  Import Courses
+                </Button>
+              </>
+            )}
 
             <Button
               variant="outline"
@@ -779,32 +784,34 @@ export default function StreamsPage() {
                       {course.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedCourse(course);
-                          setDialogAction("edit");
-                        }}
-                        className="h-8 cursor-pointer"
-                      >
-                        <Edit size={14} className="mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant={course.isActive ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => handleChangeStatus(course)}
-                        disabled={loading}
-                        className="h-8 cursor-pointer"
-                      >
-                        <Power size={14} className="mr-1" />
-                        {course.isActive ? "Deactivate" : "Activate"}
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {role === "Admin" && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedCourse(course);
+                            setDialogAction("edit");
+                          }}
+                          className="h-8 cursor-pointer"
+                        >
+                          <Edit size={14} className="mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant={course.isActive ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => handleChangeStatus(course)}
+                          disabled={loading}
+                          className="h-8 cursor-pointer"
+                        >
+                          <Power size={14} className="mr-1" />
+                          {course.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (

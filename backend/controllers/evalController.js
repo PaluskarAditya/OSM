@@ -476,6 +476,77 @@ const deleteEvaluation = async (req, res) => {
   }
 };
 
+const status = async (req, res) => {
+  try {
+    const { uuid } = req.params; // this is assignmentId in your sheets
+    const payload = req.body || {};
+
+    // only allow these sheet fields to be updated
+    const allowedFields = ["status", "isChecked", "marks", "attendance"];
+
+    // build $set object dynamically for positional operator
+    const setObj = {};
+    for (const f of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(payload, f)) {
+        setObj[`sheets.$.${f}`] = payload[f];
+      }
+    }
+
+    if (Object.keys(setObj).length === 0) {
+      return res.status(400).json({ err: "No valid sheet fields provided" });
+    }
+
+    // 1) Update the matched sheet
+    const evaluation = await Evaluation.findOneAndUpdate(
+      { "sheets.assignmentId": uuid }, // find evaluation containing the sheet
+      { $set: setObj },
+      { new: true } // return the updated document
+    );
+
+    if (!evaluation) {
+      return res.status(404).json({ err: "Sheet / Evaluation not found" });
+    }
+
+    // 2) Recompute progress fields
+    const total = evaluation.sheets.length;
+    const checkedCount = evaluation.sheets.filter(
+      (s) => String(s.isChecked).toLowerCase() === "evaluated"
+    ).length;
+
+    evaluation.progress.uploaded = total;
+    evaluation.progress.checked = checkedCount;
+
+    // 3) Update overall evaluation status
+    // If none checked => Pending, some checked => In Progress, all checked => Completed
+    if (checkedCount === 0) evaluation.status = "Pending";
+    else if (checkedCount < total) evaluation.status = "In Progress";
+    else evaluation.status = "Completed";
+
+    // Save the evaluation (we mutated the doc above)
+    await evaluation.save();
+
+    // Extract the updated sheet to return (safe)
+    const updatedSheet = evaluation.sheets.find((s) => s.assignmentId === uuid);
+
+    return res.status(200).json({ evaluation, updatedSheet });
+  } catch (error) {
+    console.error("updateSheetStatus error:", error);
+    return res.status(500).json({ err: "Internal Server Error" });
+  }
+};
+
+const getAll = async (req, res) => {
+  try {
+    const evals = await Evaluation.find({ iid: req.user.IID });
+
+    if (!evals) return res.status(500).json({ err: "No Evaluations found" });
+
+    res.status(200).json(evals);
+  } catch (error) {
+    res.status(500).json({ err: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   createEvaluation,
   editEvaluation,
@@ -486,4 +557,6 @@ module.exports = {
   getByCreator,
   deleteEvaluation,
   getEvaluationByUuid,
+  status,
+  getAll,
 };

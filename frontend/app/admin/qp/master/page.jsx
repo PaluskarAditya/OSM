@@ -192,11 +192,16 @@ const QuestionPaperMasterPage = () => {
     if (!selectedPaper) return;
 
     try {
+      console.log(selectedPaper);
       const response = await fetch(
-        `${API_URL}/api/v1/qp/${selectedPaper.uuid}/verify`,
+        `${API_URL}/api/v1/qp/${selectedPaper._id}`,
         {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ validated: true }),
         }
       );
 
@@ -205,7 +210,7 @@ const QuestionPaperMasterPage = () => {
       const updatedPaper = await response.json();
       setQuestionPapers((prev) =>
         prev.map((paper) =>
-          paper.uuid === updatedPaper.uuid ? updatedPaper : paper
+          paper._id === updatedPaper._id ? updatedPaper : paper
         )
       );
       toast.success("Question paper verified successfully!");
@@ -348,7 +353,9 @@ const QuestionPaperMasterPage = () => {
                 <div className="text-2xl font-bold text-green-600">
                   {questionPapers.filter((s) => s.isActive).length}
                 </div>
-                <div className="text-xs text-green-500">Active Question Papers</div>
+                <div className="text-xs text-green-500">
+                  Active Question Papers
+                </div>
               </div>
             </div>
             <div className="relative flex-1 max-w-md">
@@ -490,15 +497,15 @@ const QuestionPaperMasterPage = () => {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge
-                          variant={paper.isVerified ? "success" : "secondary"}
+                          variant={paper.validated ? "success" : "secondary"}
                           className={cn(
                             "w-24 justify-center",
-                            paper.isVerified
+                            paper.validated
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
                           )}
                         >
-                          {paper.isVerified ? "Verified" : "Pending"}
+                          {paper.validated ? "Verified" : "Pending"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
@@ -534,7 +541,7 @@ const QuestionPaperMasterPage = () => {
             <DialogHeader className="border-b pb-4">
               <DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl">
                 {selectedPaper?.name}
-                {selectedPaper?.isVerified && (
+                {selectedPaper?.validated && (
                   <Badge
                     variant="success"
                     className="gap-1 bg-green-100 text-green-800"
@@ -594,11 +601,11 @@ const QuestionPaperMasterPage = () => {
                   </div>
                 </div>
 
-                {!selectedPaper.isVerified && (
+                {!selectedPaper.validated && (
                   <div className="pt-4 border-t">
                     <Button
                       onClick={handleVerifyPaper}
-                      className="w-full sm:w-auto gap-2 bg-blue-600 hover:bg-blue-700"
+                      className="w-full cursor-pointer sm:w-auto gap-2 bg-blue-600 hover:bg-blue-700"
                       size="lg"
                     >
                       <CheckCircle className="h-4 w-4" />

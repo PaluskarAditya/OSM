@@ -46,6 +46,7 @@ export default function StreamsPage() {
   const token = Cookies.get("token");
   const [loading, setLoading] = useState(false);
   const [selectedStream, setSelectedStream] = useState(null);
+  const role = Cookies.get("role")
 
   useEffect(() => {
     fetchStreams();
@@ -260,14 +261,14 @@ export default function StreamsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button
+            {role === "Admin" && <Button
               onClick={() => setDialogAction("new")}
               className="flex items-center gap-2 cursor-pointer text-sm"
               size="sm"
             >
               <Plus size={16} />
               Add Stream
-            </Button>
+            </Button>}
 
             <Button
               variant="outline"
@@ -347,7 +348,7 @@ export default function StreamsPage() {
                       {stream.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  {role === "Admin" && <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
@@ -372,7 +373,7 @@ export default function StreamsPage() {
                         {stream.isActive ? "Deactivate" : "Activate"}
                       </Button>
                     </div>
-                  </TableCell>
+                  </TableCell>}
                 </TableRow>
               ))
             ) : (

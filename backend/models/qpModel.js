@@ -42,7 +42,7 @@ const qpSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     version: {
       type: Number,

@@ -155,7 +155,7 @@ const create = async (req, res) => {
       subQuestionsCount,
       actualQuestionsCount,
       combined,
-      iid: req.user.IID
+      iid: req.user.IID,
     });
 
     // Cleanup uploaded file
@@ -219,11 +219,18 @@ const getById = async (req, res) => {
 
 const verify = async (req, res) => {
   try {
-    
+    const { uuid } = req.params;
+    const { validated } = req.body;
+
+    const qp = await QP.findByIdAndUpdate(uuid, { validated }, { new: true });
+
+    if (!qp) return res.status(500).json({ err: "Internal Server Error" });
+
+    res.status(200).json(qp);
   } catch (error) {
-    res.status(500).json({ err: "Internal Server Error" })
+    res.status(500).json({ err: "Internal Server Error" });
   }
-}
+};
 
 module.exports = {
   create,

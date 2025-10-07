@@ -44,6 +44,7 @@ import * as XLSX from "xlsx";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default function StreamsPage() {
+  const role = Cookies.get('role')
   const [streams, setStreams] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [years, setYears] = useState([]);
@@ -506,22 +507,26 @@ export default function StreamsPage() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button
-              onClick={() => setDialogAction("new")}
-              className="flex items-center gap-2 cursor-pointer text-sm"
-              size="sm"
-            >
-              <Plus size={16} />
-              Add Academic Year
-            </Button>
-            <Button
-              onClick={() => setDialogAction("import")}
-              className="flex items-center gap-2 cursor-pointer text-sm"
-              size="sm"
-            >
-              <ImportIcon size={16} />
-              Import Academic Years
-            </Button>
+            {role === "Admin" && (
+              <>
+                <Button
+                  onClick={() => setDialogAction("new")}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                  size="sm"
+                >
+                  <Plus size={16} />
+                  Add Academic Year
+                </Button>
+                <Button
+                  onClick={() => setDialogAction("import")}
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                  size="sm"
+                >
+                  <ImportIcon size={16} />
+                  Import Academic Years
+                </Button>
+              </>
+            )}
             <Button
               variant="outline"
               onClick={() => setDialogAction("export")}
@@ -673,11 +678,7 @@ export default function StreamsPage() {
                   </TableCell>
                   <TableCell className="font-medium align-middle text-sm grid sm:grid-cols-1 lg:grid-cols-2 gap-1 justify-start items-center">
                     {year.degrees.map((el) => (
-                      <Badge
-                        className="w-min"
-                        key={el}
-                        variant="outline"
-                      >
+                      <Badge className="w-min" key={el} variant="outline">
                         {getDegreeName(el)}
                       </Badge>
                     ))}
@@ -690,32 +691,34 @@ export default function StreamsPage() {
                       {year.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedYear(year);
-                          setDialogAction("edit");
-                        }}
-                        className="h-8 cursor-pointer"
-                      >
-                        <Edit size={14} className="mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant={year.isActive ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => handleChangeStatus(year)}
-                        disabled={loading}
-                        className="h-8 cursor-pointer"
-                      >
-                        <Power size={14} className="mr-1" />
-                        {year.isActive ? "Deactivate" : "Activate"}
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {role === "Admin" && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedYear(year);
+                            setDialogAction("edit");
+                          }}
+                          className="h-8 cursor-pointer"
+                        >
+                          <Edit size={14} className="mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant={year.isActive ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => handleChangeStatus(year)}
+                          disabled={loading}
+                          className="h-8 cursor-pointer"
+                        >
+                          <Power size={14} className="mr-1" />
+                          {year.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (

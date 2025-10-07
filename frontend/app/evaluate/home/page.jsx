@@ -138,7 +138,10 @@ export default function EvaluationDashboard() {
       ) : (
         <div className="grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-4">
           {evals.map((evaluation) => (
-            <Link href={`/evaluate/home/check/${evaluation._id}`}>
+            <Link
+              key={evaluation._id}
+              href={`/evaluate/home/check/${evaluation._id}`}
+            >
               <div
                 key={evaluation.id}
                 className="border border-gray-200 rounded-md p-3 bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer group"

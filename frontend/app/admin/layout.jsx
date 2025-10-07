@@ -38,9 +38,11 @@ import {
   LogOut,
   PaperclipIcon,
   SheetIcon,
+  SquareCheckBigIcon,
   UserCheckIcon,
   UserCircleIcon,
   UserIcon,
+  ViewIcon,
   WalletCardsIcon,
 } from "lucide-react";
 import {
@@ -100,6 +102,14 @@ const SidebarFooterMenu = () => {
               sideOffset={4}
             >
               <DropdownMenuGroup>
+                {role === "Admin" && (
+                  <DropdownMenuItem>
+                    <ViewIcon />
+                    <Link href={"/admin/institute/observer-perms"}>
+                      Observer Permissions
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem>
                   <UserCircleIcon />
                   <Link href={"/admin/institute"}>Institute Management</Link>
@@ -140,11 +150,13 @@ export default function RootLayout({ children }) {
   const [iid, setIid] = useState(null);
   const [institute, setInstitute] = useState(null);
   const [token, setToken] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setToken(Cookies.get("token"));
     setIid(Cookies.get("iid"));
+    setRole(Cookies.get("role"));
   }, []);
 
   useEffect(() => {
@@ -217,7 +229,10 @@ export default function RootLayout({ children }) {
                         {/* Subjects */}
                         <SidebarMenuSubItem>
                           <Collapsible className="group/subjects">
-                            <CollapsibleTrigger asChild className="cursor-pointer">
+                            <CollapsibleTrigger
+                              asChild
+                              className="cursor-pointer"
+                            >
                               <SidebarMenuSubButton className="w-full">
                                 <WalletCardsIcon className="h-4 w-4" />
                                 <span>Subjects</span>
@@ -258,13 +273,15 @@ export default function RootLayout({ children }) {
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               <SidebarMenuSub>
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton asChild>
-                                    <Link href="/admin/qp/create">
-                                      Create Paper Excel
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
+                                {role === "Admin" && (
+                                  <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild>
+                                      <Link href="/admin/qp/create">
+                                        Create Paper Excel
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                )}
                                 <SidebarMenuSubItem>
                                   <SidebarMenuSubButton asChild>
                                     <Link href="/admin/qp/master">
@@ -284,7 +301,10 @@ export default function RootLayout({ children }) {
                 {/* Inwards / Outwards */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/inward cursor-pointer" asChild>
+                    <CollapsibleTrigger
+                      className="group/inward cursor-pointer"
+                      asChild
+                    >
                       <SidebarMenuButton className="w-full">
                         <LibraryBigIcon className="h-4 w-4" />
                         <span>Inwards / Outwards</span>
@@ -293,13 +313,15 @@ export default function RootLayout({ children }) {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild>
-                            <Link href="/admin/inward/configure">
-                              Inward Configurations
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
+                        {role === "Admin" && (
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild>
+                              <Link href="/admin/inward/configure">
+                                Inward Configurations
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        )}
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild>
                             <Link href="/admin/inward/view">View Inwards</Link>
@@ -313,7 +335,10 @@ export default function RootLayout({ children }) {
                 {/* Candidates */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/candidate cursor-pointer" asChild>
+                    <CollapsibleTrigger
+                      className="group/candidate cursor-pointer"
+                      asChild
+                    >
                       <SidebarMenuButton className="w-full">
                         <UserIcon className="h-4 w-4" />
                         <span>Candidates</span>
@@ -336,20 +361,24 @@ export default function RootLayout({ children }) {
                             </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild>
-                            <Link href="/admin/candidates/subject">
-                              Assign Subject
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild>
-                            <Link href="/admin/candidates/exam">
-                              Assign Exam
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
+                        {role === "Admin" && (
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild>
+                              <Link href="/admin/candidates/subject">
+                                Assign Subject
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        )}
+                        {role === "Admin" && (
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild>
+                              <Link href="/admin/candidates/exam">
+                                Assign Exam
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        )}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </Collapsible>
@@ -358,7 +387,10 @@ export default function RootLayout({ children }) {
                 {/* Answer Sheets */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger asChild className="group/sheet cursor-pointer">
+                    <CollapsibleTrigger
+                      asChild
+                      className="group/sheet cursor-pointer"
+                    >
                       <SidebarMenuButton className="w-full">
                         <SheetIcon className="h-4 w-4" />
                         <span>Answer Sheets</span>
@@ -367,13 +399,15 @@ export default function RootLayout({ children }) {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild>
-                            <Link href="/admin/answer-sheets/upload">
-                              Upload Answer Sheets
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
+                        {role === "Admin" && (
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild>
+                              <Link href="/admin/answer-sheets/upload">
+                                Upload Answer Sheets
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        )}
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild>
                             <Link href="/admin/answer-sheets/view">
@@ -389,7 +423,10 @@ export default function RootLayout({ children }) {
                 {/* Evaluation */}
                 <SidebarMenuItem>
                   <Collapsible>
-                    <CollapsibleTrigger className="group/eval cursor-pointer" asChild>
+                    <CollapsibleTrigger
+                      className="group/eval cursor-pointer"
+                      asChild
+                    >
                       <SidebarMenuButton className="w-full">
                         <BookOpenCheckIcon className="h-4 w-4" />
                         <span>Evaluation</span>
@@ -402,6 +439,33 @@ export default function RootLayout({ children }) {
                           <SidebarMenuSubButton asChild>
                             <Link href="/admin/evaluation/assign">
                               Assign Examiners
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </SidebarMenuItem>
+
+                {/* Results */}
+                <SidebarMenuItem>
+                  <Collapsible>
+                    <CollapsibleTrigger
+                      className="group/eval cursor-pointer"
+                      asChild
+                    >
+                      <SidebarMenuButton className="w-full">
+                        <SquareCheckBigIcon className="h-4 w-4" />
+                        <span>Results</span>
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-90 rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/evaluation/assign">
+                              View Evaluation Results
                             </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
