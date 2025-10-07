@@ -33,7 +33,8 @@ const login = async (req, res) => {
         }),
         role: user.Role,
         mail: user.Email,
-        iid: user.IID
+        iid: user.IID,
+        changePassword: user.isPasswordChanged,
       });
       return;
     }
@@ -82,7 +83,29 @@ const evalLogin = async (req, res) => {
   }
 };
 
+const changePass = async (req, res) => {
+  try {
+    const hashed = await bcrpyt.hash(req.body.newPassword, 10);
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        password: hashed,
+        isPasswordChanged: true,
+      },
+      { new: true }
+    );
+
+    if (user) {
+      res.status(200).json(user);
+    }
+  } catch (error) {
+    res.status(500).json({ err: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   login,
   evalLogin,
+  changePass,
 };

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,37 +15,37 @@ const userSchema = new mongoose.Schema(
     },
     Email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [true, "Email is required"],
       unique: true,
       trim: true,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
+      match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
     },
     MobileNo: {
       type: String,
       trim: true,
-      default: '',
-      match: [/^\+?\d{10,15}$/, 'Please provide a valid mobile number'],
+      default: "",
+      match: [/^\+?\d{10,15}$/, "Please provide a valid mobile number"],
     },
     AadharNo: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     PANNo: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     Designation: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     Address: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     Username: {
       type: String,
@@ -55,59 +55,59 @@ const userSchema = new mongoose.Schema(
     FacultyID: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     CampusName: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     Role: {
       type: String,
-      default: '',
+      default: "",
     },
 
     // Banking Information
     AccountHolderName: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     BankName: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     BranchName: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     AccountNumber: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     IFSC: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     TIN: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     IID: {
       type: String,
       trim: true,
-      default: '',
+      default: "",
     },
     // Account Security
     password: {
       type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      required: [true, "Password is required"],
+      minlength: [6, "Password must be at least 6 characters"],
     },
     sessionToken: {
       type: String,
@@ -117,8 +117,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isPasswordChanged: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);
