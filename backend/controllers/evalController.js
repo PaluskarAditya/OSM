@@ -16,6 +16,7 @@ const createEvaluation = async (req, res) => {
     const evaluation = new Evaluation({
       ...req.body,
       uuid: generate(),
+      iid: req.user.IID,
       createdBy: req.user?._id || null, // middleware adds user
     });
 

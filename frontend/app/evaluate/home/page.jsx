@@ -137,57 +137,62 @@ export default function EvaluationDashboard() {
         </div>
       ) : (
         <div className="grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-4">
-          {evals.map((evaluation) => (
-            <Link
-              key={evaluation._id}
-              href={`/evaluate/home/check/${evaluation._id}`}
-            >
-              <div
-                key={evaluation.id}
-                className="border border-gray-200 rounded-md p-3 bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+          {evals
+            .filter(
+              (el) => el.status === "Pending" || el.status === "In Progress"
+            )
+            .map((evaluation) => (
+              <Link
+                key={evaluation._id}
+                href={`/evaluate/home/check/${evaluation._id}`}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-sm font-medium text-gray-900 group-hover:text-gray-700 line-clamp-1">
-                    {evaluation.name}
-                  </h3>
-                  <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
-                    Sem {evaluation.semester}
-                  </span>
-                </div>
+                <div
+                  key={evaluation.id}
+                  className="border border-gray-200 rounded-md p-3 bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-sm font-medium text-gray-900 group-hover:text-gray-700 line-clamp-1">
+                      {evaluation.name}
+                    </h3>
+                    <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                      Sem {evaluation.semester}
+                    </span>
+                  </div>
 
-                <p className="text-xs text-gray-600 w-1/2 mb-3 line-clamp-2">
-                  {courses?.length > 0 &&
-                    courses.find((el) => evaluation.course === el.uuid).name}
-                </p>
+                  <p className="text-xs text-gray-600 w-1/2 mb-3 line-clamp-2">
+                    {courses?.length > 0 &&
+                      courses.find((el) => evaluation.course === el.uuid).name}
+                  </p>
 
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                  <span>Due: {formatDate(evaluation.endDate)}</span>
-                  <span>
-                    {evaluation.progress.checked}/{evaluation.progress.uploaded}
-                  </span>
-                </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                    <span>Due: {formatDate(evaluation.endDate)}</span>
+                    <span>
+                      {evaluation.progress.checked}/
+                      {evaluation.progress.uploaded}
+                    </span>
+                  </div>
 
-                <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5">
-                  <div
-                    className="bg-gray-800 h-1.5 rounded-full"
-                    style={{
-                      width: `${getProgressPercentage(evaluation.progress)}%`,
-                    }}
-                  ></div>
-                </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5">
+                    <div
+                      className="bg-gray-800 h-1.5 rounded-full"
+                      style={{
+                        width: `${getProgressPercentage(evaluation.progress)}%`,
+                      }}
+                    ></div>
+                  </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">
-                    {Math.round(getProgressPercentage(evaluation.progress))}%
-                    complete
-                  </span>
-                  <span className="text-xs text-gray-400 group-hover:text-gray-600">
-                    →
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">
+                      {Math.round(getProgressPercentage(evaluation.progress))}%
+                      complete
+                    </span>
+                    <span className="text-xs text-gray-400 group-hover:text-gray-600">
+                      →
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))}
         </div>
       )}
     </div>
