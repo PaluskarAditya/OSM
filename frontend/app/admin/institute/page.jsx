@@ -53,6 +53,11 @@ const UsersTab = () => {
   const [dialogConfPassword, setDialogConfPassword] = useState("");
   const token = Cookies.get("token");
 
+  useEffect(() => {
+    const role = Cookies.get("role");
+    setRole(role);
+  }, [, role]);
+
   const genRandomPass = (length = 12) => {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lower = "abcdefghijklmnopqrstuvwxyz";

@@ -138,9 +138,6 @@ export default function CompletedEvaluations() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="cursor-pointer" />
-              <div className="p-2 bg-gray-900 rounded-lg">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
               <h1 className="text-3xl font-bold tracking-tight text-gray-900">
                 Completed Evaluations
               </h1>
