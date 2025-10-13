@@ -27,42 +27,59 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import * as pdfjs from "pdfjs-dist";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { 
-  ChevronDown, 
-  XIcon, 
-  Search, 
-  Filter, 
-  Download, 
+import {
+  ChevronDown,
+  XIcon,
+  Search,
+  Filter,
+  Download,
   Eye,
   FileText,
   Users,
   BookOpen,
   Calendar,
-  MapPin
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-if (typeof window !== "undefined") {
-  const pdfjs = require("react-pdf").pdfjs;
-  pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-}
-
+// Fix for SSR - Move PDF.js initialization to useEffect
 const Document = dynamic(
   () => import("react-pdf").then((mod) => mod.Document),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="text-center py-8">
+        <p>Loading PDF viewer...</p>
+      </div>
+    ),
+  }
 );
+
 const Page = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
   ssr: false,
+  loading: () => (
+    <div className="text-center py-4">
+      <p>Loading page...</p>
+    </div>
+  ),
 });
+
+// PDF.js worker configuration
+const pdfjs = await import("pdfjs-dist");
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function AnswerSheetsPage() {
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -95,6 +112,22 @@ export default function AnswerSheetsPage() {
   const canvasRef = useRef(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [windowWidth, setWindowWidth] = useState(1200); // Default width for SSR
+
+  // Handle window resize for responsive PDF display
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window !== "undefined") {
+      setWindowWidth(window.innerWidth);
+
+      const handleResize = () => {
+        setWindowWidth(window.innerWidth);
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
 
   useEffect(() => {
     if (!auth_token) {
@@ -106,7 +139,7 @@ export default function AnswerSheetsPage() {
   useEffect(() => {
     const getSheet = async () => {
       if (!selectedRow) return;
-      
+
       setIsSheetLoading(true);
       try {
         const [res, blobres] = await Promise.all([
@@ -129,11 +162,14 @@ export default function AnswerSheetsPage() {
                 Authorization: `Bearer ${auth_token}`,
               },
             }
-          )
+          ),
         ]);
 
         if (res.ok && blobres.ok) {
-          const [data, blobdata] = await Promise.all([res.json(), blobres.json()]);
+          const [data, blobdata] = await Promise.all([
+            res.json(),
+            blobres.json(),
+          ]);
           setSheetBlob(blobdata);
           setEvaluatedAnswer(data);
         }
@@ -143,7 +179,7 @@ export default function AnswerSheetsPage() {
         setIsSheetLoading(false);
       }
     };
-    
+
     getSheet();
   }, [selectedRow, tabValue, API_URL, auth_token, answers]);
 
@@ -316,7 +352,13 @@ export default function AnswerSheetsPage() {
       data = data.filter((el) => el.subject === selectedSubject.uuid);
     }
     setFilteredAnswers(data);
-  }, [selectedCombined, selectedSubject, selectedCourse, selectedSemester, answers]);
+  }, [
+    selectedCombined,
+    selectedSubject,
+    selectedCourse,
+    selectedSemester,
+    answers,
+  ]);
 
   const excelAnswers = () => {
     if (filteredAnswers.length === 0) {
@@ -330,7 +372,9 @@ export default function AnswerSheetsPage() {
         Name: getCandidateName(el.candidateId),
         Stream: getStreamName(el.combined),
         Course: getCourseName(el.combined),
-        "Subject (Code)": `${selectedSubject?.name || "N/A"} (${selectedSubject?.code || "N/A"})`,
+        "Subject (Code)": `${selectedSubject?.name || "N/A"} (${
+          selectedSubject?.code || "N/A"
+        })`,
         ExamAssignmentId: el.uuid,
         CandidateAttendance: el.attendance ? "PRESENT" : "ABSENT",
         AnswerSheetUploaded: el.sheetUploaded ? "Yes" : "No",
@@ -339,7 +383,10 @@ export default function AnswerSheetsPage() {
       const worksheet = XLSX.utils.json_to_sheet(mappedData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Answer Sheets");
-      XLSX.writeFile(workbook, `AnswerSheets_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(
+        workbook,
+        `AnswerSheets_${new Date().toISOString().split("T")[0]}.xlsx`
+      );
       toast.success("Data exported successfully");
     } catch (error) {
       toast.error("Failed to export data");
@@ -359,15 +406,12 @@ export default function AnswerSheetsPage() {
         return;
       }
 
-      const res = await fetch(
-        `${API_URL}/api/v1/answer-sheet/${fileName}`,
-        {
-          headers: { Authorization: `Bearer ${auth_token}` },
-        }
-      );
-      
+      const res = await fetch(`${API_URL}/api/v1/answer-sheet/${fileName}`, {
+        headers: { Authorization: `Bearer ${auth_token}` },
+      });
+
       if (!res.ok) throw new Error("Download failed");
-      
+
       const blob = await res.blob();
       saveAs(blob, fileName || "answer-sheet.pdf");
       toast.success("File downloaded successfully");
@@ -381,16 +425,32 @@ export default function AnswerSheetsPage() {
       toast.error("No evaluated sheet available");
       return;
     }
-    
+
     canvasRef.current.toBlob((blob) => {
       if (blob) {
-        saveAs(blob, `evaluated-${getFileName()?.replace('.pdf', '') || 'answer-sheet'}.png`);
+        saveAs(
+          blob,
+          `evaluated-${
+            getFileName()?.replace(".pdf", "") || "answer-sheet"
+          }.png`
+        );
         toast.success("Evaluated sheet downloaded");
       }
     });
   };
 
-  const hasActiveFilters = selectedCombined || selectedCourse || selectedSubject || selectedSemester || selectedCampus || search;
+  const hasActiveFilters =
+    selectedCombined ||
+    selectedCourse ||
+    selectedSubject ||
+    selectedSemester ||
+    selectedCampus ||
+    search;
+
+  // Calculate PDF width based on window size - safe for SSR
+  const getPdfWidth = () => {
+    return Math.min(600, windowWidth - 100);
+  };
 
   // Loading skeleton component
   const TableSkeleton = () => (
@@ -411,7 +471,10 @@ export default function AnswerSheetsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 w-full p-4 lg:p-6 gap-4 lg:gap-6 flex flex-col">
       {/* Answer Sheet Viewer Dialog */}
-      <Dialog open={viewAnswerSheetModal} onOpenChange={setViewAnswerSheetModal}>
+      <Dialog
+        open={viewAnswerSheetModal}
+        onOpenChange={setViewAnswerSheetModal}
+      >
         <DialogContent className="w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
@@ -419,28 +482,44 @@ export default function AnswerSheetsPage() {
               Answer Sheet Viewer
             </DialogTitle>
             <DialogDescription>
-              View scanned and evaluated answer sheets for {getCandidateName(filteredAnswers.find(el => el._id === selectedRow)?.candidateId)}
+              View scanned and evaluated answer sheets for{" "}
+              {getCandidateName(
+                filteredAnswers.find((el) => el._id === selectedRow)
+                  ?.candidateId
+              )}
             </DialogDescription>
           </DialogHeader>
-          
-          <Tabs value={tabValue} onValueChange={setTabValue} className="flex-1 flex flex-col">
+
+          <Tabs
+            value={tabValue}
+            onValueChange={setTabValue}
+            className="flex-1 flex flex-col"
+          >
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="scanned" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Scanned Copy
               </TabsTrigger>
-              <TabsTrigger value="evaluated" className="flex items-center gap-2">
+              <TabsTrigger
+                value="evaluated"
+                className="flex items-center gap-2"
+              >
                 <BookOpen className="h-4 w-4" />
                 Evaluated Copy
               </TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="scanned" className="flex-1 flex flex-col gap-4 m-0">
+
+            <TabsContent
+              value="scanned"
+              className="flex-1 flex flex-col gap-4 m-0"
+            >
               {isSheetLoading ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <Skeleton className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading document...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Loading document...
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -456,7 +535,10 @@ export default function AnswerSheetsPage() {
                     />
                   </div>
                   <div className="flex gap-3 flex-wrap">
-                    <Button onClick={handleDownloadScanned} className="flex items-center gap-2">
+                    <Button
+                      onClick={handleDownloadScanned}
+                      className="flex items-center gap-2"
+                    >
                       <Download className="h-4 w-4" />
                       Download Scanned
                     </Button>
@@ -468,13 +550,18 @@ export default function AnswerSheetsPage() {
                 </>
               )}
             </TabsContent>
-            
-            <TabsContent value="evaluated" className="flex-1 flex flex-col gap-4 m-0">
+
+            <TabsContent
+              value="evaluated"
+              className="flex-1 flex flex-col gap-4 m-0"
+            >
               {isSheetLoading ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <Skeleton className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading evaluated document...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Loading evaluated document...
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -490,7 +577,15 @@ export default function AnswerSheetsPage() {
                           </div>
                         }
                       >
-                        <Page pageNumber={pageNumber} width={Math.min(600, window.innerWidth - 100)} />
+                        <Page
+                          pageNumber={pageNumber}
+                          width={getPdfWidth()}
+                          loading={
+                            <div className="text-center py-4">
+                              <p>Loading page {pageNumber}...</p>
+                            </div>
+                          }
+                        />
                       </Document>
                       <canvas
                         ref={canvasRef}
@@ -500,7 +595,7 @@ export default function AnswerSheetsPage() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                       <div className="flex items-center gap-3">
@@ -508,7 +603,7 @@ export default function AnswerSheetsPage() {
                           variant="outline"
                           size="sm"
                           disabled={pageNumber <= 1}
-                          onClick={() => setPageNumber(p => p - 1)}
+                          onClick={() => setPageNumber((p) => p - 1)}
                         >
                           Previous
                         </Button>
@@ -519,13 +614,16 @@ export default function AnswerSheetsPage() {
                           variant="outline"
                           size="sm"
                           disabled={pageNumber >= (numPages || 1)}
-                          onClick={() => setPageNumber(p => p + 1)}
+                          onClick={() => setPageNumber((p) => p + 1)}
                         >
                           Next
                         </Button>
                       </div>
-                      
-                      <Button onClick={handleDownloadEvaluated} className="flex items-center gap-2">
+
+                      <Button
+                        onClick={handleDownloadEvaluated}
+                        className="flex items-center gap-2"
+                      >
                         <Download className="h-4 w-4" />
                         Download Evaluated
                       </Button>
@@ -535,7 +633,7 @@ export default function AnswerSheetsPage() {
               )}
             </TabsContent>
           </Tabs>
-          
+
           <DialogFooter className="flex-shrink-0 pt-4 border-t">
             <Button
               variant="outline"
@@ -547,6 +645,7 @@ export default function AnswerSheetsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Rest of your component remains the same */}
       {/* Header Section */}
       <Card className="shadow-sm border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader className="pb-3">
@@ -582,11 +681,14 @@ export default function AnswerSheetsPage() {
                   className="pl-10 w-full lg:w-80 bg-white/50 backdrop-blur-sm"
                 />
               </div>
-              
+
               <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-start">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2 shadow-sm">
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 shadow-sm"
+                    >
                       <Filter className="h-4 w-4" />
                       Actions
                       <ChevronDown className="h-4 w-4" />
@@ -594,7 +696,10 @@ export default function AnswerSheetsPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={excelAnswers} className="flex items-center gap-2">
+                      <DropdownMenuItem
+                        onClick={excelAnswers}
+                        className="flex items-center gap-2"
+                      >
                         <Download className="h-4 w-4" />
                         Export to Excel
                       </DropdownMenuItem>
@@ -639,9 +744,14 @@ export default function AnswerSheetsPage() {
                 </label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between bg-white/50 backdrop-blur-sm">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between bg-white/50 backdrop-blur-sm"
+                    >
                       <span className="truncate">
-                        {selectedCombined ? selectedCombined.name : "Select stream"}
+                        {selectedCombined
+                          ? selectedCombined.name
+                          : "Select stream"}
                       </span>
                       <ChevronDown className="h-4 w-4 flex-shrink-0" />
                     </Button>
@@ -658,7 +768,9 @@ export default function AnswerSheetsPage() {
                         </DropdownMenuItem>
                       ))
                     ) : (
-                      <DropdownMenuItem disabled>No streams available</DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                        No streams available
+                      </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -673,16 +785,23 @@ export default function AnswerSheetsPage() {
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between bg-white/50 backdrop-blur-sm">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between bg-white/50 backdrop-blur-sm"
+                      >
                         <span className="truncate">
-                          {selectedCourse ? selectedCourse.name : "Select course"}
+                          {selectedCourse
+                            ? selectedCourse.name
+                            : "Select course"}
                         </span>
                         <ChevronDown className="h-4 w-4 flex-shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)] max-h-60 overflow-auto">
                       {courses
-                        .filter((course) => selectedCombined.course.includes(course.uuid))
+                        .filter((course) =>
+                          selectedCombined.course.includes(course.uuid)
+                        )
                         .map((course) => (
                           <DropdownMenuItem
                             key={course.uuid}
@@ -706,9 +825,14 @@ export default function AnswerSheetsPage() {
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between bg-white/50 backdrop-blur-sm">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between bg-white/50 backdrop-blur-sm"
+                      >
                         <span className="truncate">
-                          {selectedSemester ? `Semester ${selectedSemester}` : "Select semester"}
+                          {selectedSemester
+                            ? `Semester ${selectedSemester}`
+                            : "Select semester"}
                         </span>
                         <ChevronDown className="h-4 w-4 flex-shrink-0" />
                       </Button>
@@ -739,9 +863,14 @@ export default function AnswerSheetsPage() {
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between bg-white/50 backdrop-blur-sm">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between bg-white/50 backdrop-blur-sm"
+                      >
                         <span className="truncate">
-                          {selectedSubject ? selectedSubject.name : "Select subject"}
+                          {selectedSubject
+                            ? selectedSubject.name
+                            : "Select subject"}
                         </span>
                         <ChevronDown className="h-4 w-4 flex-shrink-0" />
                       </Button>
@@ -771,48 +900,65 @@ export default function AnswerSheetsPage() {
             {/* Active Filters Badges */}
             {hasActiveFilters && (
               <div className="flex flex-wrap gap-2 pt-2 border-t">
-                <span className="text-sm text-muted-foreground">Active filters:</span>
+                <span className="text-sm text-muted-foreground">
+                  Active filters:
+                </span>
                 {selectedCombined && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     Stream: {selectedCombined.name}
-                    <XIcon 
-                      className="h-3 w-3 cursor-pointer" 
+                    <XIcon
+                      className="h-3 w-3 cursor-pointer"
                       onClick={() => setSelectedCombined(null)}
                     />
                   </Badge>
                 )}
                 {selectedCourse && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     Course: {selectedCourse.name}
-                    <XIcon 
-                      className="h-3 w-3 cursor-pointer" 
+                    <XIcon
+                      className="h-3 w-3 cursor-pointer"
                       onClick={() => setSelectedCourse(null)}
                     />
                   </Badge>
                 )}
                 {selectedSemester && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     Semester: {selectedSemester}
-                    <XIcon 
-                      className="h-3 w-3 cursor-pointer" 
+                    <XIcon
+                      className="h-3 w-3 cursor-pointer"
                       onClick={() => setSelectedSemester(null)}
                     />
                   </Badge>
                 )}
                 {selectedSubject && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     Subject: {selectedSubject.name}
-                    <XIcon 
-                      className="h-3 w-3 cursor-pointer" 
+                    <XIcon
+                      className="h-3 w-3 cursor-pointer"
                       onClick={() => setSelectedSubject(null)}
                     />
                   </Badge>
                 )}
                 {search && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     Search: {search}
-                    <XIcon 
-                      className="h-3 w-3 cursor-pointer" 
+                    <XIcon
+                      className="h-3 w-3 cursor-pointer"
                       onClick={() => setSearch("")}
                     />
                   </Badge>
@@ -837,23 +983,35 @@ export default function AnswerSheetsPage() {
                   <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b">
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="w-12 border-r font-semibold text-gray-700"></TableHead>
-                      <TableHead className="font-semibold text-gray-700">#</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Assignment ID</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Candidate Name</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Roll No</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Attendance</TableHead>
-                      <TableHead className="font-semibold text-gray-700">Sheet Uploaded</TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        #
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        Assignment ID
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        Candidate Name
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        Roll No
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        Attendance
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        Sheet Uploaded
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredAnswers.length > 0 ? (
                       filteredAnswers.map((el, i) => (
-                        <TableRow 
-                          key={el.uuid} 
+                        <TableRow
+                          key={el.uuid}
                           className={`cursor-pointer transition-colors ${
-                            selectedRow === el._id 
-                              ? 'bg-blue-50 border-l-4 border-l-blue-500' 
-                              : 'hover:bg-gray-50/80'
+                            selectedRow === el._id
+                              ? "bg-blue-50 border-l-4 border-l-blue-500"
+                              : "hover:bg-gray-50/80"
                           }`}
                           onClick={() => handleRowSelect(el._id)}
                         >
@@ -880,17 +1038,29 @@ export default function AnswerSheetsPage() {
                             {el.rollPRN?.split(".")[0] || "N/A"}
                           </TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={el.attendance ? "default" : "destructive"} 
-                              className={el.attendance ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
+                            <Badge
+                              variant={
+                                el.attendance ? "default" : "destructive"
+                              }
+                              className={
+                                el.attendance
+                                  ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                  : ""
+                              }
                             >
                               {el.attendance ? "PRESENT" : "ABSENT"}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={el.sheetUploaded ? "default" : "secondary"} 
-                              className={el.sheetUploaded ? "bg-blue-100 text-blue-800 hover:bg-blue-100" : ""}
+                            <Badge
+                              variant={
+                                el.sheetUploaded ? "default" : "secondary"
+                              }
+                              className={
+                                el.sheetUploaded
+                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                  : ""
+                              }
                             >
                               {el.sheetUploaded ? "Yes" : "No"}
                             </Badge>
@@ -899,11 +1069,16 @@ export default function AnswerSheetsPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell
+                          colSpan={7}
+                          className="text-center py-8 text-muted-foreground"
+                        >
                           <div className="flex flex-col items-center gap-2">
                             <FileText className="h-8 w-8 text-gray-300" />
                             <p>No answer sheets found</p>
-                            <p className="text-sm">Try adjusting your filters or search term</p>
+                            <p className="text-sm">
+                              Try adjusting your filters or search term
+                            </p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -916,9 +1091,12 @@ export default function AnswerSheetsPage() {
             <div className="p-12 text-center">
               <div className="flex flex-col items-center gap-4 text-muted-foreground">
                 <Filter className="h-12 w-12 text-gray-300" />
-                <h3 className="text-lg font-medium">Select filters to view answer sheets</h3>
+                <h3 className="text-lg font-medium">
+                  Select filters to view answer sheets
+                </h3>
                 <p className="text-sm max-w-md">
-                  Choose a stream, course, semester, and subject to display the relevant answer sheets.
+                  Choose a stream, course, semester, and subject to display the
+                  relevant answer sheets.
                 </p>
               </div>
             </div>
