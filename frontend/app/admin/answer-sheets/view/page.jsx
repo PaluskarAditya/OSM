@@ -114,6 +114,14 @@ export default function AnswerSheetsPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [windowWidth, setWindowWidth] = useState(1200); // Default width for SSR
 
+  useEffect(() => {
+    if (selectedRow) {
+      const sheet = answers.find((sheet) => sheet._id === selectedRow);
+      if (!sheet) return toast.error("Sheet not found");
+      setSelectedAnswer(sheet);
+    }
+  }, [selectedAnswer, selectedRow]);
+
   // Handle window resize for responsive PDF display
   useEffect(() => {
     // Only run on client side
@@ -500,13 +508,15 @@ export default function AnswerSheetsPage() {
                 <FileText className="h-4 w-4" />
                 Scanned Copy
               </TabsTrigger>
-              <TabsTrigger
-                value="evaluated"
-                className="flex items-center gap-2"
-              >
-                <BookOpen className="h-4 w-4" />
-                Evaluated Copy
-              </TabsTrigger>
+              {selectedAnswer && selectedAnswer.isEvaluated === true && (
+                <TabsTrigger
+                  value="evaluated"
+                  className="flex items-center gap-2"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Evaluated Copy
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent
@@ -526,7 +536,7 @@ export default function AnswerSheetsPage() {
                 <>
                   <div className="flex-1 min-h-[400px] border rounded-lg overflow-hidden bg-gray-50">
                     <iframe
-                      src={`${API_URL}/api/v1/answer-sheet/iframe/${getFileName()}`}
+                      src={`${API_URL}/api/v1/answer-sheet/iframe/${selectedAnswer?.path}`}
                       title="Scanned Answer Sheet"
                       width="100%"
                       height="100%"

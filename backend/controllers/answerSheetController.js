@@ -1,16 +1,31 @@
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
+const mongoose = require("mongoose");
 const fs = require("fs");
 const AnswerSheet = require("../models/answerSheetModel");
 const Candidate = require("../models/candidateModel");
 const QP = require("../models/qpModel");
+const Subject = require("../models/subjectModel");
 const generateCustomId = require("../lib/generate");
 const syncEvaluation = require("../lib/sync");
+const forwardToUploadServer = require("../lib/fileSaver");
+require("dotenv").config();
+
+let bucket;
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
+mongoose.connection.once("open", () => {
+  bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "uploads",
+  });
+  console.log("GridFSBucket ready 🎯");
+});
 
 const upload = async (req, res) => {
   try {
-    console.log("Files:", req.files, "Body:", req.body);
-
     const files = req.files;
     const { combined, course, subject } = req.body;
 
@@ -20,109 +35,126 @@ const upload = async (req, res) => {
 
     if (!combined || !course || !subject) {
       return res.status(400).json({
-        error: "Missing required fields: combined, course or subject",
+        error: "Missing required fields: combined, course, or subject",
       });
     }
 
-    const savedFiles = await Promise.all(
-      files.map(async (file) => {
-        // ✅ Generate assignmentId
-        const assignmentId = generateCustomId();
+    const semesterDoc = await Subject.findOne({ uuid: subject }).select(
+      "semester"
+    );
+    const semester = semesterDoc.semester;
 
-        // ✅ Extract Roll & PRN from original filename
-        const match = file.originalname.match(
-          /^([\w-]+)\s*\[([^\]]+)\]\.pdf$/i
-        );
-        if (!match) {
-          throw new Error(`Invalid filename format: ${file.originalname}`);
-        }
-        const roll = match[1];
-        const prn = match[2];
-        const combinedKey = `${roll} [${prn}]`;
+    const savedFiles = [];
 
-        // ✅ Rename file to hide Roll/PRN
-        const randomName = `${uuidv4()}.pdf`;
-        const newPath = path.join("uploads", randomName);
+    // Single loop: upload to GridFS + create AnswerSheet
+    for (let file of files) {
+      const match = file.originalname.match(/^([\w-]+)\s*\[([^\]]+)\]\.pdf$/i);
+      if (!match) {
+        throw new Error(`Invalid filename format: ${file.originalname}`);
+      }
+      const roll = match[1];
+      const prn = match[2];
+      const combinedKey = `${roll} [${prn}]`;
 
-        // Move file
-        fs.renameSync(file.path, newPath);
+      const assignmentId = generateCustomId();
+      const randomName = `${uuidv4()}.pdf`;
+      const virtualPath = `${course}/${semester}/${subject}`;
+      const filename = `${randomName}`;
 
-        // ✅ Link to candidate if exists
-        const existCandidate = await Candidate.findOne({ RollNo: roll });
-        let candidateLinked = false;
-        let attendance = false;
+      // Upload file to GridFS
+      const uploadStream = bucket.openUploadStream(filename, {
+        contentType: file.mimetype,
+        metadata: {
+          course,
+          semester,
+          subject,
+          originalName: file.originalname,
+          path: virtualPath,
+          uploadDate: new Date(),
+        },
+      });
+      uploadStream.end(file.buffer);
 
-        if (existCandidate) {
-          if (existCandidate.course !== course) {
-            throw new Error(
-              `Candidate ${roll} is not enrolled in course ${course} for file ${file.originalname}`
-            );
-          }
-          candidateLinked = true;
-          attendance = true;
+      await new Promise((resolve, reject) => {
+        uploadStream.on("finish", resolve);
+        uploadStream.on("error", reject);
+      });
 
-          await Candidate.findOneAndUpdate(
-            { RollNo: roll },
-            {
-              $set: { sheetUploaded: true },
-              $addToSet: { subjects: subject },
-              $set: { [`bookletNames.${subject}`]: assignmentId },
-              assignmentId,
-            },
-            { new: true }
+      // Candidate check
+      const existCandidate = await Candidate.findOne({ RollNo: roll });
+      let candidateLinked = false;
+      let attendance = false;
+
+      if (existCandidate) {
+        if (existCandidate.course !== course) {
+          throw new Error(
+            `Candidate ${roll} not enrolled in course ${course} for file ${file.originalname}`
           );
         }
+        candidateLinked = true;
+        attendance = true;
 
-        // ✅ Save AnswerSheet with assignmentId + random file
-        const answerSheet = new AnswerSheet({
-          name: existCandidate ? existCandidate.RollNo : "Unknown",
-          uuid: generateCustomId(),
-          assignmentId,
-          path: newPath,
-          combined,
-          course,
-          subject,
-          rollPRN: combinedKey, // keep only internally
-          candidateId: combinedKey,
-          sheetUploaded: true,
-          attendance,
-          iid: req.user.IID,
-          originalName: file.originalname, // safe reference
-        });
-
-        await answerSheet.save();
-
-        const ids = await AnswerSheet.find({ course, subject }).select(
-          "assignmentId"
-        );
-
-        const assignmentIds = ids.map((el) => el.assignmentId);
-
-        // Update QP and add all assignmentIds (deduplicated automatically)
-        await QP.findOneAndUpdate(
-          { course, subject },
-          { $addToSet: { assignmentId: { $each: assignmentIds } } },
+        await Candidate.findOneAndUpdate(
+          { RollNo: roll },
+          {
+            $set: { sheetUploaded: true },
+            $addToSet: { subjects: subject },
+            $set: { [`bookletNames.${subject}`]: assignmentId },
+            assignmentId,
+          },
           { new: true }
         );
+      }
 
-        return {
-          assignmentId,
-          originalName: file.originalname,
-          size: file.size,
-          candidateLinked,
-        };
-      })
-    );
+      // Save AnswerSheet
+      const answerSheet = new AnswerSheet({
+        name: existCandidate ? existCandidate.RollNo : "Unknown",
+        uuid: generateCustomId(),
+        assignmentId,
+        path: filename, // GridFS filename
+        combined,
+        course,
+        subject,
+        rollPRN: combinedKey,
+        candidateId: combinedKey,
+        sheetUploaded: true,
+        attendance,
+        iid: req.user.IID,
+        originalName: file.originalname,
+      });
 
+      await answerSheet.save();
+
+      // Update QP
+      const ids = await AnswerSheet.find({ course, subject }).select(
+        "assignmentId"
+      );
+      const assignmentIds = ids.map((el) => el.assignmentId);
+      await QP.findOneAndUpdate(
+        { course, subject },
+        { $addToSet: { assignmentId: { $each: assignmentIds } } },
+        { new: true }
+      );
+
+      savedFiles.push({
+        assignmentId,
+        originalName: file.originalname,
+        size: file.size,
+        candidateLinked,
+      });
+    }
+
+    // Sync evaluation after all files are processed
     await syncEvaluation(course, subject, req.user?._id);
 
+    // Send response after everything is done
     res.status(200).json({
       success: true,
       message: `${files.length} file(s) uploaded successfully`,
       files: savedFiles,
     });
   } catch (error) {
-    console.error("Upload error:", error.message);
+    console.error("Upload error:", error);
     res.status(500).json({ error: `Upload failed: ${error.message}` });
   }
 };
@@ -136,16 +168,22 @@ const getFile = async (req, res) => {
       return res.status(404).json({ error: "Answer sheet not found" });
     }
 
-    // build file path
-    const filePath = path.resolve(answerSheet.path); // normalize, prevent traversal attacks
+    const filename = answerSheet.path; // this is the GridFS filename we stored
 
-    // send file securely
+    // Stream file from GridFS
+    const downloadStream = bucket.openDownloadStreamByName(filename);
+
     res.setHeader("Content-Type", "application/pdf");
-    res.sendFile(filePath, (err) => {
-      if (err) {
-        console.error("File sending error:", err);
-        res.status(404).json({ error: "File not found" });
-      }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${answerSheet.originalName}"`
+    );
+
+    downloadStream.pipe(res);
+
+    downloadStream.on("error", (err) => {
+      console.error("GridFS download error:", err);
+      res.status(404).json({ error: "File not found in GridFS" });
     });
   } catch (error) {
     console.error("Fetch error:", error.message);

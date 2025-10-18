@@ -1,58 +1,49 @@
 const express = require("express");
-const fs = require('fs');
-const path = require('path');
+require("dotenv").config();
+const mongoose = require("mongoose");
+const multer = require("multer");
+const router = express.Router();
+
 const {
   getAll,
   upload,
   getFile,
   getFullFile,
   status,
-  eval
+  eval,
 } = require("../controllers/answerSheetController");
-const router = express.Router();
 
-// Configure multer for file uploads
-const multer = require("multer");
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = "uploads/";
-    fs.mkdir(uploadDir, { recursive: true }, (err) => {
-      if (err) {
-        return cb(err);
-      }
-      cb(null, uploadDir);
-    });
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext);
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${basename}-${uniqueSuffix}${ext}`);
-  },
+// ----------------------
+// MongoDB & GridFS Setup
+// ----------------------
+let bucket;
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
+mongoose.connection.once("open", () => {
+  bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "uploads",
+  });
+  console.log("GridFSBucket ready 🎯");
 });
 
-const uploader = multer({
-  storage: storage,
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
-    ];
+// ----------------------
+// Multer Setup (memory)
+// ----------------------
+const storage = multer.memoryStorage();
+const uploader = multer({ storage });
 
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only Excel and PDF files are allowed!"), false);
-    }
-  },
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 10MB limit
-  },
-});
-
+// ----------------------
+// Routes
+// ----------------------
 router.get("/", getAll);
+
+// Upload multiple files
 router.post("/multiple", uploader.array("files"), upload);
+
+// Other existing routes
 router.get("/:assignmentId", getFile);
 router.get("/full/:assignmentId", getFullFile);
 router.put("/status/:assignmentId", status);

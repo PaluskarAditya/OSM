@@ -4,16 +4,21 @@ const cors = require("cors");
 const conn = require("./lib/db");
 const authMiddleware = require("./middlewares/authMiddleware");
 const Combined = require("./models/combinedModel");
+const mongoose = require("mongoose");
 
 //TEMP IMPORTS
 const path = require("path");
 const fs = require("fs");
 const AnswerSheet = require("./models/answerSheetModel");
 
-app.use(
-  "/.well-known",
-  express.static(path.join(process.cwd(), "public"))
-);
+let bucket;
+mongoose.connection.once("open", () => {
+  bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "uploads",
+  });
+});
+
+app.use("/.well-known", express.static(path.join(process.cwd(), "public")));
 
 require("dotenv").config();
 
@@ -70,17 +75,34 @@ app.use(
 // Custom route to view sheets in iframe
 app.get("/api/v1/answer-sheet/iframe/:filename", async (req, res) => {
   try {
+    console.log("IFrame route hit");
+
     const { filename } = req.params;
 
-    const filepath = path.join(__dirname, "uploads/", filename);
+    // Find the answer sheet by filename stored in GridFS
+    const answerSheet = await AnswerSheet.findOne({ path: filename });
+    if (!answerSheet) {
+      return res.status(404).json({ err: "Answer sheet not found" });
+    }
 
-    res.sendFile(filepath, (err) => {
-      if (err) {
-        console.error(err);
-        res.status(404).json({ err: "File not found" });
-      }
+    // Stream file from GridFS
+    const downloadStream = bucket.openDownloadStreamByName(filename);
+
+    res.setHeader("Content-Type", "application/pdf");
+    // Inline display for iframe
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${answerSheet.originalName}"`
+    );
+
+    downloadStream.pipe(res);
+
+    downloadStream.on("error", (err) => {
+      console.error("GridFS download error:", err);
+      res.status(404).json({ err: "File not found in GridFS" });
     });
   } catch (error) {
+    console.error("Fetch error:", error);
     res.status(500).json({ err: "Internal Server Error" });
   }
 });

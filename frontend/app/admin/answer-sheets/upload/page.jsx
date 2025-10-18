@@ -291,6 +291,7 @@ const UploadDialog = ({ open, onOpenChange, dialogType }) => {
       formData.append("combined", selectedCombined.uuid || selectedCombined.id);
       formData.append("course", selectedCourse.uuid || selectedCourse.id);
       formData.append("subject", selectedSubject.uuid || selectedSubject.id);
+      formData.append("semester", selectedCourse.semester);
 
       const backendUrl =
         process.env.NEXT_PUBLIC_BACKEND_URL;
