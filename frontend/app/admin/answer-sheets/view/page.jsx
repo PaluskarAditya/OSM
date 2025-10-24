@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Table,
   TableBody,
@@ -658,13 +659,16 @@ export default function AnswerSheetsPage() {
       {/* Rest of your component remains the same */}
       {/* Header Section */}
       <Card className="shadow-sm border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="pb-3">
+        <CardHeader className="">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Answer Sheets Management
-              </CardTitle>
-              <CardDescription className="text-base mt-2">
+              <div className="flex gap-1 justify-start items-center">
+                <SidebarTrigger className="cursor-pointer" />
+                <CardTitle className="text-lg font-bold">
+                  Answer Sheets Management
+                </CardTitle>
+              </div>
+              <CardDescription className="text-base">
                 View and manage all answer sheets in one place
               </CardDescription>
             </div>

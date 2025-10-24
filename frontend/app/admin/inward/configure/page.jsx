@@ -18,13 +18,14 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectGroup,
-    SelectItem
-} from '@/components/ui/select'
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+} from "@/components/ui/select";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -93,7 +94,7 @@ export default function InwardPage() {
             courseRes.json(),
             subjectRes.json(),
             inwardRes.json(),
-            userRes.json()
+            userRes.json(),
           ]);
 
         setDegrees(degreeData);
@@ -114,8 +115,8 @@ export default function InwardPage() {
   }, [token]);
 
   useEffect(() => {
-    if (selectedUser) console.log(selectedUser)
-  }, [selectedUser])
+    if (selectedUser) console.log(selectedUser);
+  }, [selectedUser]);
 
   const generateUUID = () =>
     [...Array(6)]
@@ -203,9 +204,12 @@ export default function InwardPage() {
     <div className="bg-white p-5 md:p-5 gap-4 w-full flex flex-col">
       <div className="bg-white flex gap-5 flex-col">
         <div className="flex flex-col">
-          <h1 className="text-base md:text-lg font-medium">
-            Inward Management
-          </h1>
+          <div className="flex gap-1 justify-start items-center">
+            <SidebarTrigger className="cursor-pointer" />
+            <h1 className="text-base md:text-lg font-medium">
+              Inward Management
+            </h1>
+          </div>
           <p className="text-xs md:text-sm text-gray-500">
             Create inwards to manage records
           </p>

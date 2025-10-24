@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   BookImage,
   ChevronDown,
@@ -556,9 +557,12 @@ export default function EvaluationPage() {
 
       {/* Header Section */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-lg md:text-xl font-semibold text-gray-900">
-          Evaluation Management
-        </h1>
+        <div className="flex gap-1 justify-start items-center">
+          <SidebarTrigger className="cursor-pointer" />
+          <h1 className="text-lg md:text-xl font-semibold text-gray-900">
+            Evaluation Management
+          </h1>
+        </div>
         <p className="text-sm text-gray-600">
           Assign examiners to complete evaluation process
         </p>

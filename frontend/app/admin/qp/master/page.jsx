@@ -13,6 +13,7 @@ import {
   XCircle,
   ChevronDown,
 } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Table,
   TableBody,
@@ -331,9 +332,12 @@ const QuestionPaperMasterPage = () => {
     <div className="min-h-screen bg-white p-6 sm:p-6 lg:p-6">
       <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-0">
-          <h1 className="font-medium text-sm text-gray-900">
-            Question Paper Management
-          </h1>
+          <div className="flex justify-start items-center gap-1">
+            <SidebarTrigger className="cursor-pointer" />
+            <h1 className="font-medium text-lg text-gray-900">
+              Question Paper Management
+            </h1>
+          </div>
           <p className="text-gray-600 text-sm">
             Efficiently view and manage all question papers
           </p>

@@ -582,6 +582,259 @@ const UsersTab = () => {
       )}
 
       {role === "Admin" && (
+        <Dialog open={action === "edit"} onOpenChange={() => setAction("")}>
+          <DialogContent className="min-w-2/4  rounded-lg">
+            <DialogHeader className="pb-4 border-b">
+              <DialogTitle className="text-xl font-semibold">
+                Add New User
+              </DialogTitle>
+              <DialogDescription>
+                Add new users to the institute with appropriate permissions
+              </DialogDescription>
+            </DialogHeader>
+            <main className="grid w-full max-h-[50vh] grid-cols-2 gap-4 px-3 overflow-y-auto">
+              <div className="flex flex-col gap-2 col-span-2">
+                <label className="text-sm font-medium">Role</label>
+                <Select
+                  value={user.Role}
+                  onValueChange={(value) => setUser({ ...user, Role: value })}
+                >
+                  <SelectTrigger className="w-full rounded-md">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Observer">Observer</SelectItem>
+                      <SelectItem value="Moderator">Moderator</SelectItem>
+                      <SelectItem value="Photocopy Viewer">
+                        Photocopy Viewer
+                      </SelectItem>
+                      <SelectItem value="Examiner">Examiner</SelectItem>
+                      <SelectItem value="Scanner">Scanner</SelectItem>
+                      <SelectItem value="Head Examiner">
+                        Head Examiner
+                      </SelectItem>
+                      <SelectItem value="COE Login">COE Login</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">First Name</label>
+                <Input
+                  className="rounded-md"
+                  name="FirstName"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Last Name</label>
+                <Input
+                  className="rounded-md"
+                  name="LastName"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Mobile</label>
+                <Input
+                  className="rounded-md"
+                  name="MobileNo"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  className="rounded-md"
+                  name="Email"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Faculty ID</label>
+                <Input
+                  className="rounded-md"
+                  name="FacultyID"
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Campus</label>
+                <Input
+                  className="rounded-md"
+                  name="CampusName"
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">Bank Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Account Holder Name
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="AccountHolderName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Bank Name</label>
+                    <Input
+                      className="rounded-md"
+                      name="BankName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Branch Name</label>
+                    <Input
+                      className="rounded-md"
+                      name="BranchName"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Account Number
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="AccountNumber"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">IFSC Code</label>
+                    <Input
+                      className="rounded-md"
+                      name="IFSC"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">TIN</label>
+                    <Input
+                      className="rounded-md"
+                      name="TIN"
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">Security</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    className="accent-blue-500 rounded"
+                    name="AutoGeneratePassword"
+                    checked={autoGenPass}
+                    onChange={() => setAutoGenPass(!autoGenPass)}
+                  />
+                  <label className="text-sm">Auto Generate Password</label>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Password</label>
+                    <Input
+                      className="rounded-md"
+                      name="password"
+                      onChange={handleChange}
+                      disabled={autoGenPass}
+                      type="password"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Confirm Password
+                    </label>
+                    <Input
+                      className="rounded-md"
+                      name="ConfirmPassword"
+                      onChange={handleChange}
+                      disabled={autoGenPass}
+                      type="password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <h3 className="text-md font-medium mb-2">
+                  Additional Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Aadhar Card</label>
+                    <Input
+                      className="rounded-md"
+                      name="AadharNo"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">PAN Card</label>
+                    <Input
+                      className="rounded-md"
+                      name="PANNo"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Designation</label>
+                    <Input
+                      className="rounded-md"
+                      name="Designation"
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 col-span-2">
+                    <label className="text-sm font-medium">Address</label>
+                    <textarea
+                      className="rounded-md border p-2 text-sm"
+                      name="Address"
+                      onChange={handleChange}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </main>
+            <DialogFooter className="pt-4 border-t">
+              <Button
+                className="rounded-md cursor-pointer"
+                variant="outline"
+                onClick={() => setAction("")}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="rounded-md cursor-pointer"
+                disabled={loading}
+                onClick={handleUserCreate}
+              >
+                {loading ? (
+                  <span className="flex gap-1 justify-center items-center">
+                    <Loader2Icon className="animate-spin" />
+                    <p>Adding User</p>
+                  </span>
+                ) : (
+                  "Add User"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {role === "Admin" && (
         <Dialog open={action === "import"}>
           <DialogContent className="rounded-lg max-w-2xl">
             <DialogHeader className="pb-4 border-b">
@@ -772,6 +1025,12 @@ const UsersTab = () => {
               </SelectGroup>
             </SelectContent>
           </Select>
+
+          {role === "Admin" && selectedRows.length == 1 && (
+            <Button className="rounded-md" onClick={() => setAction("edit")}>
+              Edit User
+            </Button>
+          )}
 
           {role === "Admin" && (selectedAll || selectedRows.length >= 1) && (
             <Button className="rounded-md">Assign Examiner Role</Button>
