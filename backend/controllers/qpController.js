@@ -5,78 +5,79 @@ const fs = require("fs");
 function processQuestionPaper(jsonData) {
   const result = {};
 
-  // First pass: Create main questions
   jsonData.forEach((row) => {
-    if (row["Question Type"].trim() === "Main") {
-      result[row["Question No"]] = {
-        QuestionNo: row["Question No"],
+    const qType = row["Question Type"]?.trim();
+    const qNo = row["Question No"]?.trim();
+
+    if (!qType || !qNo) return;
+
+    // Split like Q1.1.a -> ["Q1", "1", "a"]
+    const parts = qNo.split(".");
+
+    // Case 1: MAIN QUESTION
+    if (qType === "Main" && parts.length === 1) {
+      result[qNo] = {
+        QuestionNo: qNo,
         QuestionText: row["Question Text"],
         Marks: row["Marks"],
-        QuestionType: row["Question Type"],
+        QuestionType: qType,
         QuestionFormat: row["Question Format"],
         Notes: row["Notes"],
         subQuestions: {},
-        actualQuestions: {}, // Add direct actual questions container
+        actualQuestions: {},
       };
+      return;
     }
-  });
 
-  // Second pass: Add sub questions
-  jsonData.forEach((row) => {
-    if (row["Question Type"].trim() === "Sub") {
-      const parts = row["Question No"].split(".");
-      if (parts.length === 2) {
-        const mainQId = parts[0];
-        if (result[mainQId]) {
-          result[mainQId].subQuestions[row["Question No"]] = {
-            QuestionNo: row["Question No"],
-            QuestionText: row["Question Text"],
-            Marks: row["Marks"],
-            QuestionType: row["Question Type"],
-            QuestionFormat: row["Question Format"],
-            Notes: row["Notes"],
-            Optional: row["Optional"],
-            TotalQuestions: row["Total Questions"],
-            actualQuestions: {},
-          };
+    // Case 2: SUB QUESTION
+    if (qType === "Sub" && parts.length >= 2) {
+      const mainQId = parts[0];
+      if (!result[mainQId]) return;
+
+      result[mainQId].subQuestions[qNo] = {
+        QuestionNo: qNo,
+        QuestionText: row["Question Text"],
+        Marks: row["Marks"],
+        QuestionType: qType,
+        QuestionFormat: row["Question Format"],
+        Notes: row["Notes"],
+        Optional: row["Optional"],
+        TotalQuestions: row["Total Questions"],
+        actualQuestions: {},
+      };
+      return;
+    }
+
+    // Case 3: ACTUAL QUESTION
+    if (qType === "Actual") {
+      const mainQId = parts[0];
+      if (!result[mainQId]) return;
+
+      // Find nearest sub-question parent (if exists)
+      let parentSub = null;
+      for (const subQId in result[mainQId].subQuestions) {
+        if (qNo.startsWith(subQId)) {
+          parentSub = subQId;
+          break;
         }
       }
-    }
-  });
 
-  // Third pass: Add actual questions
-  jsonData.forEach((row) => {
-    if (row["Question Type"].trim() === "Actual") {
-      const parts = row["Question No"].split(".");
-      if (parts.length === 2) {
-        const mainQId = parts[0];
-        const subPart = parts[1];
+      const questionObj = {
+        QuestionNo: qNo,
+        QuestionText: row["Question Text"],
+        Marks: row["Marks"],
+        QuestionType: qType,
+        QuestionFormat: row["Question Format"],
+        Notes: row["Notes"],
+      };
 
-        const potentialSubQId = mainQId + "." + subPart.charAt(0);
-
-        if (result[mainQId]?.subQuestions[potentialSubQId]) {
-          // Case 1: Has sub-question (main→sub→actual)
-          result[mainQId].subQuestions[potentialSubQId].actualQuestions[
-            row["Question No"]
-          ] = {
-            QuestionNo: row["Question No"],
-            QuestionText: row["Question Text"],
-            Marks: row["Marks"],
-            QuestionType: row["Question Type"],
-            QuestionFormat: row["Question Format"],
-            Notes: row["Notes"],
-          };
-        } else {
-          // Case 2: No sub-question (main→actual)
-          result[mainQId].actualQuestions[row["Question No"]] = {
-            QuestionNo: row["Question No"],
-            QuestionText: row["Question Text"],
-            Marks: row["Marks"],
-            QuestionType: row["Question Type"],
-            QuestionFormat: row["Question Format"],
-            Notes: row["Notes"],
-          };
-        }
+      if (parentSub) {
+        // Nested under sub-question
+        result[mainQId].subQuestions[parentSub].actualQuestions[qNo] =
+          questionObj;
+      } else {
+        // Belongs directly under main question
+        result[mainQId].actualQuestions[qNo] = questionObj;
       }
     }
   });
@@ -139,6 +140,8 @@ const create = async (req, res) => {
 
     // Process question hierarchy
     const questionData = processQuestionPaper(jsonData);
+
+    console.log("Question Data:", questionData);
 
     const newQP = await QP.create({
       name: examName,
