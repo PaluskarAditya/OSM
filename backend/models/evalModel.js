@@ -18,7 +18,7 @@ const evalSchema = new mongoose.Schema(
     endDate: { type: String, required: true },
     examiners: [{ type: String }],
     moderators: [{ type: String }],
-
+    iid: { type: String },
     // 👇 Updated sheets structure
     sheets: [sheetSchema],
 

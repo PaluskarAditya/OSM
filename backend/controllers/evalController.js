@@ -539,6 +539,7 @@ const status = async (req, res) => {
 const getAll = async (req, res) => {
   try {
     const evals = await Evaluation.find({ iid: req.user.IID });
+    console.log("Evals Found:", evals);
 
     if (!evals) return res.status(500).json({ err: "No Evaluations found" });
 
