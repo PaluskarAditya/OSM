@@ -19,7 +19,11 @@ const create = async (req, res) => {
       return;
     }
 
-    const subject = new Subject({ ...req.body, uuid: generate(), iid: req.user.IID });
+    const subject = new Subject({
+      ...req.body,
+      uuid: generate(),
+      iid: req.user.IID,
+    });
     await subject.save();
 
     if (subject) {
@@ -155,7 +159,7 @@ const bulk = async (req, res) => {
         uuid: generate(),
         name: d.name,
         stream: streamMap[d.stream].uuid,
-        iid: req.user.IID
+        iid: req.user.IID,
       }));
 
     const createdDegrees = newDegreesToInsert.length
@@ -178,7 +182,7 @@ const bulk = async (req, res) => {
         streams: [], // will update after courses are created
         degrees: [], // will update after courses are created
         isActive: true,
-        iid: req.user.IID
+        iid: req.user.IID,
       }));
 
     const createdYears = newYearsToInsert.length
@@ -188,21 +192,30 @@ const bulk = async (req, res) => {
     createdYears.forEach((y) => (yearMap[y.year] = y));
 
     // --- Step 6: Find or create courses ---
-    const uniqueCourses = [
-      ...new Map(
-        req.body.map((y) => [
-          `${y.course}-${y.course_code}`,
-          {
-            name: y.course.trim(),
-            code: y.course_code.trim(),
-            stream: y.stream.trim(),
-            degree: y.degree.trim(),
-            year: y.year.trim(),
-            semCount: y.semester.trim(),
-          },
-        ])
-      ).values(),
-    ];
+    // --- Step 6: Find or create courses ---
+    // Build unique course list but track max semester per course
+    const courseMapHelper = new Map();
+
+    for (const y of req.body) {
+      const key = `${y.course.trim()}-${y.course_code.trim()}`;
+      const semNum = parseInt(y.semester.trim(), 10) || 1;
+
+      if (!courseMapHelper.has(key)) {
+        courseMapHelper.set(key, {
+          name: y.course.trim(),
+          code: y.course_code.trim(),
+          stream: y.stream.trim(),
+          degree: y.degree.trim(),
+          year: y.year.trim(),
+          semCount: semNum, // initial
+        });
+      } else {
+        const existing = courseMapHelper.get(key);
+        existing.semCount = Math.max(existing.semCount, semNum); // keep highest semester
+      }
+    }
+
+    const uniqueCourses = [...courseMapHelper.values()];
 
     const coursePayload = uniqueCourses.map((c) => {
       const streamDoc = streamMap[c.stream];
@@ -216,9 +229,9 @@ const bulk = async (req, res) => {
         stream: streamDoc.uuid,
         degree: degreeDoc.uuid,
         year: yearDoc.uuid,
-        semCount: c.semCount,
+        semCount: c.semCount, // highest semester
         isActive: true,
-        iid: req.user.IID
+        iid: req.user.IID,
       };
     });
 
@@ -264,7 +277,7 @@ const bulk = async (req, res) => {
           degree: degreeDoc.uuid,
           year: yearDoc.uuid,
           course: [course.uuid],
-          iid: req.user.IID
+          iid: req.user.IID,
         });
         combinedMap[combinedKey] = combinedDoc;
       } else {
@@ -314,7 +327,7 @@ const bulk = async (req, res) => {
         semester: y.semester,
         type: y.type,
         isActive: true,
-        iid: req.user.IID
+        iid: req.user.IID,
       };
     });
 
