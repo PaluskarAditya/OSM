@@ -15,6 +15,8 @@ import {
   FullscreenIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  EyeIcon,
+  DownloadIcon,
 } from "lucide-react";
 import {
   Table,
@@ -28,88 +30,151 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import * as pdfjsLib from "pdfjs-dist";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback } from "react";
 import Link from "next/link";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-// Fixed function to render only leaf-level questions (actual questions)
+// Render leaf questions
 const renderQuestionHierarchyTable = (
   data,
   onQuestionSelect,
-  questionScores
+  questionScores,
+  selectedQuestion
 ) => {
+  if (!data) return [];
+  
   const questionData = Array.isArray(data) ? data[0] : data;
   const rows = [];
-  const processedQuestions = new Set(); // Track processed questions to avoid duplicates
+  const processedQuestions = new Set();
 
-  // Recursive function to extract only leaf-level questions
   const extractLeafQuestions = (question) => {
+    if (!question) return;
+    
     const questionNo = question.QuestionNo;
 
-    // Skip if already processed
-    if (processedQuestions.has(questionNo)) {
-      return;
-    }
+    if (processedQuestions.has(questionNo)) return;
 
-    // Check if this is a leaf question (has QuestionNo and Marks but no children to render)
     const hasActualQuestions =
       question.actualQuestions &&
       Object.keys(question.actualQuestions).length > 0;
     const hasSubQuestions =
       question.subQuestions && Object.keys(question.subQuestions).length > 0;
 
-    // If it's a leaf question (no children to render), add it to the table
     if (
       questionNo &&
       typeof question.Marks !== "undefined" &&
       !hasActualQuestions &&
       !hasSubQuestions
     ) {
-      const score = questionScores[questionNo] || 0;
+      const score = questionScores[questionNo] ?? 0;
       const maxMarks = question.Marks || 0;
+      const isSelected = selectedQuestion?.QuestionNo === questionNo;
 
       rows.push(
         <TableRow
           key={questionNo}
           onClick={() => onQuestionSelect(question)}
-          className="cursor-pointer hover:bg-gray-50 bg-gray-50"
+          className={`cursor-pointer transition-colors ${
+            isSelected ? "bg-blue-50 border-l-4 border-l-blue-500" : "hover:bg-gray-50"
+          }`}
         >
           <TableCell className="border-r text-center p-2">
-            <Badge variant="outline" className="bg-green-100 text-green-800">
+            <Badge 
+              variant="outline" 
+              className={`${
+                isSelected ? "bg-blue-500 text-white" : "bg-green-100 text-green-800"
+              } font-semibold text-xs`}
+            >
               {questionNo}
             </Badge>
           </TableCell>
-          <TableCell className="border-r text-center p-2 text-sm">
+          <TableCell className="border-r text-center p-2 text-xs font-medium">
             {maxMarks}
           </TableCell>
-          <TableCell className="text-center p-2 text-sm">{score}</TableCell>
+          <TableCell className="text-center p-2 text-xs font-semibold">
+            <span className={score > 0 ? "text-green-600" : "text-red-600"}>
+              {score}
+            </span>
+          </TableCell>
         </TableRow>
       );
 
       processedQuestions.add(questionNo);
     }
 
-    // Process actualQuestions if they exist (these are the leaf nodes)
     if (hasActualQuestions) {
-      Object.values(question.actualQuestions).forEach((actualQuestion) => {
-        extractLeafQuestions(actualQuestion);
-      });
+      Object.values(question.actualQuestions).forEach(extractLeafQuestions);
     }
 
-    // Process subQuestions if they exist (drill down to find leaf nodes)
     if (hasSubQuestions) {
-      Object.values(question.subQuestions).forEach((subQ) => {
-        extractLeafQuestions(subQ);
-      });
+      Object.values(question.subQuestions).forEach(extractLeafQuestions);
     }
   };
 
-  Object.values(questionData).forEach((question) => {
-    extractLeafQuestions(question);
-  });
-
+  Object.values(questionData).forEach(extractLeafQuestions);
   return rows;
+};
+
+const getAllLeafQuestions = (data) => {
+  if (!data) return [];
+  
+  const questionData = Array.isArray(data) ? data[0] : data;
+  const leaves = [];
+  const processed = new Set();
+
+  const extract = (q) => {
+    if (!q) return;
+    
+    const no = q.QuestionNo;
+    if (processed.has(no)) return;
+    const hasActual = q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
+    const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
+
+    if (no && typeof q.Marks !== "undefined" && !hasActual && !hasSub) {
+      leaves.push(no);
+      processed.add(no);
+    }
+
+    if (hasActual) Object.values(q.actualQuestions).forEach(extract);
+    if (hasSub) Object.values(q.subQuestions).forEach(extract);
+  };
+
+  Object.values(questionData).forEach(extract);
+  return leaves;
+};
+
+// Dialogs
+const FinishPaperDialog = ({ isOpen, onClose, onConfirm, loading }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+        <h2 className="text-lg font-bold mb-3">Finish Evaluation?</h2>
+        <p className="text-sm text-gray-600 mb-5">This action cannot be undone.</p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={loading} className="bg-green-600 hover:bg-green-700">
+            {loading ? "Saving..." : "Finish"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ErrorDialog = ({ isOpen, onClose, title, message }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+        <h2 className="text-lg font-bold text-red-600 mb-3">{title}</h2>
+        <p className="text-sm text-gray-700 mb-5">{message}</p>
+        <Button onClick={onClose} className="w-full">OK</Button>
+      </div>
+    </div>
+  );
 };
 
 export default function Page() {
@@ -121,136 +186,23 @@ export default function Page() {
   const [pdfDOC, setPdfDOC] = useState(null);
   const [qp, setQP] = useState(null);
   const [speed, setSpeed] = useState(null);
-  const [annotations, setAnnotations] = useState([]);
+  const [annotations, setAnnotations] = useState({});
   const [selectedTool, setSelectedTool] = useState(null);
   const [drawing, setDrawing] = useState(false);
   const [currentPath, setCurrentPath] = useState([]);
-  const [selectedQuestion, setSelectedQuestion] = useState(null); // Track selected question
-  const [questionScores, setQuestionScores] = useState({}); // Track scores for each question
-  const [totalScore, setTotalScore] = useState(0); // Track total score
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [questionScores, setQuestionScores] = useState({});
+  const [totalScore, setTotalScore] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [finishDialogOpen, setFinishDialogOpen] = useState(false);
+  const [errorDialog, setErrorDialog] = useState({ open: false, title: "", message: "" });
+  const [revisitCount, setRevisitCount] = useState(0);
   const canvasRef = useRef(null);
   const drawCanvasRef = useRef(null);
   const contextRef = useRef(null);
   const router = useRouter();
 
-  // Initialize canvas context
-  useEffect(() => {
-    const drawingCanvas = drawCanvasRef.current;
-    if (!drawingCanvas) return;
-
-    const context = drawingCanvas.getContext("2d");
-    context.lineCap = "round";
-    context.strokeStyle = "black";
-    context.lineWidth = 3;
-    contextRef.current = context;
-  }, []);
-
-  // Handle mouse events for drawing
-  const handleMouseDown = (e) => {
-    if (selectedTool !== "pencil") return;
-
-    const rect = drawCanvasRef.current.getBoundingClientRect();
-    const scale = drawCanvasRef.current.width / rect.width;
-    const x = (e.clientX - rect.left) * scale;
-    const y = (e.clientY - rect.top) * scale;
-
-    setDrawing(true);
-    setCurrentPath([{ x, y }]);
-
-    contextRef.current.beginPath();
-    contextRef.current.moveTo(x, y);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!drawing || selectedTool !== "pencil") return;
-
-    const rect = drawCanvasRef.current.getBoundingClientRect();
-    const scale = drawCanvasRef.current.width / rect.width;
-    const x = (e.clientX - rect.left) * scale;
-    const y = (e.clientY - rect.top) * scale;
-
-    setCurrentPath((prev) => [...prev, { x, y }]);
-
-    contextRef.current.lineTo(x, y);
-    contextRef.current.stroke();
-  };
-
-  const handleMouseUp = () => {
-    if (!drawing || selectedTool !== "pencil") return;
-
-    contextRef.current.closePath();
-    setDrawing(false);
-
-    if (currentPath.length > 0) {
-      setAnnotations((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          type: "drawing",
-          value: currentPath,
-          position: { x: 0, y: 0 },
-        },
-      ]);
-    }
-
-    setCurrentPath([]);
-  };
-
-  // Redraw annotations when they change
-  useEffect(() => {
-    if (!drawCanvasRef.current || !contextRef.current) return;
-
-    const canvas = drawCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    annotations.forEach((annotation) => {
-      if (annotation.type === "drawing") {
-        ctx.beginPath();
-        ctx.moveTo(annotation.value[0].x, annotation.value[0].y);
-
-        for (let i = 1; i < annotation.value.length; i++) {
-          ctx.lineTo(annotation.value[i].x, annotation.value[i].y);
-        }
-
-        ctx.stroke();
-        ctx.closePath();
-      } else if (annotation.type === "icon") {
-        ctx.beginPath();
-        if (annotation.value === "check") {
-          ctx.moveTo(annotation.position.x - 10, annotation.position.y);
-          ctx.lineTo(annotation.position.x, annotation.position.y + 10);
-          ctx.lineTo(annotation.position.x + 15, annotation.position.y - 10);
-        } else if (annotation.value === "cross") {
-          ctx.moveTo(annotation.position.x - 10, annotation.position.y - 10);
-          ctx.lineTo(annotation.position.x + 10, annotation.position.y + 10);
-          ctx.moveTo(annotation.position.x + 10, annotation.position.y - 10);
-          ctx.lineTo(annotation.position.x - 10, annotation.position.y + 10);
-        }
-        ctx.stroke();
-        ctx.closePath();
-      } else if (annotation.type === "text") {
-        ctx.font = "16px Arial";
-        ctx.fillText(
-          annotation.value,
-          annotation.position.x,
-          annotation.position.y
-        );
-      } else if (annotation.type === "number") {
-        ctx.font = "bold 20px Arial";
-        ctx.fillStyle = "red";
-        ctx.fillText(
-          annotation.value,
-          annotation.position.x,
-          annotation.position.y
-        );
-        ctx.fillStyle = "black";
-      }
-    });
-  }, [annotations]);
-
-  // Update total score when question scores change
+  // Calculate total score whenever questionScores changes
   useEffect(() => {
     const newTotalScore = Object.values(questionScores).reduce(
       (sum, score) => sum + (parseFloat(score) || 0),
@@ -259,560 +211,704 @@ export default function Page() {
     setTotalScore(newTotalScore);
   }, [questionScores]);
 
-  const handleCanvasClick = (e) => {
-    if (selectedTool === "pencil") return;
+  // Canvas context
+  useEffect(() => {
+    const canvas = drawCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 8;
+    contextRef.current = ctx;
+  }, []);
 
+  // Drawing handlers
+  const handleMouseDown = (e) => {
+    if (selectedTool !== "pencil") return;
     const rect = drawCanvasRef.current.getBoundingClientRect();
-    const scale = drawCanvasRef.current.width / rect.width;
-    const x = (e.clientX - rect.left) * scale;
-    const y = (e.clientY - rect.top) * scale;
+    const scaleX = drawCanvasRef.current.width / rect.width;
+    const scaleY = drawCanvasRef.current.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
-    if (selectedTool === "check" || selectedTool === "cross") {
-      setAnnotations((prev) => [
+    setDrawing(true);
+    setCurrentPath([{ x, y }]);
+    contextRef.current.beginPath();
+    contextRef.current.moveTo(x, y);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!drawing || selectedTool !== "pencil") return;
+    const rect = drawCanvasRef.current.getBoundingClientRect();
+    const scaleX = drawCanvasRef.current.width / rect.width;
+    const scaleY = drawCanvasRef.current.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    setCurrentPath((prev) => [...prev, { x, y }]);
+    contextRef.current.lineTo(x, y);
+    contextRef.current.stroke();
+  };
+
+  const handleMouseUp = () => {
+    if (!drawing || selectedTool !== "pencil") return;
+    contextRef.current.closePath();
+    setDrawing(false);
+    if (currentPath.length > 0) {
+      updateAnnotations((prev) => [
         ...prev,
-        {
-          id: Date.now(),
-          type: "icon",
-          value: selectedTool,
-          position: { x, y },
-        },
+        { id: Date.now(), type: "drawing", value: [...currentPath] },
       ]);
     }
-
-    if (selectedTool === "text") {
-      const text = prompt("Enter text:");
-      if (text) {
-        setAnnotations((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            type: "text",
-            value: text,
-            position: { x, y },
-          },
-        ]);
-      }
-    }
-
-    if (selectedTool === "number" && selectedQuestion) {
-      const mark = prompt(
-        `Enter marks for question ${selectedQuestion.QuestionNo} (Max: ${selectedQuestion.Marks}):`
-      );
-      if (mark !== null) {
-        const numericMark = parseFloat(mark);
-        if (
-          !isNaN(numericMark) &&
-          numericMark >= 0 &&
-          numericMark <= selectedQuestion.Marks
-        ) {
-          // Add number annotation
-          setAnnotations((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              type: "number",
-              value: mark,
-              position: { x, y },
-            },
-          ]);
-
-          // Update question score
-          setQuestionScores((prev) => ({
-            ...prev,
-            [selectedQuestion.QuestionNo]: numericMark,
-          }));
-        } else {
-          toast.error(
-            `Please enter a valid number between 0 and ${selectedQuestion.Marks}`
-          );
-        }
-      }
-    }
-
-    if (selectedTool === "undo") {
-      setAnnotations((prev) => prev.slice(0, -1));
-    }
+    setCurrentPath([]);
   };
 
-  const handleAnnotationMap = (i) => {
-    switch (i) {
-      case 0:
-        setSelectedTool("check");
-        break;
-      case 1:
-        setSelectedTool("cross");
-        break;
-      case 2:
-        setSelectedTool("text");
-        break;
-      case 3:
-        setSelectedTool("pencil");
-        break;
-      case 4:
-        setSelectedTool("number");
-        break;
-      case 5:
-        setSelectedTool("undo");
-        setAnnotations((prev) => prev.slice(0, -1));
-        break;
-      case 6:
-        setSelectedTool("trash");
-        setAnnotations([]);
-        break;
-      default:
-        break;
-    }
+  const updateAnnotations = (updater) => {
+    setAnnotations((prev) => {
+      const pageAnnots = prev[currentPage] || [];
+      const newAnnots = typeof updater === "function" ? updater(pageAnnots) : updater;
+      const hadAnnots = pageAnnots.length > 0;
+      const hasAnnots = newAnnots.length > 0;
+
+      // Update visited pages count
+      if (hasAnnots && !hadAnnots) {
+        setVisitedPages((p) => p + 1);
+      } else if (!hasAnnots && hadAnnots) {
+        setVisitedPages((p) => Math.max(0, p - 1));
+      }
+
+      if (newAnnots.length === 0) {
+        const { [currentPage]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [currentPage]: newAnnots };
+    });
   };
 
+  // Redraw annotations
   useEffect(() => {
-    const getAndRenderPDF = async () => {
+    const canvas = drawCanvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || !canvas) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const pageAnnots = annotations[currentPage] || [];
+
+    pageAnnots.forEach((a) => {
+      if (a.type === "drawing") {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        if (a.value && a.value.length > 0) {
+          ctx.moveTo(a.value[0].x, a.value[0].y);
+          a.value.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        }
+        ctx.stroke();
+      } else if (a.type === "icon") {
+        ctx.strokeStyle = a.value === "check" ? "green" : "red";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        if (a.value === "check") {
+          ctx.moveTo(a.position.x - 30, a.position.y);
+          ctx.lineTo(a.position.x - 10, a.position.y + 25);
+          ctx.lineTo(a.position.x + 40, a.position.y - 30);
+        } else {
+          ctx.moveTo(a.position.x - 30, a.position.y - 30);
+          ctx.lineTo(a.position.x + 30, a.position.y + 30);
+          ctx.moveTo(a.position.x + 30, a.position.y - 30);
+          ctx.lineTo(a.position.x - 30, a.position.y + 30);
+        }
+        ctx.stroke();
+      } else if (a.type === "text") {
+        ctx.font = "bold 32px Arial";
+        ctx.fillStyle = "blue";
+        ctx.fillText(a.value, a.position.x, a.position.y);
+      } else if (a.type === "number") {
+        ctx.font = "bold 36px Arial";
+        ctx.fillStyle = "red";
+        ctx.fillText(a.value, a.position.x, a.position.y);
+      }
+    });
+
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 8;
+  }, [annotations, currentPage]);
+
+  // Load data
+  useEffect(() => {
+    const load = async () => {
       try {
-        const [sheetRes, qpRes] = await Promise.all([
-          fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/${uuid}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          ),
+        const [sheetRes, qpRes, annotRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/${uuid}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/${uuid}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/annotations/${uuid}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => ({ ok: false })),
         ]);
 
-        const [sheetData, qpData] = await Promise.all([
-          await sheetRes.arrayBuffer(),
-          await qpRes.json(),
+        if (!sheetRes.ok) throw new Error("Failed to load answer sheet");
+        if (!qpRes.ok) throw new Error("Failed to load question paper");
+
+        const [sheetData, qpData, annotData] = await Promise.all([
+          sheetRes.arrayBuffer(),
+          qpRes.json(),
+          annotRes.ok ? annotRes.json() : {},
         ]);
 
         const pdf = await pdfjsLib.getDocument({ data: sheetData }).promise;
-        setQP(qpData);
         setPdfDOC(pdf);
+        setQP(qpData);
         setTotalPages(pdf.numPages);
-      } catch (error) {
-        console.error("Error loading PDF:", error);
-        toast.error("Failed to load PDF");
-      }
-    };
 
-    let interval;
-    const measureSpeed = async () => {
-      const startTime = performance.now();
-      try {
-        await fetch(
-          "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png",
-          { cache: "no-cache", mode: "no-cors" }
+        if (annotData.annotations) {
+          setAnnotations(annotData.annotations);
+          const visited = Object.values(annotData.annotations).filter(a => a?.length > 0).length;
+          setVisitedPages(visited);
+        }
+        
+        // Initialize question scores and total score
+        const initialScores = annotData.result || {};
+        setQuestionScores(initialScores);
+        
+        const initialTotalScore = Object.values(initialScores).reduce(
+          (sum, score) => sum + (parseFloat(score) || 0),
+          0
         );
-        const endTime = performance.now();
-        const duration = (endTime - startTime) / 1000;
-        const fileSize = 3 * 1024 * 8;
-        const currentSpeed = (fileSize / duration / 1_000_000).toFixed(2);
-        setSpeed(currentSpeed);
+        setTotalScore(initialTotalScore);
+
+        if (annotData.isEvaluated) {
+          const count = (parseInt(Cookies.get(`revisit_${uuid}`) || "0") || 0) + 1;
+          setRevisitCount(count);
+          Cookies.set(`revisit_${uuid}`, count.toString(), { expires: 30 });
+          toast.info(`Reopened: Visit #${count}/5`);
+        }
       } catch (err) {
-        console.error("Ping failed", err);
-        setSpeed(0);
+        console.error("Error loading data:", err);
+        toast.error("Failed to load data");
       }
     };
 
-    interval = setInterval(measureSpeed, 2000);
+    const measureSpeed = async () => {
+      const start = performance.now();
+      try {
+        await fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png", { cache: "no-cache", mode: "no-cors" });
+        const duration = (performance.now() - start) / 1000;
+        setSpeed(((3 * 1024 * 8) / duration / 1_000_000).toFixed(2));
+      } catch {
+        setSpeed("0");
+      }
+    };
+
+    const interval = setInterval(measureSpeed, 3000);
     measureSpeed();
-    getAndRenderPDF();
+    load();
 
     return () => clearInterval(interval);
   }, [uuid, token]);
 
+  // Render page
   const renderPage = async (pdf, num) => {
-    const page = await pdf.getPage(num);
-    const viewport = page.getViewport({ scale: 1.5 });
-
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-
-    if (drawCanvasRef.current) {
-      drawCanvasRef.current.width = viewport.width;
-      drawCanvasRef.current.height = viewport.height;
+    if (!pdf || !canvasRef.current) return;
+    
+    try {
+      const page = await pdf.getPage(num);
+      const viewport = page.getViewport({ scale: 1.6 });
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      
+      // Set canvas dimensions
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      if (drawCanvasRef.current) {
+        drawCanvasRef.current.width = viewport.width;
+        drawCanvasRef.current.height = viewport.height;
+      }
+      
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    } catch (error) {
+      console.error("Error rendering page:", error);
     }
-
-    await page.render({
-      canvasContext: context,
-      viewport,
-    }).promise;
   };
 
   useEffect(() => {
-    if (pdfDOC) {
-      renderPage(pdfDOC, currentPage);
-    }
+    if (pdfDOC) renderPage(pdfDOC, currentPage);
   }, [currentPage, pdfDOC]);
 
-  const MARKS = [0, 1 / 4, 1 / 2, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "NA"];
+  const MARKS = [0, 0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "NA"];
   const ANNOTATIONS = [
-    <CheckIcon className="w-4 h-4" />,
-    <CircleXIcon className="h-4 w-4" />,
-    <TypeIcon className="h-4 w-4" />,
-    <PencilIcon className="h-4 w-4" />,
-    <Badge className="bg-blue-500">#</Badge>, // Number annotation
-    <UndoIcon className="h-4 w-4" />,
-    <TrashIcon className="h-4 w-4" />,
+    <CheckIcon className="w-5 h-5" />,
+    <CircleXIcon className="h-5 w-5" />,
+    <TypeIcon className="h-5 w-5" />,
+    <PencilIcon className="h-5 w-5" />,
+    <Badge className="bg-blue-600 text-white px-2 py-1 text-xs font-bold">#</Badge>,
+    <UndoIcon className="h-5 w-5" />,
+    <TrashIcon className="h-5 w-5" />,
   ];
 
-  const handlePageChangeAhead = () => {
-    const nextPage = currentPage + 1;
-    setVisitedPages((prev) => prev + 1);
+  const handleAnnotationMap = (i) => {
+    const tools = ["check", "cross", "text", "pencil", "number", null, null];
+    if (i === 5) return updateAnnotations(p => p.slice(0, -1));
+    if (i === 6) return updateAnnotations([]);
+    const tool = tools[i];
+    setSelectedTool(prev => prev === tool ? null : tool);
+  };
 
-    if (nextPage > totalPages) {
-      toast.error("Page not available");
-      return;
+  const handleCanvasClick = (e) => {
+    if (selectedTool === "pencil" || !drawCanvasRef.current) return;
+    
+    const rect = drawCanvasRef.current.getBoundingClientRect();
+    const scaleX = drawCanvasRef.current.width / rect.width;
+    const scaleY = drawCanvasRef.current.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    if (["check", "cross"].includes(selectedTool)) {
+      updateAnnotations(p => [...p, { 
+        id: Date.now(), 
+        type: "icon", 
+        value: selectedTool, 
+        position: { x, y } 
+      }]);
+    } else if (selectedTool === "text") {
+      const text = prompt("Enter text:");
+      if (text) {
+        updateAnnotations(p => [...p, { 
+          id: Date.now(), 
+          type: "text", 
+          value: text, 
+          position: { x, y } 
+        }]);
+      }
+    } else if (selectedTool === "number" && selectedQuestion) {
+      const mark = prompt(`Enter marks for question ${selectedQuestion.QuestionNo} (0-${selectedQuestion.Marks} or type "NA"):`);
+      if (mark === null) return;
+      
+      if (mark === "NA") {
+        updateAnnotations(p => [...p, { 
+          id: Date.now(), 
+          type: "number", 
+          value: "NA", 
+          position: { x, y } 
+        }]);
+        setQuestionScores(prev => ({ 
+          ...prev, 
+          [selectedQuestion.QuestionNo]: 0 
+        }));
+        toast.success(`Marked question ${selectedQuestion.QuestionNo} as NA`);
+      } else {
+        const num = parseFloat(mark);
+        if (!isNaN(num) && num >= 0 && num <= selectedQuestion.Marks) {
+          updateAnnotations(p => [...p, { 
+            id: Date.now(), 
+            type: "number", 
+            value: mark, 
+            position: { x, y } 
+          }]);
+          setQuestionScores(prev => ({ 
+            ...prev, 
+            [selectedQuestion.QuestionNo]: num 
+          }));
+          toast.success(`Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`);
+        } else {
+          toast.error(`Please enter a valid number between 0 and ${selectedQuestion.Marks} or "NA"`);
+        }
+      }
     }
-
-    setCurrentPage(nextPage);
   };
 
-  const handlePageChangeBehind = () => {
-    const nextPage = currentPage - 1;
-
-    if (nextPage < 1) {
-      toast.error("Page not available");
-      return;
-    }
-
-    setCurrentPage(nextPage);
-  };
-
-  // Handle question selection
-  const handleQuestionSelect = (question) => {
-    setSelectedQuestion(question);
-  };
-
-  // Handle mark assignment from the buttons
   const handleMarkAssignment = (mark) => {
     if (!selectedQuestion) {
       toast.error("Please select a question first");
       return;
     }
-
+    
     if (mark === "NA") {
-      // Handle NA case
-      setQuestionScores((prev) => ({
-        ...prev,
-        [selectedQuestion.QuestionNo]: 0,
+      setQuestionScores(prev => ({ 
+        ...prev, 
+        [selectedQuestion.QuestionNo]: 0 
       }));
       toast.success(`Marked question ${selectedQuestion.QuestionNo} as NA`);
-      return;
+    } else {
+      const num = parseFloat(mark);
+      if (!isNaN(num) && num >= 0 && num <= selectedQuestion.Marks) {
+        setQuestionScores(prev => ({ 
+          ...prev, 
+          [selectedQuestion.QuestionNo]: num 
+        }));
+        toast.success(`Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`);
+      } else {
+        toast.error(`Invalid mark. Must be between 0 and ${selectedQuestion.Marks}`);
+      }
     }
-
-    const numericMark = parseFloat(mark);
-    if (
-      isNaN(numericMark) ||
-      numericMark < 0 ||
-      numericMark > selectedQuestion.Marks
-    ) {
-      toast.error(
-        `Please enter a valid number between 0 and ${selectedQuestion.Marks}`
-      );
-      return;
-    }
-
-    setQuestionScores((prev) => ({
-      ...prev,
-      [selectedQuestion.QuestionNo]: numericMark,
-    }));
-
-    toast.success(
-      `Assigned ${numericMark} marks to question ${selectedQuestion.QuestionNo}`
-    );
   };
 
   const handlePaperFinish = async () => {
+    if (visitedPages < totalPages) {
+      setErrorDialog({ 
+        open: true, 
+        title: "Pages Not Visited", 
+        message: "NOT ALL PAGES VISITED, VISIT ALL THE PAGES TO FINISH EVALUATION" 
+      });
+      return;
+    }
+    
+    if (!qp?.data) {
+      setErrorDialog({ 
+        open: true, 
+        title: "Data Error", 
+        message: "Question paper data not loaded properly" 
+      });
+      return;
+    }
+    
+    const leaves = getAllLeafQuestions(qp.data);
+    const unannotatedQuestions = leaves.filter(no => questionScores[no] === undefined);
+    
+    if (unannotatedQuestions.length > 0) {
+      setErrorDialog({ 
+        open: true, 
+        title: "Missing Marks", 
+        message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION" 
+      });
+      return;
+    }
+    
+    setFinishDialogOpen(true);
+  };
+
+  const confirmFinish = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`,
-        {
+      const requests = [
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`, {
           method: "PUT",
-          headers: {
-            "Content-type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            totalMarks: totalScore,
-            annotations,
-            result: questionScores,
-            isEvaluated: true,
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ 
+            totalMarks: totalScore, 
+            annotations, 
+            result: questionScores, 
+            isEvaluated: true 
           }),
-        }
-      );
-
-      const statusRes = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
-        {
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`, {
           method: "PUT",
-          headers: {
-            "Content-type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: "Completed",
-          }),
-        }
-      );
-
-      const evalRes = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
-        {
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ status: "Completed" }),
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`, {
           method: "PUT",
-          headers: {
-            "Content-type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: "Completed",
-            isChecked: "Evaluated",
-            marks: totalScore,
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ 
+            status: "Completed", 
+            isChecked: "Evaluated", 
+            marks: totalScore 
           }),
-        }
-      );
+        }),
+      ];
 
-      if (res.ok) {
-        const data = await res.json();
-        const sheetData = await statusRes.json();
-        const evalData = await evalRes.json();
-        router.back();
+      const results = await Promise.all(requests);
+      const allSuccess = results.every(res => res.ok);
+      
+      if (allSuccess) {
+        toast.success("Evaluation completed successfully!");
+        setTimeout(() => router.back(), 1500);
+      } else {
+        throw new Error("Some requests failed");
       }
     } catch (error) {
-      console.error(error.message);
-      toast.error("Internal Server Error");
+      console.error("Error finishing paper:", error);
+      toast.error("Failed to complete evaluation");
+    } finally {
+      setLoading(false);
+      setFinishDialogOpen(false);
     }
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen">
-      <nav className="p-2 bg-gray-100 border-b border-gray-200 text-sm flex justify-between items-center w-full">
-        <Link href={`/evaluate/home/check/${id}`}>
-          <Button
-            size={"sm"}
-            variant={"outline"}
-            className="flex justify-center items-center text-xs gap-1 cursor-pointer"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            <span>Back</span>
-          </Button>
-        </Link>
-        <span className="flex gap-3 text-xs">
-          <p>
-            Subject: <span>{qp?.name || "Loading..."}</span>
-          </p>
-        </span>
-        <div>
-          <p className="flex gap-1 justify-center items-center">
-            <TimerIcon className="h-4 w-4 text-blue-500" />
-            <span className="text-xs">00:11:22</span>
-          </p>
-        </div>
-        <div>
-          <p className="flex gap-1 justify-center items-center">
-            <WifiIcon className="h-4 w-4 text-blue-500" />
-            <span className="text-xs">{speed} Mbps</span>
-          </p>
-        </div>
-      </nav>
-      <div className="flex w-full h-full">
-        <div className="border-r h-full w-min bg-gray-100">
-          <div className="grid grid-cols-2 min-w-[150px] border-b place-content-start gap-2 p-3">
-            {MARKS.map((el) => (
-              <Button
-                variant="outline"
-                className="rounded-full text-xs bg-white cursor-pointer"
-                size={"icon"}
-                key={el}
-                onClick={() => handleMarkAssignment(el)}
-              >
-                {el}
-              </Button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 border-b place-content-start gap-2 p-3">
-            {ANNOTATIONS.map((el, i) => (
-              <Button
-                variant="outline"
-                className={`rounded-full text-xs bg-white cursor-pointer ${
-                  selectedTool ===
-                  (i === 0
-                    ? "check"
-                    : i === 1
-                    ? "cross"
-                    : i === 2
-                    ? "text"
-                    : i === 3
-                    ? "pencil"
-                    : i === 4
-                    ? "number"
-                    : i === 5
-                    ? "undo"
-                    : "trash")
-                    ? "bg-blue-200"
-                    : ""
-                }`}
-                size={"icon"}
-                key={i}
-                onClick={() => handleAnnotationMap(i)}
-              >
-                {el}
-              </Button>
-            ))}
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Loading */}
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-3"></div>
+            <p className="font-semibold">Saving Evaluation...</p>
           </div>
         </div>
-        <div className="w-full border-r h-[calc(100vh-80px)] max-w-3xl flex flex-col p-3 gap-3">
-          <div className="flex justify-between items-start">
-            <h1 className="text-sm">Page {currentPage}</h1>
-            <div className="flex justify-center items-center gap-2">
-              {currentPage !== 1 && (
-                <Button
-                  onClick={handlePageChangeBehind}
-                  size={"icon"}
-                  variant="outline"
-                  className="cursor-pointer"
-                >
-                  <ArrowLeftIcon className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                onClick={handlePageChangeAhead}
-                size={"icon"}
-                variant="outline"
-                className="cursor-pointer"
-                disabled={currentPage >= totalPages}
-              >
-                <ArrowRightIcon className="h-4 w-4" />
+      )}
+
+      <FinishPaperDialog 
+        isOpen={finishDialogOpen} 
+        onClose={() => setFinishDialogOpen(false)} 
+        onConfirm={confirmFinish} 
+        loading={loading} 
+      />
+      
+      <ErrorDialog 
+        isOpen={errorDialog.open} 
+        onClose={() => setErrorDialog({ ...errorDialog, open: false })} 
+        title={errorDialog.title} 
+        message={errorDialog.message} 
+      />
+
+      {/* Header */}
+      <header className="bg-white border-b p-3 shadow-sm">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Link href={`/evaluate/home/check/${id}`}>
+              <Button size="sm" variant="outline" className="gap-1">
+                <ArrowLeftIcon className="w-4 h-4" /> Back
               </Button>
-            </div>
-          </div>
-          <div className="overflow-y-auto flex-1 h-full relative">
-            <canvas
-              ref={canvasRef}
-              className="w-full bg-gray-50 border absolute top-0 left-0"
-            />
-            <canvas
-              ref={drawCanvasRef}
-              className="absolute top-0 z-20 left-0 right-0 bottom-0"
-              onClick={handleCanvasClick}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              style={{
-                cursor: selectedTool === "pencil" ? "crosshair" : "pointer",
-              }}
-            />
-          </div>
-        </div>
-        <div className=" border-r flex flex-col gap-2 h-full p-3 bg-gray-100">
-          <Table className="bg-white">
-            <TableHeader className="border">
-              <TableRow>
-                <TableHead className="text-center border border-r text-sm">
-                  Questions
-                </TableHead>
-                <TableHead className="text-center border border-r text-sm">
-                  Out of
-                </TableHead>
-                <TableHead className="text-center border border-r text-sm">
-                  Score
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="border w-1/4">
-              {qp ? (
-                renderQuestionHierarchyTable(
-                  qp.data,
-                  handleQuestionSelect,
-                  questionScores
-                )
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-xs py-4">
-                    Loading questions...
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          <div className="flex flex-col border gap-2 p-3 bg-white justify-center items-center rounded-lg w-full">
-            <Button size="sm" className="cursor-pointer text-xs w-full">
-              Calculate Total Score:{" "}
-              <span>
-                {totalScore.toFixed(2)} / {qp?.totalMarks || 0}
-              </span>
-            </Button>
-            <div className="flex gap-2 w-full">
-              <Button
-                size="sm"
-                variant="destructive"
-                className="text-xs cursor-pointer w-1/2"
-              >
-                Reject Paper
-              </Button>
-              <Button
-                onClick={handlePaperFinish}
-                size="sm"
-                className="bg-green-500 hover:bg-green-600 cursor-pointer text-xs w-1/2"
-              >
-                Finish Paper
-              </Button>
-            </div>
-          </div>
-          <div className="flex bg-white p-3 rounded-lg border flex-col gap-1">
-            <h1 className="text-xs font-semibold">
-              {selectedQuestion
-                ? `Question ${selectedQuestion.QuestionNo} (${
-                    questionScores[selectedQuestion.QuestionNo] || 0
-                  }/${selectedQuestion.Marks || 0})`
-                : "Select a Question"}
-            </h1>
-            <p className="text-sm">
-              {selectedQuestion
-                ? selectedQuestion.QuestionText
-                : "Click a question in the table to view its details."}
-            </p>
-            <div className="w-full flex justify-end items-center">
-              <Button
-                size="icon"
-                className="p-1 cursor-pointer mt-2"
-                variant="outline"
-              >
-                <FullscreenIcon className="w-3 h-3" />
-              </Button>
-            </div>
-          </div>
-          <div className="bg-white border rounded-lg p-3 flex flex-col gap-3">
-            <div className="flex justify-between items-center">
-              <p className="text-xs">
-                Pages: <Badge className="bg-purple-500">{totalPages}</Badge>
-              </p>
-              <p className="text-xs">
-                Visited: <Badge className="bg-green-500">{visitedPages}</Badge>
-              </p>
-              <p className="text-xs">
-                Remaining:{" "}
-                <Badge className="bg-orange-500">
-                  {totalPages - visitedPages}
+            </Link>
+            <span className="font-medium text-sm">
+              {qp?.name || "Loading..."}
+              {revisitCount > 0 && (
+                <Badge className="ml-2 bg-orange-100 text-orange-800" variant="secondary">
+                  Revisit #{revisitCount}/5
                 </Badge>
-              </p>
-            </div>
-            <div className="grid grid-cols-10 md:grid-cols-5 gap-1">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <Badge
-                  className={`md:w-full ${
-                    i + 1 === currentPage ? "bg-blue-500" : "bg-orange-500"
+              )}
+            </span>
+          </div>
+          <div className="flex gap-4 text-sm">
+            <span className="flex items-center gap-1">
+              <TimerIcon className="w-4 h-4 text-blue-600" /> 00:11:22
+            </span>
+            <span className="flex items-center gap-1">
+              <WifiIcon className="w-4 h-4 text-green-600" /> {speed} Mbps
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Tools */}
+        <aside className="w-20 lg:w-64 bg-white border-r overflow-y-auto p-3 space-y-6 flex-shrink-0">
+          <div>
+            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">QUICK MARKS</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              {MARKS.map(m => (
+                <Button 
+                  key={m} 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => handleMarkAssignment(m)}
+                  className={`text-xs h-8 ${
+                    selectedQuestion && questionScores[selectedQuestion.QuestionNo] === (m === "NA" ? 0 : m) 
+                      ? "bg-blue-600 text-white border-blue-600" 
+                      : "bg-white"
                   }`}
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
                 >
-                  {i + 1}
-                </Badge>
+                  {m}
+                </Button>
               ))}
             </div>
           </div>
-        </div>
+          
+          <div>
+            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">ANNOTATIONS</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              {ANNOTATIONS.map((icon, i) => {
+                const tool = ["check", "cross", "text", "pencil", "number"][i];
+                const isActive = selectedTool === tool;
+                return (
+                  <Button 
+                    key={i} 
+                    size="icon" 
+                    variant="outline" 
+                    onClick={() => handleAnnotationMap(i)}
+                    className={`h-8 w-8 lg:h-10 lg:w-10 ${
+                      isActive ? "bg-blue-100 border-blue-500 text-blue-700" : ""
+                    }`}
+                    title={tool ? `Tool: ${tool}` : i === 5 ? "Undo" : "Clear"}
+                  >
+                    {icon}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+
+        {/* Center: PDF */}
+        <main className="flex-1 bg-gray-100 flex flex-col overflow-hidden">
+          <div className="bg-white border-b p-3 flex justify-between items-center">
+            <span className="font-medium text-sm">
+              Page {currentPage} / {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <Button 
+                size="icon" 
+                variant="outline" 
+                onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
+                disabled={currentPage === 1}
+                className="h-8 w-8"
+              >
+                <ArrowLeftIcon className="w-4 h-4" />
+              </Button>
+              <Button 
+                size="icon" 
+                variant="outline" 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
+                disabled={currentPage === totalPages}
+                className="h-8 w-8"
+              >
+                <ArrowRightIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-auto relative bg-gray-200 p-2">
+            <div className="max-w-4xl mx-auto bg-white shadow-lg">
+              <div className="relative">
+                <canvas 
+                  ref={canvasRef} 
+                  className="block w-full h-auto" 
+                />
+                <canvas
+                  ref={drawCanvasRef}
+                  className="absolute inset-0 w-full h-full cursor-crosshair"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onClick={handleCanvasClick}
+                  style={{ 
+                    cursor: selectedTool === "pencil" ? "crosshair" : 
+                           selectedTool ? "pointer" : "default" 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Right: Info */}
+        <aside className="w-full lg:w-80 bg-white border-l flex flex-col overflow-hidden flex-shrink-0">
+          <div className="p-3 border-b">
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/pdf/${uuid}`, "_blank")} 
+                className="flex-1 text-xs"
+              >
+                <EyeIcon className="w-4 h-4 mr-1" /> QP
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-key/${uuid}`, "_blank")} 
+                className="flex-1 text-xs"
+              >
+                <EyeIcon className="w-4 h-4 mr-1" /> Key
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            {/* Questions Table */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="max-h-48 overflow-y-auto">
+                <Table>
+                  <TableHeader className="bg-gray-50 sticky top-0">
+                    <TableRow>
+                      <TableHead className="text-center text-xs py-2 border-r">Q</TableHead>
+                      <TableHead className="text-center text-xs py-2 border-r">Out of</TableHead>
+                      <TableHead className="text-center text-xs py-2">Score</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {qp ? renderQuestionHierarchyTable(qp.data, setSelectedQuestion, questionScores, selectedQuestion) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-xs py-4">
+                          Loading questions...
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Selected Question Details */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <h4 className="font-bold text-sm text-blue-800 mb-2">
+                {selectedQuestion ? 
+                  `Question ${selectedQuestion.QuestionNo} (${questionScores[selectedQuestion.QuestionNo] ?? 0}/${selectedQuestion.Marks})` : 
+                  "Select Question"
+                }
+              </h4>
+              <p className="text-xs text-gray-700 line-clamp-3">
+                {selectedQuestion?.QuestionText || "Click a question from the table above to view details and assign marks."}
+              </p>
+            </div>
+
+            {/* Total Score & Actions */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+              <p className="text-center text-sm font-semibold text-gray-700 mb-1">Total Score</p>
+              <p className="text-center text-2xl font-bold text-green-600 mb-3">
+                {totalScore.toFixed(2)} / {qp?.totalMarks || 0}
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  Reject
+                </Button>
+                <Button 
+                  size="sm" 
+                  onClick={handlePaperFinish} 
+                  className="flex-1 text-xs bg-green-600 hover:bg-green-700" 
+                  disabled={revisitCount >= 5}
+                >
+                  Finish {revisitCount > 0 && `(#${revisitCount})`}
+                </Button>
+              </div>
+            </div>
+
+            {/* Pages Overview */}
+            <div className="border rounded-lg p-3 bg-white">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-semibold">Pages</h4>
+                <div className="flex gap-3 text-xs">
+                  <span className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-green-500 rounded"></div> {visitedPages}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-orange-500 rounded"></div> {totalPages - visitedPages}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-6 gap-1">
+                {Array.from({ length: totalPages }, (_, i) => {
+                  const pageNum = i + 1;
+                  const hasAnnotations = !!annotations[pageNum]?.length;
+                  const isCurrent = pageNum === currentPage;
+                  
+                  let bgColor = "bg-orange-500"; // Not visited
+                  if (hasAnnotations) bgColor = "bg-green-500"; // Visited
+                  if (isCurrent) bgColor = "bg-blue-500"; // Current page
+                  
+                  return (
+                    <Badge
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`cursor-pointer text-xs h-7 flex items-center justify-center text-white ${bgColor} hover:opacity-80 transition-opacity`}
+                    >
+                      {pageNum}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

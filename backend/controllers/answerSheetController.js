@@ -39,29 +39,35 @@ const upload = async (req, res) => {
       });
     }
 
+    // 🧠 Get semester from subject
     const semesterDoc = await Subject.findOne({ uuid: subject }).select(
       "semester"
     );
+    if (!semesterDoc) {
+      return res.status(400).json({ error: "Invalid subject UUID" });
+    }
     const semester = semesterDoc.semester;
 
     const savedFiles = [];
 
-    // Single loop: upload to GridFS + create AnswerSheet
+    // 🌀 Loop through uploaded files
     for (let file of files) {
       const match = file.originalname.match(/^([\w-]+)\s*\[([^\]]+)\]\.pdf$/i);
       if (!match) {
         throw new Error(`Invalid filename format: ${file.originalname}`);
       }
+
       const roll = match[1];
       const prn = match[2];
       const combinedKey = `${roll} [${prn}]`;
 
+      // 🧩 Build virtual path + IDs
       const assignmentId = generateCustomId();
       const randomName = `${uuidv4()}.pdf`;
       const virtualPath = `${course}/${semester}/${subject}`;
-      const filename = `${randomName}`;
+      const filename = randomName;
 
-      // Upload file to GridFS
+      // 📂 Upload to GridFS
       const uploadStream = bucket.openUploadStream(filename, {
         contentType: file.mimetype,
         metadata: {
@@ -73,6 +79,7 @@ const upload = async (req, res) => {
           uploadDate: new Date(),
         },
       });
+
       uploadStream.end(file.buffer);
 
       await new Promise((resolve, reject) => {
@@ -80,38 +87,44 @@ const upload = async (req, res) => {
         uploadStream.on("error", reject);
       });
 
-      // Candidate check
-      const existCandidate = await Candidate.findOne({ RollNo: roll });
+      // 🧠 Candidate lookup with full composite key
+      const existCandidate = await Candidate.findOne({
+        RollNo: roll,
+        PRNNumber: prn,
+        course,
+        sem: semester,
+        combined,
+      });
+
       let candidateLinked = false;
       let attendance = false;
 
       if (existCandidate) {
-        if (existCandidate.course !== course) {
-          throw new Error(
-            `Candidate ${roll} not enrolled in course ${course} for file ${file.originalname}`
-          );
-        }
         candidateLinked = true;
         attendance = true;
 
         await Candidate.findOneAndUpdate(
-          { RollNo: roll },
+          { _id: existCandidate._id },
           {
-            $set: { sheetUploaded: true },
+            $set: {
+              sheetUploaded: true,
+              [`bookletNames.${subject}`]: assignmentId,
+            },
             $addToSet: { subjects: subject },
-            $set: { [`bookletNames.${subject}`]: assignmentId },
             assignmentId,
           },
           { new: true }
         );
+      } else {
+        console.warn(`⚠️ No matching candidate found for ${roll} [${prn}]`);
       }
 
-      // Save AnswerSheet
+      // 📝 Save AnswerSheet
       const answerSheet = new AnswerSheet({
         name: existCandidate ? existCandidate.RollNo : "Unknown",
         uuid: generateCustomId(),
         assignmentId,
-        path: filename, // GridFS filename
+        path: filename,
         combined,
         course,
         subject,
@@ -125,11 +138,12 @@ const upload = async (req, res) => {
 
       await answerSheet.save();
 
-      // Update QP
+      // 🔄 Update QP with assignment IDs
       const ids = await AnswerSheet.find({ course, subject }).select(
         "assignmentId"
       );
       const assignmentIds = ids.map((el) => el.assignmentId);
+
       await QP.findOneAndUpdate(
         { course, subject },
         { $addToSet: { assignmentId: { $each: assignmentIds } } },
@@ -144,10 +158,9 @@ const upload = async (req, res) => {
       });
     }
 
-    // Sync evaluation after all files are processed
+    // ⚡ Sync evaluation after all uploads
     await syncEvaluation(course, subject, req.user?._id);
 
-    // Send response after everything is done
     res.status(200).json({
       success: true,
       message: `${files.length} file(s) uploaded successfully`,

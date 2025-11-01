@@ -1058,9 +1058,9 @@ export default function Page() {
                   <TableHead className="border-r font-semibold whitespace-nowrap">
                     Roll Number
                   </TableHead>
-                  <TableHead className="border-r font-semibold whitespace-nowrap">
+                  {/* <TableHead className="border-r font-semibold whitespace-nowrap">
                     PRN Number
-                  </TableHead>
+                  </TableHead> */}
                   <TableHead className="border-r font-semibold whitespace-nowrap">
                     PH Candidate
                   </TableHead>
@@ -1110,9 +1110,9 @@ export default function Page() {
                       <TableCell className="border border-r whitespace-nowrap">
                         {el.RollNo || "N/A"}
                       </TableCell>
-                      <TableCell className="border border-r whitespace-nowrap">
+                      {/* <TableCell className="border border-r whitespace-nowrap">
                         {el.PRNNumber || "N/A"}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell className="border border-r whitespace-nowrap">
                         {el.IsPHCandidate || "No"}
                       </TableCell>

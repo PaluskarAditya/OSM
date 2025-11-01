@@ -17,24 +17,34 @@ const upload = async (req, res) => {
     const processedCombinedKeys = new Set();
 
     for (const candidate of candidatesData) {
-      // Skip invalid rows
+      // Skip invalid rows early
       if (!candidate?.RollNo || !candidate?.PRNNumber) {
         console.warn("Skipping invalid candidate:", candidate);
         continue;
       }
 
-      const combinedKey = `${candidate.RollNo} [${candidate.PRNNumber}]`;
+      // 🧠 Build a composite key using all identifiers that make a candidate unique
+      const compositeKey = `${candidate.RollNo}-${candidate.PRNNumber}-${
+        req.body.course
+      }-${req.body.sem}-${req.body.combined}`;
 
-      if (processedCombinedKeys.has(combinedKey)) continue;
-      processedCombinedKeys.add(combinedKey);
+      if (processedCombinedKeys.has(compositeKey)) continue;
+      processedCombinedKeys.add(compositeKey);
 
-      // Skip if candidate already exists
+      // 🕵️ Check if a candidate with the same combination already exists
       const existingCandidate = await Candidate.findOne({
-        $or: [{ RollNo: candidate.RollNo }, { PRNNumber: candidate.PRNNumber }],
+        RollNo: candidate.RollNo,
+        PRNNumber: candidate.PRNNumber,
+        course: req.body.course,
+        sem: req.body.sem,
+        combined: req.body.combined,
+        subjects: { $all: candidate.subjects || [] },
       });
+
       if (existingCandidate) continue;
 
       // ✅ Find matching answer sheets
+      const combinedKey = `${candidate.RollNo} [${candidate.PRNNumber}]`;
       const answerSheets = await AnswerSheet.find({
         candidateId: combinedKey,
       });
@@ -48,7 +58,7 @@ const upload = async (req, res) => {
         );
       }
 
-      // ✅ Add subjects UUIDs in array
+      // ✅ Prepare formatted candidate entry
       formatted.push({
         ...candidate,
         course: req.body.course,
@@ -58,7 +68,7 @@ const upload = async (req, res) => {
         sheetUploaded,
         uuid: generateCustomId(),
         bookletNames: candidate.subjects.reduce((acc, subj) => {
-          acc[subj] = ""; // empty booklet name initially
+          acc[subj] = "";
           return acc;
         }, {}),
         assignmentId: generateCustomId(),
