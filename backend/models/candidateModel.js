@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const candidateSchema = new mongoose.Schema(
   {
@@ -31,6 +31,7 @@ const candidateSchema = new mongoose.Schema(
     uuid: { type: String, required: true },
     attendance: { type: String, default: "absent" },
     assignmentId: { type: String, required: true },
+    isEvaluationAssigned: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

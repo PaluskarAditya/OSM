@@ -1,14 +1,19 @@
 "use client";
+
 import * as React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { formatDateRange } from "little-date";
 import {
   TrendingUp,
-  PlusIcon,
+  Plus,
   Users,
   BookOpen,
   FileCheck,
   Upload,
+  Calendar as CalendarIcon,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { Pie, PieChart, ResponsiveContainer } from "recharts";
 import {
@@ -43,107 +48,39 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import Cookies from "js-cookie";
 
-// Chart configuration
+// Chart Data
 const chartData = [
-  { browser: "chrome", visitors: 275, fill: "hsl(var(--chart-1))" },
-  { browser: "safari", visitors: 200, fill: "hsl(var(--chart-2))" },
-  { browser: "firefox", visitors: 287, fill: "hsl(var(--chart-3))" },
-  { browser: "edge", visitors: 173, fill: "hsl(var(--chart-4))" },
-  { browser: "other", visitors: 190, fill: "hsl(var(--chart-5))" },
+  { name: "Math", value: 275, fill: "hsl(var(--chart-1))" },
+  { name: "Physics", value: 200, fill: "hsl(var(--chart-2))" },
+  { name: "Chemistry", value: 287, fill: "hsl(var(--chart-3))" },
+  { name: "Biology", value: 173, fill: "hsl(var(--chart-4))" },
+  { name: "Others", value: 190, fill: "hsl(var(--chart-5))" },
 ];
 
 const chartConfig = {
-  visitors: { label: "Visitors" },
-  chrome: { label: "Chrome", color: "hsl(var(--chart-1))" },
-  safari: { label: "Safari", color: "hsl(var(--chart-2))" },
-  firefox: { label: "Firefox", color: "hsl(var(--chart-3))" },
-  edge: { label: "Edge", color: "hsl(var(--chart-4))" },
-  other: { label: "Other", color: "hsl(var(--chart-5))" },
+  value: { label: "Evaluations" },
+  ...chartData.reduce(
+    (acc, curr) => ({
+      ...acc,
+      [curr.name]: { label: curr.name, color: curr.fill },
+    }),
+    {}
+  ),
 };
 
-// Enhanced placeholder data
-const totalTableData = {
-  examsCreated: 50,
-  subjectsCreated: 10,
-  answerBooksEvaluated: 200,
-  answerBooksUploaded: 250,
-};
-
-const pendingEvaluations = [
-  {
-    examiner: "Dr. Smith",
-    pending: 15,
-    department: "Mathematics",
-    priority: "high",
-  },
-  {
-    examiner: "Prof. Jones",
-    pending: 8,
-    department: "Physics",
-    priority: "medium",
-  },
-  {
-    examiner: "Ms. Taylor",
-    pending: 22,
-    department: "Chemistry",
-    priority: "high",
-  },
-  { examiner: "Dr. Brown", pending: 5, department: "Biology", priority: "low" },
-];
-
-const progressData = {
-  faculty: [
-    { name: "Dr. Smith", progress: 85, target: 100 },
-    { name: "Prof. Jones", progress: 70, target: 90 },
-    { name: "Ms. Taylor", progress: 45, target: 80 },
-  ],
-  course: [
-    { name: "Mathematics", progress: 90, target: 100 },
-    { name: "Physics", progress: 65, target: 85 },
-    { name: "Chemistry", progress: 78, target: 95 },
-  ],
-};
-
-const initialEvents = [
-  {
-    id: 1,
-    title: "Math Exam",
-    from: "2025-06-12T09:00:00",
-    to: "2025-06-12T10:00:00",
-    isExam: true,
-    description: "Final examination for Calculus II",
-  },
-  {
-    id: 2,
-    title: "Physics Exam",
-    from: "2025-06-13T11:30:00",
-    to: "2025-06-13T12:30:00",
-    isExam: true,
-    description: "Quantum mechanics midterm",
-  },
-  {
-    id: 3,
-    title: "Evaluation Meeting",
-    from: "2025-06-14T14:00:00",
-    to: "2025-06-14T15:00:00",
-    isExam: false,
-    description: "Monthly evaluation progress review",
-  },
-];
-
-// Loading Skeleton Components
+// Loading Skeletons
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[...Array(4)].map((_, i) => (
         <Card key={i} className="bg-muted/50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-6 w-16" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-7 w-16" />
               </div>
+              <Skeleton className="h-10 w-10 rounded-full" />
             </div>
           </CardContent>
         </Card>
@@ -152,125 +89,61 @@ function StatsSkeleton() {
   );
 }
 
-// Enhanced Pie Chart Component
-// function ChartPieDonutText() {
-//   const totalVisitors = useMemo(() => {
-//     return chartData.reduce((acc, curr) => acc + curr.visitors, 0);
-//   }, []);
+function ChartSkeleton() {
+  return <Skeleton className="h-64 w-full rounded-xl" />;
+}
 
-//   return (
-//     <Card className="flex flex-col bg-muted/50 h-full">
-//       <CardHeader className="items-center pb-0">
-//         <CardTitle className="text-lg">Evaluation Distribution</CardTitle>
-//         <CardDescription>January - June 2024</CardDescription>
-//       </CardHeader>
-//       <CardContent className="flex-1 flex items-center justify-center p-4">
-//         <ChartContainer
-//           config={chartConfig}
-//           className="w-full aspect-square max-w-[200px]"
-//         >
-//           <ResponsiveContainer width="100%" height="100%">
-//             <PieChart>
-//               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-//               <Pie
-//                 data={chartData}
-//                 dataKey="visitors"
-//                 nameKey="browser"
-//                 innerRadius={50}
-//                 outerRadius={80}
-//                 strokeWidth={2}
-//               >
-//                 <Label
-//                   content={({ viewBox }) => {
-//                     if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-//                       return (
-//                         <text
-//                           x={viewBox.cx}
-//                           y={viewBox.cy}
-//                           textAnchor="middle"
-//                           dominantBaseline="middle"
-//                         >
-//                           <tspan
-//                             x={viewBox.cx}
-//                             y={viewBox.cy}
-//                             className="fill-foreground text-xl font-bold"
-//                           >
-//                             {totalVisitors.toLocaleString()}
-//                           </tspan>
-//                           <tspan
-//                             x={viewBox.cx}
-//                             y={(viewBox.cy || 0) + 20}
-//                             className="fill-muted-foreground text-xs"
-//                           >
-//                             Total
-//                           </tspan>
-//                         </text>
-//                       );
-//                     }
-//                   }}
-//                 />
-//               </Pie>
-//             </PieChart>
-//           </ResponsiveContainer>
-//         </ChartContainer>
-//       </CardContent>
-//     </Card>
-//   );
-// }
+function CalendarSkeleton() {
+  return <Skeleton className="h-96 w-full rounded-xl" />;
+}
 
-// Stats Cards Component
-function StatsCards({ data, exams, subjects, sheetsEval, sheetsUp }) {
+// Stats Cards
+function StatsCards({ exams, subjects, evaluated, uploaded }) {
   const stats = [
     {
       label: "Exams Created",
       value: exams,
       icon: BookOpen,
-      description: "Total exams",
       color: "text-blue-600",
+      bg: "bg-blue-50",
     },
     {
-      label: "Subjects Created",
+      label: "Subjects Active",
       value: subjects,
       icon: Users,
-      description: "Active subjects",
       color: "text-green-600",
+      bg: "bg-green-50",
     },
     {
-      label: "Books Evaluated",
-      value: sheetsEval,
-      icon: FileCheck,
-      description: "Completed evaluations",
+      label: "Evaluated",
+      value: evaluated,
+      icon: CheckCircle2,
       color: "text-purple-600",
+      bg: "bg-purple-50",
     },
     {
-      label: "Books Uploaded",
-      value: sheetsUp,
+      label: "Uploaded",
+      value: uploaded,
       icon: Upload,
-      description: "Total uploads",
       color: "text-orange-600",
+      bg: "bg-orange-50",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      {stats.map((stat, index) => (
-        <Card
-          key={stat.color}
-          className="bg-muted/50 hover:bg-muted/70 transition-colors"
-        >
-          <CardContent className="p-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map((stat) => (
+        <Card key={stat.label} className="hover:shadow-md transition-shadow">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
                   {stat.label}
                 </p>
                 <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.description}
-                </p>
               </div>
-              <div className={`p-3 rounded-full bg-background ${stat.color}`}>
-                <stat.icon className="h-6 w-6" />
+              <div className={`p-2.5 rounded-full ${stat.bg}`}>
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
             </div>
           </CardContent>
@@ -280,215 +153,212 @@ function StatsCards({ data, exams, subjects, sheetsEval, sheetsUp }) {
   );
 }
 
-// Enhanced Calendar Component
-function Calendar31({ events, onAddEvent }) {
-  const [date, setDate] = useState(new Date(2025, 5, 12));
-  const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
-  const [newEventTitle, setNewEventTitle] = useState("");
-  const [newEventFrom, setNewEventFrom] = useState("");
-  const [newEventTo, setNewEventTo] = useState("");
-  const [newEventDescription, setNewEventDescription] = useState("");
+// Pie Chart
+function EvaluationDistributionChart() {
+  const total = useMemo(() => chartData.reduce((a, c) => a + c.value, 0), []);
 
-  const filteredEvents = events.filter((event) => {
-    const eventDate = new Date(event.from).toDateString();
-    return eventDate === date.toDateString();
-  });
+  return (
+    <Card className="col-span-1 lg:col-span-1">
+      <CardHeader>
+        <CardTitle className="text-lg">Evaluation Distribution</CardTitle>
+        <CardDescription>By Subject</CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-center p-4">
+        <ChartContainer
+          config={chartConfig}
+          className="h-56 w-full max-w-[220px]"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+              <Pie
+                data={chartData}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={60}
+                outerRadius={85}
+                paddingAngle={3}
+              >
+                <text
+                  x="50%"
+                  y="50%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-foreground text-2xl font-bold"
+                >
+                  {total}
+                </text>
+                <text
+                  x="50%"
+                  y="58%"
+                  textAnchor="middle"
+                  className="fill-muted-foreground text-xs"
+                >
+                  Total
+                </text>
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
 
-  const tileClassName = ({ date }) => {
-    const hasExam = events.some(
-      (event) =>
-        event.isExam &&
-        new Date(event.from).toDateString() === date.toDateString()
-    );
-    return hasExam ? "bg-red-100 dark:bg-red-900/30 rounded-full" : "";
-  };
+// Calendar Component
+function AcademicCalendar({ events, onAddEvent }) {
+  const [date, setDate] = useState(new Date());
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
-  const handleAddEvent = () => {
-    if (!newEventTitle || !newEventFrom || !newEventTo) {
-      alert("Please fill in all required fields");
-      return;
-    }
-    const fromDateTime = new Date(
-      `${date.toISOString().split("T")[0]}T${newEventFrom}:00`
-    );
-    const toDateTime = new Date(
-      `${date.toISOString().split("T")[0]}T${newEventTo}:00`
-    );
-    if (toDateTime <= fromDateTime) {
-      alert("End time must be after start time");
-      return;
-    }
+  const dayEvents = events.filter(
+    (e) => new Date(e.from).toDateString() === date.toDateString()
+  );
+
+  const tileClassName = ({ date: d }) =>
+    events.some(
+      (e) => e.isExam && new Date(e.from).toDateString() === d.toDateString()
+    )
+      ? "bg-red-100 rounded-full"
+      : "";
+
+  const handleAdd = () => {
+    if (!title || !from || !to) return;
+    const start = new Date(`${date.toISOString().split("T")[0]}T${from}`);
+    const end = new Date(`${date.toISOString().split("T")[0]}T${to}`);
+    if (end <= start) return alert("End time must be after start");
+
     onAddEvent({
       id: Date.now(),
-      title: newEventTitle,
-      from: fromDateTime.toISOString(),
-      to: toDateTime.toISOString(),
-      isExam: newEventTitle.toLowerCase().includes("exam"),
-      description: newEventDescription,
+      title,
+      from: start.toISOString(),
+      to: end.toISOString(),
+      isExam: title.toLowerCase().includes("exam"),
+      description: desc,
     });
-    setNewEventTitle("");
-    setNewEventFrom("");
-    setNewEventTo("");
-    setNewEventDescription("");
-    setIsAddEventDialogOpen(false);
+    setOpen(false);
+    setTitle("");
+    setDesc("");
+    setFrom("");
+    setTo("");
   };
 
   return (
     <>
-      <Card className="h-max flex flex-col w-max">
-        <CardHeader className="">
-          <div className="flex items-center justify-between">
+      <Card className="h-full">
+        <CardHeader>
+          <div className="flex justify-between items-center">
             <div>
               <CardTitle>Academic Calendar</CardTitle>
-              <CardDescription>Upcoming exams and events</CardDescription>
+              <CardDescription>Exams & Events</CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAddEventDialogOpen(true)}
-              className="h-8"
-            >
-              <PlusIcon className="h-4 w-4 mr-1" />
-              Add Event
+            <Button size="sm" onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 p-4">
-          <div className="flex flex-col gap-3h-full">
-            <div className="">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                className="rounded-md border"
-                tileClassName={tileClassName}
-                required
-              />
-            </div>
-            <div className="flex flex-col">
-              <h3 className="font-semibold mb-3 text-sm">
-                Events for{" "}
-                {date?.toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </h3>
-              <div className="flex-1 space-y-3 overflow-y-auto max-h-[300px]">
-                {filteredEvents.length > 0 ? (
-                  filteredEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className={`p-3 rounded-lg border-l-4 ${
-                        event.isExam
-                          ? "border-l-red-500 bg-red-50 dark:bg-red-950/20"
-                          : "border-l-blue-500 bg-blue-50 dark:bg-blue-950/20"
-                      }`}
+        <CardContent className="space-y-4">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={setDate}
+            className="rounded-md border"
+            tileClassName={tileClassName}
+          />
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            <p className="text-sm font-medium">
+              {date.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              })}
+            </p>
+            {dayEvents.length > 0 ? (
+              dayEvents.map((e) => (
+                <div
+                  key={e.id}
+                  className={`p-3 rounded-lg border-l-4 text-sm ${
+                    e.isExam
+                      ? "border-red-500 bg-red-50"
+                      : "border-blue-500 bg-blue-50"
+                  }`}
+                >
+                  <div className="flex justify-between">
+                    <span className="font-medium">{e.title}</span>
+                    <Badge
+                      variant={e.isExam ? "destructive" : "secondary"}
+                      className="text-xs"
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="font-medium text-sm">{event.title}</div>
-                        <Badge
-                          variant={event.isExam ? "destructive" : "secondary"}
-                          className="text-xs"
-                        >
-                          {event.isExam ? "Exam" : "Event"}
-                        </Badge>
-                      </div>
-                      <div className="text-muted-foreground text-xs mt-1">
-                        {formatDateRange(
-                          new Date(event.from),
-                          new Date(event.to)
-                        )}
-                      </div>
-                      {event.description && (
-                        <div className="text-muted-foreground text-xs mt-2">
-                          {event.description}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground text-sm py-8">
-                    No events scheduled for this date
+                      {e.isExam ? "Exam" : "Event"}
+                    </Badge>
                   </div>
-                )}
-              </div>
-            </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDateRange(new Date(e.from), new Date(e.to))}
+                  </p>
+                  {e.description && (
+                    <p className="text-xs mt-1">{e.description}</p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground text-sm py-4">
+                No events
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <Dialog
-        open={isAddEventDialogOpen}
-        onOpenChange={setIsAddEventDialogOpen}
-      >
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Event</DialogTitle>
-            <DialogDescription>
-              Schedule an event for {date?.toLocaleDateString()}
-            </DialogDescription>
+            <DialogTitle>Add Event</DialogTitle>
+            <DialogDescription>For {date.toDateString()}</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="event-title" className="text-sm font-medium">
-                Event Title *
-              </label>
+          <div className="space-y-4">
+            <div>
+              <Label>Title *</Label>
               <Input
-                id="event-title"
-                value={newEventTitle}
-                onChange={(e) => setNewEventTitle(e.target.value)}
-                placeholder="Enter event title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Exam / Meeting"
               />
             </div>
-            <div className="grid gap-2">
-              <label
-                htmlFor="event-description"
-                className="text-sm font-medium"
-              >
-                Description
-              </label>
+            <div>
+              <Label>Description</Label>
               <Input
-                id="event-description"
-                value={newEventDescription}
-                onChange={(e) => setNewEventDescription(e.target.value)}
-                placeholder="Enter event description"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                placeholder="Optional"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label htmlFor="event-from" className="text-sm font-medium">
-                  Start Time *
-                </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>From *</Label>
                 <Input
-                  id="event-from"
                   type="time"
-                  value={newEventFrom}
-                  onChange={(e) => setNewEventFrom(e.target.value)}
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
                 />
               </div>
-              <div className="grid gap-2">
-                <label htmlFor="event-to" className="text-sm font-medium">
-                  End Time *
-                </label>
+              <div>
+                <Label>To *</Label>
                 <Input
-                  id="event-to"
                   type="time"
-                  value={newEventTo}
-                  onChange={(e) => setNewEventTo(e.target.value)}
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsAddEventDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddEvent}>Add Event</Button>
+            <Button onClick={handleAdd}>Add Event</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -496,280 +366,202 @@ function Calendar31({ events, onAddEvent }) {
   );
 }
 
-// Enhanced Pending Evaluations Component
-function PendingEvaluations() {
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "text-red-600 bg-red-100 dark:bg-red-900/30";
-      case "medium":
-        return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30";
-      case "low":
-        return "text-green-600 bg-green-100 dark:bg-green-900/30";
-      default:
-        return "text-gray-600 bg-gray-100 dark:bg-gray-900/30";
-    }
+// Pending Evaluations
+function PendingEvaluationsList() {
+  const data = [
+    { name: "Dr. Smith", dept: "Mathematics", pending: 15, priority: "high" },
+    { name: "Prof. Jones", dept: "Physics", pending: 8, priority: "medium" },
+    { name: "Ms. Taylor", dept: "Chemistry", pending: 22, priority: "high" },
+    { name: "Dr. Brown", dept: "Biology", pending: 5, priority: "low" },
+  ];
+
+  const priorityColor = {
+    high: "bg-red-100 text-red-700 border-red-200",
+    medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    low: "bg-green-100 text-green-700 border-green-200",
   };
 
   return (
-    <Card className="h-full w-full bg-muted/50">
+    <Card>
       <CardHeader>
         <CardTitle>Pending Evaluations</CardTitle>
-        <CardDescription>Examiners with pending answer scripts</CardDescription>
+        <CardDescription>Examiners with backlog</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {pendingEvaluations.map((item) => (
-            <div
-              key={item.examiner}
-              className="flex items-center justify-between p-3 rounded-lg border"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col">
-                  <span className="font-medium text-sm">{item.examiner}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {item.department}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className={getPriorityColor(item.priority)}
-                >
-                  {item.priority}
-                </Badge>
-                <div className="text-right">
-                  <div className="font-semibold text-sm">{item.pending}</div>
-                  <div className="text-muted-foreground text-xs">pending</div>
-                </div>
+      <CardContent className="space-y-3">
+        {data.map((item) => (
+          <div
+            key={item.name}
+            className="flex items-center justify-between p-3 rounded-lg border"
+          >
+            <div>
+              <p className="font-medium text-sm">{item.name}</p>
+              <p className="text-xs text-muted-foreground">{item.dept}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className={priorityColor[item.priority]}>
+                {item.priority}
+              </Badge>
+              <div className="text-right">
+                <p className="font-semibold text-sm">{item.pending}</p>
+                <p className="text-xs text-muted-foreground">pending</p>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );
 }
 
-// Enhanced Progress Status Component
-function ProgressStatus({ evaluations, users }) {
+// Progress Status
+function EvaluationProgress({ evaluations, users }) {
+  const getName = (id) => {
+    const user = users.find((u) => u._id === id);
+    return user ? `${user.FirstName} ${user.LastName}` : "Unknown";
+  };
+
+  const transformed = evaluations.map((e) => {
+    const total = e.sheets.length;
+    const checked = e.progress?.checked || 0;
+    const percent = total ? Math.round((checked / total) * 100) : 0;
+    return {
+      name: e.name,
+      examiners: e.examiners.map(getName).join(", "),
+      percent,
+    };
+  });
+
   return (
-    <Card className="h-full w-full bg-muted/50">
+    <Card>
       <CardHeader>
         <CardTitle>Evaluation Progress</CardTitle>
-        <CardDescription>
-          Current progress by faculty and course
-        </CardDescription>
+        <CardDescription>By evaluation task</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <h3 className="text-sm font-medium mb-3">Faculty Progress</h3>
-          <div className="space-y-4">
-            {evaluations.map(
-              (item) => (
-                console.log(item),
-                (
-                  <div key={item.name} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{item.examiners}</span>
-                      <span className="font-medium">
-                        {item.progress.percent}%
-                      </span>
-                    </div>
-                    <Progress value={item.progress.percent} className="h-2" />
-                    <div className="text-xs text-muted-foreground">
-                      Target: 100%
-                    </div>
-                  </div>
-                )
-              )
-            )}
+      <CardContent className="space-y-4">
+        {transformed.map((item) => (
+          <div key={item.name} className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium">{item.examiners}</span>
+              <span>{item.percent}%</span>
+            </div>
+            <Progress value={item.percent} className="h-2" />
           </div>
-        </div>
+        ))}
       </CardContent>
     </Card>
   );
 }
 
-// Main Dashboard Component
-export default function Page() {
-  const [events, setEvents] = useState(initialEvents);
-  const [iid, setIid] = useState(null);
-  const [institute, setInstitute] = useState(null);
-  const [token, setToken] = useState(null);
+// Main Dashboard
+export default function AdminDashboard() {
+  const [events, setEvents] = useState([
+    {
+      id: 1,
+      title: "Math Exam",
+      from: "2025-06-12T09:00",
+      to: "2025-06-12T10:00",
+      isExam: true,
+      description: "Calculus II Final",
+    },
+    {
+      id: 2,
+      title: "Physics Exam",
+      from: "2025-06-13T11:30",
+      to: "2025-06-13T12:30",
+      isExam: true,
+      description: "Quantum Midterm",
+    },
+    {
+      id: 3,
+      title: "Evaluation Meeting",
+      from: "2025-06-14T14:00",
+      to: "2025-06-14T15:00",
+      isExam: false,
+      description: "Progress Review",
+    },
+  ]);
+
   const [loading, setLoading] = useState(true);
-  const [sheets, setSheets] = useState([]);
+  const [institute, setInstitute] = useState(null);
+  const [qps, setQps] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [sheets, setSheets] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
   const [users, setUsers] = useState([]);
-  const [qps, setQps] = useState([]);
 
-  const getUserEmail = (id) => {
-    const user = users.find((user) => user._id === id);
-    return user.FirstName + " " + user.LastName || "N/A";
-  };
-
-  const transformEvaluations = (rawData, users) => {
-    return rawData.map((evalItem) => {
-      const totalSheets = evalItem.sheets.length;
-      const checkedSheets = evalItem.progress?.checked || 0;
-
-      const progressPercent = totalSheets
-        ? Math.round((checkedSheets / totalSheets) * 100)
-        : 0;
-
-      return {
-        name: evalItem.name,
-        course: evalItem.course,
-        semester: evalItem.semester,
-        examiners: evalItem.examiners.map((el) => getUserEmail(el)), // comma-separated if multiple
-        status: evalItem.status,
-        progress: {
-          uploaded: evalItem.progress.uploaded,
-          checked: evalItem.progress.checked,
-          percent: progressPercent,
-        },
-      };
-    });
-  };
-
-  useEffect(() => {
-    setToken(Cookies.get("token"));
-    setIid(Cookies.get("iid"));
-  }, []);
+  const token = Cookies.get("token");
+  const iid = Cookies.get("iid");
 
   useEffect(() => {
     if (!token || !iid) return;
 
-    const getData = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        // Simulate API delay for better UX
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const [instRes, qpRes, subRes, sheetRes, evalRes, userRes] =
+          await Promise.all([
+            fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/institute`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subject`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(
+              `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            ),
+            fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/institute`,
-          {
-            headers: {
-              "content-type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const [inst, qps, subs, sheets, evals, users] = await Promise.all([
+          instRes.json(),
+          qpRes.json(),
+          subRes.json(),
+          sheetRes.json(),
+          evalRes.json(),
+          userRes.json(),
+        ]);
 
-        const qpRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp`,
-          {
-            headers: {
-              "content-type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const subRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subject`,
-          {
-            headers: {
-              "content-type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const sheetRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`,
-          {
-            headers: {
-              "content-type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const evalRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval`,
-          {
-            headers: {
-              "content-type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const userRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users`,
-          {
-            headers: {
-              "content-type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!res.ok) throw new Error("Failed to fetch institute data");
-        if (!qpRes.ok) throw new Error("Failed to fetch exams");
-        if (!subRes.ok) throw new Error("Failed to fetch subjects");
-        if (!sheetRes.ok) throw new Error("Failed to fetch answer sheets");
-        if (!evalRes.ok) throw new Error("Failed to fetch evaluations");
-        if (!userRes.ok) throw new Error("Failed to fetch users");
-
-        const data = await res.json();
-        const qpData = await qpRes.json();
-        const subData = await subRes.json();
-        const sheetData = await sheetRes.json();
-        const userData = await userRes.json();
-        const evalData = await evalRes.json();
-        const user_ins = data.find((el) => el.IID === Number(iid));
-        setInstitute(user_ins);
-        setQps(qpData);
-        setSubjects(subData);
-        setSheets(sheetData);
-        setEvaluations(evalData);
-        setUsers(userData);
-      } catch (error) {
-        console.error("Error fetching data:", error.message);
+        const instData = inst.find((i) => i.IID === Number(iid));
+        setInstitute(instData);
+        setQps(qps);
+        setSubjects(subs);
+        setSheets(sheets);
+        setEvaluations(evals);
+        setUsers(users);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    getData();
+    fetchData();
   }, [token, iid]);
-
-  const handleAddEvent = (newEvent) => {
-    setEvents((prev) => [...prev, newEvent]);
-  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
+      <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header Skeleton */}
-          <Card className="bg-muted/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-64" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+          <Skeleton className="h-20 w-full rounded-xl" />
           <StatsSkeleton />
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Skeleton className="h-64 w-full rounded-lg" />
+              <ChartSkeleton />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Skeleton className="h-64 w-full rounded-lg" />
-                <Skeleton className="h-64 w-full rounded-lg" />
+                <Skeleton className="h-64 rounded-xl" />
+                <Skeleton className="h-64 rounded-xl" />
               </div>
             </div>
-            <Skeleton className="h-[600px] w-full rounded-lg" />
+            <CalendarSkeleton />
           </div>
         </div>
       </div>
@@ -777,66 +569,53 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-5 gap-5">
-      <div className="mx-auto space-y-6">
-        {/* Header Section */}
-        <Card className="bg-gradient-to-r from-primary/5 to-muted/50">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger className="h-9 w-9 cursor-pointer rounded-md border bg-background p-2 hover:bg-muted" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="cursor-pointer h-9 w-9" />
                 <div>
-                  <h1 className="text-xl font-semibold">
-                    Welcome to {institute?.name || "Academic Portal"}
+                  <h1 className="text-xl font-bold text-gray-900">
+                    {institute?.name || "Academic Portal"}
                   </h1>
-                  <p className="text-muted-foreground text-sm">
-                    Your evaluators have completed 95% of paper checking for
-                    this semester
+                  <p className="text-sm text-gray-600">
+                    95% evaluation completed this semester
                   </p>
                 </div>
               </div>
-              <Badge
-                variant="secondary"
-                className="flex items-center gap-1 w-fit"
-              >
-                <TrendingUp className="h-3 w-3" />
-                Excellent Progress
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" /> Excellent Progress
               </Badge>
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <StatsCards
-          data={totalTableData}
           exams={qps.length}
           subjects={subjects.length}
-          sheetsEval={
-            sheets.filter((sheet) => sheet.status === "Completed").length
-          }
-          sheetsUp={sheets.length}
+          evaluated={sheets.filter((s) => s.status === "Completed").length}
+          uploaded={sheets.length}
         />
 
-        {/* Main Content Grid */}
+        {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - 2/3 on desktop */}
+          {/* Left: Progress + Pending + Chart */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Progress and Pending Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ProgressStatus
-                users={users}
-                evaluations={transformEvaluations(evaluations)}
-              />
-              <PendingEvaluations />
-            </div>
-
-            {/* Chart Row */}
-            {/* <ChartPieDonutText /> */}
+            <EvaluationProgress evaluations={evaluations} users={users} />
+            <PendingEvaluationsList />
+            <EvaluationDistributionChart />
           </div>
 
-          {/* Right Column - Calendar */}
+          {/* Right: Calendar */}
           <div className="lg:col-span-1">
-            <Calendar31 events={events} onAddEvent={handleAddEvent} />
+            <AcademicCalendar
+              events={events}
+              onAddEvent={(e) => setEvents((prev) => [...prev, e])}
+            />
           </div>
         </div>
       </div>

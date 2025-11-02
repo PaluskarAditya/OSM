@@ -36,6 +36,7 @@ import {
   Layers3Icon,
   LibraryBigIcon,
   LogOut,
+  Paperclip,
   PaperclipIcon,
   SheetIcon,
   SquareCheckBigIcon,
@@ -198,7 +199,7 @@ export default function RootLayout({ children }) {
                   <Layers3Icon className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Evaluation</span>
+                  <span className="truncate font-medium">NEXA</span>
                   <span className="truncate text-xs">
                     {loading ? "Loading..." : institute && institute.name}
                   </span>
@@ -457,6 +458,33 @@ export default function RootLayout({ children }) {
                       <SidebarMenuButton className="w-full">
                         <SquareCheckBigIcon className="h-4 w-4" />
                         <span>Results</span>
+                        <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-90 rotate-0" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link href="/admin/results/view">
+                              View Evaluation Results
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </SidebarMenuItem>
+
+                {/* Reports */}
+                <SidebarMenuItem>
+                  <Collapsible>
+                    <CollapsibleTrigger
+                      className="group/eval cursor-pointer"
+                      asChild
+                    >
+                      <SidebarMenuButton className="w-full">
+                        <Paperclip className="h-4 w-4" />
+                        <span>Reports</span>
                         <ChevronRight className="h-4 w-4 ml-auto transition-transform duration-200 group-data-[state=open]/eval:rotate-90 rotate-0" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>

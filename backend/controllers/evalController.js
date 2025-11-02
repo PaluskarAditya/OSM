@@ -2,14 +2,23 @@ const sendMail = require("../lib/mail");
 const Evaluation = require("../models/evalModel");
 const generate = require("../lib/generate");
 const User = require("../models/userModel");
+const Candidate = require("../models/candidateModel");
 
 // ✅ Create Evaluation
 const createEvaluation = async (req, res) => {
   try {
     // Check if evaluation with same name exists
-    const evalExist = await Evaluation.findOne({ name: req.body.name });
+    const { sheets, name } = req.body;
+
+    const evalExist = await Evaluation.findOne({ name });
     if (evalExist) {
-      return res.status(400).json({ err: "Evaluation already exists" });
+      const existIds = evalExist.sheets.map((e) => e.assignmentId);
+      const newIds = sheets.map((e) => e.assignmentId);
+
+      const allIncluded = newIds.every((id) => existIds.includes(id));
+
+      if (allIncluded)
+        return res.status(400).json({ err: "Evaluation already exists" });
     }
 
     // Create new evaluation
@@ -19,6 +28,22 @@ const createEvaluation = async (req, res) => {
       iid: req.user.IID,
       createdBy: req.user?._id || null, // middleware adds user
     });
+
+    for (const sheet of req.body.sheets) {
+      const candidate = await Candidate.findOne({
+        assignmentId: sheet.assignmentId,
+      });
+
+      if (!candidate) {
+        console.log(
+          `Candidate not found for assignmentId: ${sheet.assignmentId}`
+        );
+        continue;
+      }
+
+      candidate.isEvaluationAssigned = true;
+      await candidate.save();
+    }
 
     await evaluation.save();
 
@@ -34,7 +59,7 @@ const createEvaluation = async (req, res) => {
       }).lean();
 
       for (const user of assignedUsers) {
-        const email = user.Email || user.email;
+        const email = user.Email;
         if (!email) continue; // skip if no email found
 
         const role = (req.body.examiners || []).includes(String(user._id))
