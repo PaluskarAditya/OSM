@@ -1,6 +1,8 @@
 const QP = require("../models/qpModel");
 const XLSX = require("xlsx");
 const fs = require("fs");
+const Candidate = require("../models/candidateModel");
+const AnswerSheet = require("../models/answerSheetModel");
 
 function processQuestionPaper(jsonData) {
   const result = {};
@@ -143,6 +145,14 @@ const create = async (req, res) => {
 
     console.log("Question Data:", questionData);
 
+    const sheets = await AnswerSheet.find({
+      combined,
+      subject,
+      course,
+    });
+
+    const sheetIds = sheets.map((c) => c.assignmentId);
+
     const newQP = await QP.create({
       name: examName,
       stream,
@@ -158,6 +168,7 @@ const create = async (req, res) => {
       subQuestionsCount,
       actualQuestionsCount,
       combined,
+      assignmentId: sheetIds,
       iid: req.user.IID,
     });
 

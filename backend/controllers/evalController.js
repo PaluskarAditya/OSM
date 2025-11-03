@@ -3,12 +3,18 @@ const Evaluation = require("../models/evalModel");
 const generate = require("../lib/generate");
 const User = require("../models/userModel");
 const Candidate = require("../models/candidateModel");
+const QP = require("../models/qpModel");
 
 // ✅ Create Evaluation
 const createEvaluation = async (req, res) => {
   try {
     // Check if evaluation with same name exists
-    const { sheets, name } = req.body;
+    const { sheets, name, semester, course, subject } = req.body;
+
+    const ids = sheets.map((c) => c.assignmentId);
+    const qpExist = await QP.findOne({ semester, course, subject });
+    console.log("QP:", qpExist?.assignmentId, "ID's:", ids);
+    if (!qpExist) return res.status(500).send("Question Paper not found");
 
     const evalExist = await Evaluation.findOne({ name });
     if (evalExist) {

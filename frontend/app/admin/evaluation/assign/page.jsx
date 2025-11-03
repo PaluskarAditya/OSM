@@ -1024,7 +1024,7 @@ export default function EvaluationPage() {
               <TableHeader className="sticky top-0 bg-gray-50 z-10">
                 <TableRow>
                   <TableHead className="w-12 text-center">
-                    {selectedSubject && (
+                    {selectedSubject && uploadedCandidates.length > 0 && (
                       <input
                         type="checkbox"
                         checked={selectAll}

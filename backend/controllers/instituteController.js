@@ -72,15 +72,15 @@ function generateCredentialsEmail({ name, email, password }) {
 
 const create = async (req, res) => {
   try {
-    const token = req.headers["x-institute-token"];
-    console.log("Token:", token);
-    if (!token) return res.status(403).json({ error: "Missing token" });
+    // const token = req.headers["x-institute-token"];
+    // console.log("Token:", token);
+    // if (!token) return res.status(403).json({ error: "Missing token" });
 
-    const decoded = jwt.verify(token, process.env.MASTER_SECRET);
-    if (decoded.action !== process.env.CREATE_ACTION) {
-      return res.status(403).json({ error: "Invalid token purpose" });
-    }
-    console.log("Decoded:", decoded);
+    // const decoded = jwt.verify(token, process.env.MASTER_SECRET);
+    // if (decoded.action !== process.env.CREATE_ACTION) {
+    //   return res.status(403).json({ error: "Invalid token purpose" });
+    // }
+    // console.log("Decoded:", decoded);
 
     const hashed = await bcrypt.hash(req.body.password, 10);
 

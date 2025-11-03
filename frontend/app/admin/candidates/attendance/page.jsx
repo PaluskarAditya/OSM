@@ -878,7 +878,11 @@ export default function Page() {
                             {selectedSubject.name}
                           </TableCell>
                           <TableCell className="border border-r whitespace-nowrap">
-                            {el.BookletName ? el.BookletName : "Not Uploaded"}
+                            {el.bookletNames &&
+                            el.bookletNames[selectedSubject?.uuid] &&
+                            el.bookletNames[selectedSubject.uuid].trim() !== ""
+                              ? el.bookletNames[selectedSubject.uuid]
+                              : "Not Uploaded"}
                           </TableCell>
                           <TableCell className="border border-r whitespace-nowrap">
                             <span

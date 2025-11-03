@@ -96,6 +96,8 @@ const upload = async (req, res) => {
         combined,
       });
 
+      console.log(existCandidate);
+
       let candidateLinked = false;
       let attendance = false;
 
@@ -108,6 +110,7 @@ const upload = async (req, res) => {
           {
             $set: {
               sheetUploaded: true,
+              attendance: "present",
               [`bookletNames.${subject}`]: assignmentId,
             },
             $addToSet: { subjects: subject },
