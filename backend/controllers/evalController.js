@@ -16,6 +16,9 @@ const createEvaluation = async (req, res) => {
     console.log("QP:", qpExist?.assignmentId, "ID's:", ids);
     if (!qpExist) return res.status(500).send("Question Paper not found");
 
+    if (qpExist.validated !== true)
+      return res.status(500).send("Question Paper not verified");
+
     const evalExist = await Evaluation.findOne({ name });
     if (evalExist) {
       const existIds = evalExist.sheets.map((e) => e.assignmentId);

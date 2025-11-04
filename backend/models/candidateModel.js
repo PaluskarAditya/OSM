@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const candidateSchema = new mongoose.Schema(
   {
-    RollNo: { type: String, required: true, unique: true },
-    PRNNumber: { type: String, required: true, unique: true },
+    RollNo: { type: String, required: true },
+    PRNNumber: { type: String, required: true },
     Gender: { type: String, required: false },
     Email: { type: String, required: false },
     FirstName: { type: String, required: true },

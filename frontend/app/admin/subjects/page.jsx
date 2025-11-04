@@ -589,19 +589,19 @@ export default function SubjectsPage() {
       const combined = combineds.find((el) => el.uuid === sub.combined);
 
       const hasActiveStream = streams.some(
-        (stream) => stream.uuid === combined.stream && stream.isActive
+        (stream) => stream.uuid === combined?.stream && stream.isActive
       );
 
       const hasActiveDegree = degrees.some(
-        (degree) => degree.uuid === combined.degree && degree.isActive
+        (degree) => degree.uuid === combined?.degree && degree.isActive
       );
 
       const hasActiveYear = years.some(
-        (year) => year.uuid === combined.year && year.isActive
+        (year) => year.uuid === combined?.year && year.isActive
       );
 
       const hasActiveCourse = courses.some(
-        (course) => course.uuid === sub.course && course.isActive
+        (course) => course?.uuid === sub.course && course.isActive
       );
 
       return (

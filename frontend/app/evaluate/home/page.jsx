@@ -5,7 +5,14 @@ import React, { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Calendar, Clock, Users, ChevronRight, BookOpen, AlertCircle } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Users,
+  ChevronRight,
+  BookOpen,
+  AlertCircle,
+} from "lucide-react";
 
 export default function EvaluationDashboard() {
   const router = useRouter();
@@ -45,7 +52,8 @@ export default function EvaluationDashboard() {
           }),
         ]);
 
-        if (!userRes.ok || !courseRes.ok) throw new Error("Failed to fetch data");
+        if (!userRes.ok || !courseRes.ok)
+          throw new Error("Failed to fetch data");
 
         const [userData, courseData] = await Promise.all([
           userRes.json(),
@@ -134,8 +142,12 @@ export default function EvaluationDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {evals.map((evaluation) => {
               const percentage = getProgressPercentage(evaluation.progress);
-              const courseName = courses.find((el) => evaluation.course === el.uuid)?.name || "Unknown Course";
-              const isOverdue = new Date(evaluation.endDate.split("-").reverse().join("-")) < new Date();
+              const courseName =
+                courses.find((el) => evaluation.course === el.uuid)?.name ||
+                "Unknown Course";
+              const isOverdue =
+                new Date(evaluation.endDate.split("-").reverse().join("-")) <
+                new Date();
 
               return (
                 <Link
@@ -164,15 +176,24 @@ export default function EvaluationDashboard() {
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-500 flex items-center gap-1">
                             <Users className="w-3 h-3" />
-                            {evaluation.progress.checked}/{evaluation.progress.uploaded}
+                            {evaluation.progress.checked}/
+                            {evaluation.progress.uploaded}
                           </span>
-                          <span className={`font-medium ${percentage === 100 ? "text-green-600" : "text-gray-700"}`}>
+                          <span
+                            className={`font-medium ${
+                              percentage === 100
+                                ? "text-green-600"
+                                : "text-gray-700"
+                            }`}
+                          >
                             {percentage}%
                           </span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${getProgressColor(percentage)}`}
+                            className={`h-full rounded-full transition-all duration-500 ${getProgressColor(
+                              percentage
+                            )}`}
                             style={{ width: `${percentage}%` }}
                           />
                         </div>
@@ -182,10 +203,16 @@ export default function EvaluationDashboard() {
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-gray-500">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span className={isOverdue ? "text-red-600 font-medium" : ""}>
-                            Due {formatDate(evaluation.endDate)}
+                          <span
+                            className={
+                              isOverdue ? "text-red-600 font-medium" : ""
+                            }
+                          >
+                            Due {evaluation.endDate}
                           </span>
-                          {isOverdue && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                          {isOverdue && (
+                            <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                          )}
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
                       </div>
@@ -249,7 +276,8 @@ const EmptyState = () => (
         No evaluations assigned yet
       </h3>
       <p className="text-sm text-gray-600 mb-6">
-        You'll see your assigned answer sheet evaluation tasks here when they become available.
+        You'll see your assigned answer sheet evaluation tasks here when they
+        become available.
       </p>
       <div className="flex justify-center gap-2 text-xs text-gray-500">
         <Clock className="w-4 h-4" />
