@@ -197,8 +197,7 @@ export default function EvaluationDetail() {
               {evaluation.endDate && (
                 <div className="flex items-center gap-2 text-gray-700">
                   <Clock className="w-4 h-4 text-orange-600" />
-                  <span className="font-medium">Due:</span>{" "}
-                  {formatDate(evaluation.endDate)}
+                  <span className="font-medium">Due:</span> {evaluation.endDate}
                 </div>
               )}
             </div>

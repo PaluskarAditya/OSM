@@ -67,6 +67,7 @@ export default function SubjectsPage() {
   const [editDialogSemester, setEditDialogSemester] = useState("");
   const [editDialogExam, setEditDialogExam] = useState("");
   const [editDialogType, setEditDialogType] = useState("");
+  const [editDialogCombined, setEditDialogCombined] = useState("");
   const token = Cookies.get("token");
   const [loading, setLoading] = useState(false);
   const [selectedStream, setSelectedStream] = useState(null);
@@ -217,7 +218,7 @@ export default function SubjectsPage() {
       setEditDialogExam(selectedSubject.exam);
       setEditDialogType(selectedSubject.type);
       setSelectedCourse(selectedSubject.course);
-      setSelectedCombined(selectedSubject.combined);
+      setEditDialogCombined(selectedSubject.combined);
     }
   }, [dialogAction, selectedSubject]);
 
@@ -290,7 +291,7 @@ export default function SubjectsPage() {
         name: editDialogName,
         code: editDialogCode,
         semester: editDialogSemester,
-        combined: selectedCombined,
+        combined: editDialogCombined,
         type: editDialogType,
         course: selectedCourse,
         exam: editDialogExam,
@@ -1113,8 +1114,8 @@ export default function SubjectsPage() {
             <div className="flex flex-col gap-1">
               <label>Combined</label>
               <Select
-                value={selectedCombined || ""}
-                onValueChange={(value) => setSelectedCombined(value)}
+                value={editDialogCombined || ""}
+                onValueChange={(value) => setEditDialogCombined(value)}
               >
                 <SelectTrigger className="text-sm cursor-pointer w-full">
                   <SelectValue placeholder="Select Combined" />
@@ -1126,7 +1127,7 @@ export default function SubjectsPage() {
                       .map((opt) => (
                         <SelectItem
                           key={opt.uuid}
-                          value={opt}
+                          value={opt.uuid}
                           className="text-sm cursor-pointer"
                         >
                           {opt.name}
@@ -1142,7 +1143,7 @@ export default function SubjectsPage() {
               <label>Course</label>
               <Select
                 value={selectedCourse || ""}
-                disabled={!selectedCombined}
+                disabled={!editDialogCombined}
                 onValueChange={(value) => setSelectedCourse(value)}
               >
                 <SelectTrigger className="text-sm cursor-pointer w-full">
@@ -1154,8 +1155,8 @@ export default function SubjectsPage() {
                       .filter(
                         (el) =>
                           el.isActive === true &&
-                          selectedCombined &&
-                          selectedCombined.course?.includes(el.uuid)
+                          editDialogCombined &&
+                          editDialogCombined.course?.includes(el.uuid)
                       )
                       .map((opt) => (
                         <SelectItem
