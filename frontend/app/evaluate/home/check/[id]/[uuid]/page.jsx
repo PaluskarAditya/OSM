@@ -42,14 +42,14 @@ const renderQuestionHierarchyTable = (
   selectedQuestion
 ) => {
   if (!data) return [];
-  
+
   const questionData = Array.isArray(data) ? data[0] : data;
   const rows = [];
   const processedQuestions = new Set();
 
   const extractLeafQuestions = (question) => {
     if (!question) return;
-    
+
     const questionNo = question.QuestionNo;
 
     if (processedQuestions.has(questionNo)) return;
@@ -75,14 +75,18 @@ const renderQuestionHierarchyTable = (
           key={questionNo}
           onClick={() => onQuestionSelect(question)}
           className={`cursor-pointer transition-colors ${
-            isSelected ? "bg-blue-50 border-l-4 border-l-blue-500" : "hover:bg-gray-50"
+            isSelected
+              ? "bg-blue-50 border-l-4 border-l-blue-500"
+              : "hover:bg-gray-50"
           }`}
         >
           <TableCell className="border-r text-center p-2">
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={`${
-                isSelected ? "bg-blue-500 text-white" : "bg-green-100 text-green-800"
+                isSelected
+                  ? "bg-blue-500 text-white"
+                  : "bg-green-100 text-green-800"
               } font-semibold text-xs`}
             >
               {questionNo}
@@ -117,17 +121,18 @@ const renderQuestionHierarchyTable = (
 
 const getAllLeafQuestions = (data) => {
   if (!data) return [];
-  
+
   const questionData = Array.isArray(data) ? data[0] : data;
   const leaves = [];
   const processed = new Set();
 
   const extract = (q) => {
     if (!q) return;
-    
+
     const no = q.QuestionNo;
     if (processed.has(no)) return;
-    const hasActual = q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
+    const hasActual =
+      q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
     const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
 
     if (no && typeof q.Marks !== "undefined" && !hasActual && !hasSub) {
@@ -143,6 +148,66 @@ const getAllLeafQuestions = (data) => {
   return leaves;
 };
 
+// Score Calculation Helper Function
+// === NEW: Calculate correct total score with optional logic ===
+const calculateTotalScoreWithOptionals = (qpData, scores) => {
+  if (!qpData || !Array.isArray(qpData) || qpData.length === 0) return 0;
+
+  const questionData = qpData[0];
+  let total = 0;
+
+  const processQuestion = (q) => {
+    if (!q) return;
+
+    const no = q.QuestionNo;
+    const hasActual =
+      q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
+    const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
+
+    // Leaf question: has Marks, no sub/actual
+    if (no && typeof q.Marks !== "undefined" && !hasActual && !hasSub) {
+      const score = parseFloat(scores[no]) || 0;
+      if (!isNaN(score)) total += score;
+      return;
+    }
+
+    // Handle actualQuestions (optional group)
+    if (hasActual) {
+      const actuals = Object.values(q.actualQuestions);
+      const optional = q.Optional === 1;
+      const totalToAttempt = q.TotalQuestions || actuals.length;
+
+      if (optional && totalToAttempt < actuals.length) {
+        // Get all attempted scores
+        const attemptedScores = actuals
+          .map((aq) => parseFloat(scores[aq.QuestionNo]) || 0)
+          .filter((s) => !isNaN(s));
+
+        // Take top N
+        const topScores = attemptedScores
+          .sort((a, b) => b - a)
+          .slice(0, totalToAttempt);
+
+        total += topScores.reduce((sum, s) => sum + s, 0);
+      } else {
+        // Not optional → sum all
+        actuals.forEach((aq) => {
+          const score = parseFloat(scores[aq.QuestionNo]) || 0;
+          if (!isNaN(score)) total += score;
+        });
+      }
+    }
+
+    // Recurse into subQuestions
+    if (hasSub) {
+      Object.values(q.subQuestions).forEach(processQuestion);
+    }
+  };
+
+  Object.values(questionData).forEach(processQuestion);
+  return total;
+};
+
 // Dialogs
 const FinishPaperDialog = ({ isOpen, onClose, onConfirm, loading }) => {
   if (!isOpen) return null;
@@ -150,12 +215,18 @@ const FinishPaperDialog = ({ isOpen, onClose, onConfirm, loading }) => {
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
         <h2 className="text-lg font-bold mb-3">Finish Evaluation?</h2>
-        <p className="text-sm text-gray-600 mb-5">This action cannot be undone.</p>
+        <p className="text-sm text-gray-600 mb-5">
+          This action cannot be undone.
+        </p>
         <div className="flex gap-3 justify-end">
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={onConfirm} disabled={loading} className="bg-green-600 hover:bg-green-700">
+          <Button
+            onClick={onConfirm}
+            disabled={loading}
+            className="bg-green-600 hover:bg-green-700"
+          >
             {loading ? "Saving..." : "Finish"}
           </Button>
         </div>
@@ -171,7 +242,9 @@ const ErrorDialog = ({ isOpen, onClose, title, message }) => {
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
         <h2 className="text-lg font-bold text-red-600 mb-3">{title}</h2>
         <p className="text-sm text-gray-700 mb-5">{message}</p>
-        <Button onClick={onClose} className="w-full">OK</Button>
+        <Button onClick={onClose} className="w-full">
+          OK
+        </Button>
       </div>
     </div>
   );
@@ -195,7 +268,11 @@ export default function Page() {
   const [totalScore, setTotalScore] = useState(0);
   const [loading, setLoading] = useState(false);
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
-  const [errorDialog, setErrorDialog] = useState({ open: false, title: "", message: "" });
+  const [errorDialog, setErrorDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
   const [revisitCount, setRevisitCount] = useState(0);
   const canvasRef = useRef(null);
   const drawCanvasRef = useRef(null);
@@ -204,12 +281,13 @@ export default function Page() {
 
   // Calculate total score whenever questionScores changes
   useEffect(() => {
-    const newTotalScore = Object.values(questionScores).reduce(
-      (sum, score) => sum + (parseFloat(score) || 0),
-      0
+    if (!qp?.data) return;
+    const correctTotal = calculateTotalScoreWithOptionals(
+      qp.data,
+      questionScores
     );
-    setTotalScore(newTotalScore);
-  }, [questionScores]);
+    setTotalScore(correctTotal);
+  }, [questionScores, qp?.data]);
 
   // Canvas context
   useEffect(() => {
@@ -267,7 +345,8 @@ export default function Page() {
   const updateAnnotations = (updater) => {
     setAnnotations((prev) => {
       const pageAnnots = prev[currentPage] || [];
-      const newAnnots = typeof updater === "function" ? updater(pageAnnots) : updater;
+      const newAnnots =
+        typeof updater === "function" ? updater(pageAnnots) : updater;
       const hadAnnots = pageAnnots.length > 0;
       const hasAnnots = newAnnots.length > 0;
 
@@ -302,7 +381,7 @@ export default function Page() {
         ctx.beginPath();
         if (a.value && a.value.length > 0) {
           ctx.moveTo(a.value[0].x, a.value[0].y);
-          a.value.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+          a.value.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
         }
         ctx.stroke();
       } else if (a.type === "icon") {
@@ -340,15 +419,21 @@ export default function Page() {
     const load = async () => {
       try {
         const [sheetRes, qpRes, annotRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/${uuid}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/${uuid}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          ),
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/${uuid}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/annotations/${uuid}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => ({ ok: false })),
+          fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/annotations/${uuid}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          ).catch(() => ({ ok: false })),
         ]);
 
         if (!sheetRes.ok) throw new Error("Failed to load answer sheet");
@@ -367,14 +452,16 @@ export default function Page() {
 
         if (annotData.annotations) {
           setAnnotations(annotData.annotations);
-          const visited = Object.values(annotData.annotations).filter(a => a?.length > 0).length;
+          const visited = Object.values(annotData.annotations).filter(
+            (a) => a?.length > 0
+          ).length;
           setVisitedPages(visited);
         }
-        
+
         // Initialize question scores and total score
         const initialScores = annotData.result || {};
         setQuestionScores(initialScores);
-        
+
         const initialTotalScore = Object.values(initialScores).reduce(
           (sum, score) => sum + (parseFloat(score) || 0),
           0
@@ -382,7 +469,8 @@ export default function Page() {
         setTotalScore(initialTotalScore);
 
         if (annotData.isEvaluated) {
-          const count = (parseInt(Cookies.get(`revisit_${uuid}`) || "0") || 0) + 1;
+          const count =
+            (parseInt(Cookies.get(`revisit_${uuid}`) || "0") || 0) + 1;
           setRevisitCount(count);
           Cookies.set(`revisit_${uuid}`, count.toString(), { expires: 30 });
           toast.info(`Reopened: Visit #${count}/5`);
@@ -396,7 +484,10 @@ export default function Page() {
     const measureSpeed = async () => {
       const start = performance.now();
       try {
-        await fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png", { cache: "no-cache", mode: "no-cors" });
+        await fetch(
+          "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png",
+          { cache: "no-cache", mode: "no-cors" }
+        );
         const duration = (performance.now() - start) / 1000;
         setSpeed(((3 * 1024 * 8) / duration / 1_000_000).toFixed(2));
       } catch {
@@ -414,22 +505,22 @@ export default function Page() {
   // Render page
   const renderPage = async (pdf, num) => {
     if (!pdf || !canvasRef.current) return;
-    
+
     try {
       const page = await pdf.getPage(num);
       const viewport = page.getViewport({ scale: 1.6 });
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      
+
       // Set canvas dimensions
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      
+
       if (drawCanvasRef.current) {
         drawCanvasRef.current.width = viewport.width;
         drawCanvasRef.current.height = viewport.height;
       }
-      
+
       await page.render({ canvasContext: ctx, viewport }).promise;
     } catch (error) {
       console.error("Error rendering page:", error);
@@ -446,22 +537,24 @@ export default function Page() {
     <CircleXIcon className="h-5 w-5" />,
     <TypeIcon className="h-5 w-5" />,
     <PencilIcon className="h-5 w-5" />,
-    <Badge className="bg-blue-600 text-white px-2 py-1 text-xs font-bold">#</Badge>,
+    <Badge className="bg-blue-600 text-white px-2 py-1 text-xs font-bold">
+      #
+    </Badge>,
     <UndoIcon className="h-5 w-5" />,
     <TrashIcon className="h-5 w-5" />,
   ];
 
   const handleAnnotationMap = (i) => {
     const tools = ["check", "cross", "text", "pencil", "number", null, null];
-    if (i === 5) return updateAnnotations(p => p.slice(0, -1));
+    if (i === 5) return updateAnnotations((p) => p.slice(0, -1));
     if (i === 6) return updateAnnotations([]);
     const tool = tools[i];
-    setSelectedTool(prev => prev === tool ? null : tool);
+    setSelectedTool((prev) => (prev === tool ? null : tool));
   };
 
   const handleCanvasClick = (e) => {
     if (selectedTool === "pencil" || !drawCanvasRef.current) return;
-    
+
     const rect = drawCanvasRef.current.getBoundingClientRect();
     const scaleX = drawCanvasRef.current.width / rect.width;
     const scaleY = drawCanvasRef.current.height / rect.height;
@@ -469,54 +562,72 @@ export default function Page() {
     const y = (e.clientY - rect.top) * scaleY;
 
     if (["check", "cross"].includes(selectedTool)) {
-      updateAnnotations(p => [...p, { 
-        id: Date.now(), 
-        type: "icon", 
-        value: selectedTool, 
-        position: { x, y } 
-      }]);
+      updateAnnotations((p) => [
+        ...p,
+        {
+          id: Date.now(),
+          type: "icon",
+          value: selectedTool,
+          position: { x, y },
+        },
+      ]);
     } else if (selectedTool === "text") {
       const text = prompt("Enter text:");
       if (text) {
-        updateAnnotations(p => [...p, { 
-          id: Date.now(), 
-          type: "text", 
-          value: text, 
-          position: { x, y } 
-        }]);
+        updateAnnotations((p) => [
+          ...p,
+          {
+            id: Date.now(),
+            type: "text",
+            value: text,
+            position: { x, y },
+          },
+        ]);
       }
     } else if (selectedTool === "number" && selectedQuestion) {
-      const mark = prompt(`Enter marks for question ${selectedQuestion.QuestionNo} (0-${selectedQuestion.Marks} or type "NA"):`);
+      const mark = prompt(
+        `Enter marks for question ${selectedQuestion.QuestionNo} (0-${selectedQuestion.Marks} or type "NA"):`
+      );
       if (mark === null) return;
-      
+
       if (mark === "NA") {
-        updateAnnotations(p => [...p, { 
-          id: Date.now(), 
-          type: "number", 
-          value: "NA", 
-          position: { x, y } 
-        }]);
-        setQuestionScores(prev => ({ 
-          ...prev, 
-          [selectedQuestion.QuestionNo]: 0 
+        updateAnnotations((p) => [
+          ...p,
+          {
+            id: Date.now(),
+            type: "number",
+            value: "NA",
+            position: { x, y },
+          },
+        ]);
+        setQuestionScores((prev) => ({
+          ...prev,
+          [selectedQuestion.QuestionNo]: 0,
         }));
         toast.success(`Marked question ${selectedQuestion.QuestionNo} as NA`);
       } else {
         const num = parseFloat(mark);
         if (!isNaN(num) && num >= 0 && num <= selectedQuestion.Marks) {
-          updateAnnotations(p => [...p, { 
-            id: Date.now(), 
-            type: "number", 
-            value: mark, 
-            position: { x, y } 
-          }]);
-          setQuestionScores(prev => ({ 
-            ...prev, 
-            [selectedQuestion.QuestionNo]: num 
+          updateAnnotations((p) => [
+            ...p,
+            {
+              id: Date.now(),
+              type: "number",
+              value: mark,
+              position: { x, y },
+            },
+          ]);
+          setQuestionScores((prev) => ({
+            ...prev,
+            [selectedQuestion.QuestionNo]: num,
           }));
-          toast.success(`Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`);
+          toast.success(
+            `Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`
+          );
         } else {
-          toast.error(`Please enter a valid number between 0 and ${selectedQuestion.Marks} or "NA"`);
+          toast.error(
+            `Please enter a valid number between 0 and ${selectedQuestion.Marks} or "NA"`
+          );
         }
       }
     }
@@ -527,58 +638,60 @@ export default function Page() {
       toast.error("Please select a question first");
       return;
     }
-    
+
+    const no = selectedQuestion.QuestionNo;
+    const max = selectedQuestion.Marks;
+
     if (mark === "NA") {
-      setQuestionScores(prev => ({ 
-        ...prev, 
-        [selectedQuestion.QuestionNo]: 0 
-      }));
-      toast.success(`Marked question ${selectedQuestion.QuestionNo} as NA`);
-    } else {
-      const num = parseFloat(mark);
-      if (!isNaN(num) && num >= 0 && num <= selectedQuestion.Marks) {
-        setQuestionScores(prev => ({ 
-          ...prev, 
-          [selectedQuestion.QuestionNo]: num 
-        }));
-        toast.success(`Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`);
-      } else {
-        toast.error(`Invalid mark. Must be between 0 and ${selectedQuestion.Marks}`);
-      }
+      setQuestionScores((prev) => ({ ...prev, [no]: 0 }));
+      toast.success(`Marked ${no} as NA`);
+      return;
     }
+
+    const num = parseFloat(mark);
+    if (isNaN(num) || num < 0 || num > max) {
+      toast.error(`Must be 0–${max} or NA`);
+      return;
+    }
+
+    setQuestionScores((prev) => ({ ...prev, [no]: num }));
+    toast.success(`${num} marks → ${no}`);
   };
 
   const handlePaperFinish = async () => {
     if (visitedPages < totalPages) {
-      setErrorDialog({ 
-        open: true, 
-        title: "Pages Not Visited", 
-        message: "NOT ALL PAGES VISITED, VISIT ALL THE PAGES TO FINISH EVALUATION" 
+      setErrorDialog({
+        open: true,
+        title: "Pages Not Visited",
+        message:
+          "NOT ALL PAGES VISITED, VISIT ALL THE PAGES TO FINISH EVALUATION",
       });
       return;
     }
-    
+
     if (!qp?.data) {
-      setErrorDialog({ 
-        open: true, 
-        title: "Data Error", 
-        message: "Question paper data not loaded properly" 
+      setErrorDialog({
+        open: true,
+        title: "Data Error",
+        message: "Question paper data not loaded properly",
       });
       return;
     }
-    
+
     const leaves = getAllLeafQuestions(qp.data);
-    const unannotatedQuestions = leaves.filter(no => questionScores[no] === undefined);
-    
+    const unannotatedQuestions = leaves.filter(
+      (no) => questionScores[no] === undefined
+    );
+
     if (unannotatedQuestions.length > 0) {
-      setErrorDialog({ 
-        open: true, 
-        title: "Missing Marks", 
-        message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION" 
+      setErrorDialog({
+        open: true,
+        title: "Missing Marks",
+        message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
       });
       return;
     }
-    
+
     setFinishDialogOpen(true);
   };
 
@@ -586,35 +699,83 @@ export default function Page() {
     setLoading(true);
     try {
       const requests = [
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ 
-            totalMarks: totalScore, 
-            annotations, 
-            result: questionScores, 
-            isEvaluated: true 
-          }),
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status: "Completed" }),
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ 
-            status: "Completed", 
-            isChecked: "Evaluated", 
-            marks: totalScore 
-          }),
-        }),
+        fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              totalMarks: totalScore,
+              annotations,
+              result: questionScores,
+              isEvaluated: true,
+            }),
+          }
+        ),
+        fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: "Completed" }),
+          }
+        ),
+        fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              status: "Completed",
+              isChecked: "Evaluated",
+              marks: totalScore,
+            }),
+          }
+        ),
       ];
 
+      const leaves = getAllLeafQuestions(qp.data);
+      const unannotatedQuestions = leaves.filter(
+        (no) => questionScores[no] === undefined
+      );
+
+      if (unannotatedQuestions.length > 0) {
+        setErrorDialog({
+          open: true,
+          title: "Missing Marks",
+          message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
+        });
+        return;
+      }
+
+      // NEW: Prevent overscoring by re-calculating
+      const finalTotal = calculateTotalScoreWithOptionals(
+        qp.data,
+        questionScores
+      );
+      if (finalTotal > parseFloat(qp.totalMarks || 0)) {
+        setErrorDialog({
+          open: true,
+          title: "Overscoring Detected",
+          message: `Total score (${finalTotal}) exceeds paper total (${qp.totalMarks}). Check optional questions.`,
+        });
+        return;
+      }
+
+      setFinishDialogOpen(true);
+
       const results = await Promise.all(requests);
-      const allSuccess = results.every(res => res.ok);
-      
+      const allSuccess = results.every((res) => res.ok);
+
       if (allSuccess) {
         toast.success("Evaluation completed successfully!");
         setTimeout(() => router.back(), 1500);
@@ -642,18 +803,18 @@ export default function Page() {
         </div>
       )}
 
-      <FinishPaperDialog 
-        isOpen={finishDialogOpen} 
-        onClose={() => setFinishDialogOpen(false)} 
-        onConfirm={confirmFinish} 
-        loading={loading} 
+      <FinishPaperDialog
+        isOpen={finishDialogOpen}
+        onClose={() => setFinishDialogOpen(false)}
+        onConfirm={confirmFinish}
+        loading={loading}
       />
-      
-      <ErrorDialog 
-        isOpen={errorDialog.open} 
-        onClose={() => setErrorDialog({ ...errorDialog, open: false })} 
-        title={errorDialog.title} 
-        message={errorDialog.message} 
+
+      <ErrorDialog
+        isOpen={errorDialog.open}
+        onClose={() => setErrorDialog({ ...errorDialog, open: false })}
+        title={errorDialog.title}
+        message={errorDialog.message}
       />
 
       {/* Header */}
@@ -668,7 +829,10 @@ export default function Page() {
             <span className="font-medium text-sm">
               {qp?.name || "Loading..."}
               {revisitCount > 0 && (
-                <Badge className="ml-2 bg-orange-100 text-orange-800" variant="secondary">
+                <Badge
+                  className="ml-2 bg-orange-100 text-orange-800"
+                  variant="secondary"
+                >
                   Revisit #{revisitCount}/5
                 </Badge>
               )}
@@ -689,17 +853,21 @@ export default function Page() {
         {/* Left: Tools */}
         <aside className="w-20 lg:w-64 bg-white border-r overflow-y-auto p-3 space-y-6 flex-shrink-0">
           <div>
-            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">QUICK MARKS</h3>
+            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">
+              QUICK MARKS
+            </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              {MARKS.map(m => (
-                <Button 
-                  key={m} 
-                  size="sm" 
-                  variant="outline" 
+              {MARKS.map((m) => (
+                <Button
+                  key={m}
+                  size="sm"
+                  variant="outline"
                   onClick={() => handleMarkAssignment(m)}
                   className={`text-xs h-8 ${
-                    selectedQuestion && questionScores[selectedQuestion.QuestionNo] === (m === "NA" ? 0 : m) 
-                      ? "bg-blue-600 text-white border-blue-600" 
+                    selectedQuestion &&
+                    questionScores[selectedQuestion.QuestionNo] ===
+                      (m === "NA" ? 0 : m)
+                      ? "bg-blue-600 text-white border-blue-600"
                       : "bg-white"
                   }`}
                 >
@@ -708,21 +876,25 @@ export default function Page() {
               ))}
             </div>
           </div>
-          
+
           <div>
-            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">ANNOTATIONS</h3>
+            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">
+              ANNOTATIONS
+            </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
               {ANNOTATIONS.map((icon, i) => {
                 const tool = ["check", "cross", "text", "pencil", "number"][i];
                 const isActive = selectedTool === tool;
                 return (
-                  <Button 
-                    key={i} 
-                    size="icon" 
-                    variant="outline" 
+                  <Button
+                    key={i}
+                    size="icon"
+                    variant="outline"
                     onClick={() => handleAnnotationMap(i)}
                     className={`h-8 w-8 lg:h-10 lg:w-10 ${
-                      isActive ? "bg-blue-100 border-blue-500 text-blue-700" : ""
+                      isActive
+                        ? "bg-blue-100 border-blue-500 text-blue-700"
+                        : ""
                     }`}
                     title={tool ? `Tool: ${tool}` : i === 5 ? "Undo" : "Clear"}
                   >
@@ -741,19 +913,21 @@ export default function Page() {
               Page {currentPage} / {totalPages}
             </span>
             <div className="flex gap-1">
-              <Button 
-                size="icon" 
-                variant="outline" 
-                onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className="h-8 w-8"
               >
                 <ArrowLeftIcon className="w-4 h-4" />
               </Button>
-              <Button 
-                size="icon" 
-                variant="outline" 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="h-8 w-8"
               >
@@ -761,14 +935,11 @@ export default function Page() {
               </Button>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-auto relative bg-gray-200 p-2">
             <div className="max-w-4xl mx-auto bg-white shadow-lg">
               <div className="relative">
-                <canvas 
-                  ref={canvasRef} 
-                  className="block w-full h-auto" 
-                />
+                <canvas ref={canvasRef} className="block w-full h-auto" />
                 <canvas
                   ref={drawCanvasRef}
                   className="absolute inset-0 w-full h-full cursor-crosshair"
@@ -776,9 +947,13 @@ export default function Page() {
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onClick={handleCanvasClick}
-                  style={{ 
-                    cursor: selectedTool === "pencil" ? "crosshair" : 
-                           selectedTool ? "pointer" : "default" 
+                  style={{
+                    cursor:
+                      selectedTool === "pencil"
+                        ? "crosshair"
+                        : selectedTool
+                        ? "pointer"
+                        : "default",
                   }}
                 />
               </div>
@@ -790,18 +965,28 @@ export default function Page() {
         <aside className="w-full lg:w-80 bg-white border-l flex flex-col overflow-hidden flex-shrink-0">
           <div className="p-3 border-b">
             <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/pdf/${uuid}`, "_blank")} 
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  window.open(
+                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/pdf/${uuid}`,
+                    "_blank"
+                  )
+                }
                 className="flex-1 text-xs"
               >
                 <EyeIcon className="w-4 h-4 mr-1" /> QP
               </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-key/${uuid}`, "_blank")} 
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  window.open(
+                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-key/${uuid}`,
+                    "_blank"
+                  )
+                }
                 className="flex-1 text-xs"
               >
                 <EyeIcon className="w-4 h-4 mr-1" /> Key
@@ -816,15 +1001,31 @@ export default function Page() {
                 <Table>
                   <TableHeader className="bg-gray-50 sticky top-0">
                     <TableRow>
-                      <TableHead className="text-center text-xs py-2 border-r">Q</TableHead>
-                      <TableHead className="text-center text-xs py-2 border-r">Out of</TableHead>
-                      <TableHead className="text-center text-xs py-2">Score</TableHead>
+                      <TableHead className="text-center text-xs py-2 border-r">
+                        Q
+                      </TableHead>
+                      <TableHead className="text-center text-xs py-2 border-r">
+                        Out of
+                      </TableHead>
+                      <TableHead className="text-center text-xs py-2">
+                        Score
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {qp ? renderQuestionHierarchyTable(qp.data, setSelectedQuestion, questionScores, selectedQuestion) : (
+                    {qp ? (
+                      renderQuestionHierarchyTable(
+                        qp.data,
+                        setSelectedQuestion,
+                        questionScores,
+                        selectedQuestion
+                      )
+                    ) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center text-xs py-4">
+                        <TableCell
+                          colSpan={3}
+                          className="text-center text-xs py-4"
+                        >
                           Loading questions...
                         </TableCell>
                       </TableRow>
@@ -837,34 +1038,38 @@ export default function Page() {
             {/* Selected Question Details */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <h4 className="font-bold text-sm text-blue-800 mb-2">
-                {selectedQuestion ? 
-                  `Question ${selectedQuestion.QuestionNo} (${questionScores[selectedQuestion.QuestionNo] ?? 0}/${selectedQuestion.Marks})` : 
-                  "Select Question"
-                }
+                {selectedQuestion
+                  ? `Question ${selectedQuestion.QuestionNo} (${
+                      questionScores[selectedQuestion.QuestionNo] ?? 0
+                    }/${selectedQuestion.Marks})`
+                  : "Select Question"}
               </h4>
               <p className="text-xs text-gray-700 line-clamp-3">
-                {selectedQuestion?.QuestionText || "Click a question from the table above to view details and assign marks."}
+                {selectedQuestion?.QuestionText ||
+                  "Click a question from the table above to view details and assign marks."}
               </p>
             </div>
 
             {/* Total Score & Actions */}
             <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
-              <p className="text-center text-sm font-semibold text-gray-700 mb-1">Total Score</p>
+              <p className="text-center text-sm font-semibold text-gray-700 mb-1">
+                Total Score
+              </p>
               <p className="text-center text-2xl font-bold text-green-600 mb-3">
                 {totalScore.toFixed(2)} / {qp?.totalMarks || 0}
               </p>
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
+                <Button
+                  size="sm"
+                  variant="outline"
                   className="flex-1 text-xs text-red-600 border-red-300 hover:bg-red-50"
                 >
                   Reject
                 </Button>
-                <Button 
-                  size="sm" 
-                  onClick={handlePaperFinish} 
-                  className="flex-1 text-xs bg-green-600 hover:bg-green-700" 
+                <Button
+                  size="sm"
+                  onClick={handlePaperFinish}
+                  className="flex-1 text-xs bg-green-600 hover:bg-green-700"
                   disabled={revisitCount >= 5}
                 >
                   Finish {revisitCount > 0 && `(#${revisitCount})`}
@@ -878,10 +1083,12 @@ export default function Page() {
                 <h4 className="text-sm font-semibold">Pages</h4>
                 <div className="flex gap-3 text-xs">
                   <span className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-green-500 rounded"></div> {visitedPages}
+                    <div className="w-3 h-3 bg-green-500 rounded"></div>{" "}
+                    {visitedPages}
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-orange-500 rounded"></div> {totalPages - visitedPages}
+                    <div className="w-3 h-3 bg-orange-500 rounded"></div>{" "}
+                    {totalPages - visitedPages}
                   </span>
                 </div>
               </div>
@@ -890,11 +1097,11 @@ export default function Page() {
                   const pageNum = i + 1;
                   const hasAnnotations = !!annotations[pageNum]?.length;
                   const isCurrent = pageNum === currentPage;
-                  
+
                   let bgColor = "bg-orange-500"; // Not visited
                   if (hasAnnotations) bgColor = "bg-green-500"; // Visited
                   if (isCurrent) bgColor = "bg-blue-500"; // Current page
-                  
+
                   return (
                     <Badge
                       key={pageNum}
