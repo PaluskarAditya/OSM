@@ -52,13 +52,18 @@ const upload = async (req, res) => {
 
     // 🌀 Loop through uploaded files
     for (let file of files) {
-      const match = file.originalname.match(/^([\w-]+)\s*\[([^\]]+)\]\.pdf$/i);
-      if (!match) {
-        throw new Error(`Invalid filename format: ${file.originalname}`);
-      }
+      const roll = file.originalname.split(".")[0];
+      const candidateFind = await Candidate.findOne({
+        combined,
+        course,
+        subjects: { $in: subject },
+        RollNo: roll,
+      }).select("PRNNumber");
 
-      const roll = match[1];
-      const prn = match[2];
+      if (!candidateFind) return res.status(500).send("Candidate not Found");
+
+      const prn = candidateFind.PRNNumber;
+      console.log("PRN Number: ", prn);
       const combinedKey = `${roll} [${prn}]`;
 
       // 🧩 Build virtual path + IDs

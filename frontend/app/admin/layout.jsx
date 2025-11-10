@@ -278,7 +278,16 @@ export default function RootLayout({ children }) {
                                   <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild>
                                       <Link href="/admin/qp/create">
-                                        Create Paper Excel
+                                        Create Paper
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                )}
+                                {role === "Admin" && (
+                                  <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild>
+                                      <Link href="/admin/qp/key">
+                                        PDF / Key
                                       </Link>
                                     </SidebarMenuSubButton>
                                   </SidebarMenuSubItem>
@@ -323,11 +332,11 @@ export default function RootLayout({ children }) {
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         )}
-                        <SidebarMenuSubItem>
+                        {/* <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild>
                             <Link href="/admin/inward/view">View Inwards</Link>
                           </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
+                        </SidebarMenuSubItem> */}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </Collapsible>

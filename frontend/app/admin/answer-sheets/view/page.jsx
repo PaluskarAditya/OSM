@@ -312,6 +312,8 @@ export default function AnswerSheetsPage() {
     setSelectedSubject(null);
     setSelectedCampus(null);
     setSearch("");
+    setSelectedAnswer(null);
+    setSelectedRow(null);
   };
 
   const handleSelectAll = () => {
@@ -343,7 +345,7 @@ export default function AnswerSheetsPage() {
 
   useEffect(() => {
     const data = answers.filter((el) => {
-      const name = getCandidateName(el.candidateId);
+      const name = getCandidateName(el.RollNo);
       return name.toLowerCase().includes(search.toLowerCase());
     });
     setFilteredAnswers(data);
@@ -377,8 +379,8 @@ export default function AnswerSheetsPage() {
 
     try {
       const mappedData = filteredAnswers.map((el) => ({
-        RollNo: el.candidateId,
-        Name: getCandidateName(el.candidateId),
+        RollNo: el.RollNo,
+        Name: getCandidateName(el.RollNo),
         Stream: getStreamName(el.combined),
         Course: getCourseName(el.combined),
         "Subject (Code)": `${selectedSubject?.name || "N/A"} (${
@@ -494,7 +496,7 @@ export default function AnswerSheetsPage() {
               View scanned and evaluated answer sheets for{" "}
               {getCandidateName(
                 filteredAnswers.find((el) => el._id === selectedRow)
-                  ?.candidateId
+                  ?.name
               )}
             </DialogDescription>
           </DialogHeader>
@@ -1046,7 +1048,7 @@ export default function AnswerSheetsPage() {
                             {el.uuid}
                           </TableCell>
                           <TableCell className="font-medium">
-                            {getCandidateName(el.candidateId)}
+                            {getCandidateName(el.name)}
                           </TableCell>
                           <TableCell className="text-gray-600">
                             {el.rollPRN?.split(".")[0] || "N/A"}
