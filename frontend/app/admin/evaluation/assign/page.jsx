@@ -317,7 +317,11 @@ export default function EvaluationPage() {
     if (selectAll) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(uploadedCandidates.map((c) => c._id));
+      setSelectedRows(
+        uploadedCandidates
+          .filter((c) => c.isEvaluationAssigned !== true)
+          .map((c) => c._id)
+      );
     }
     setSelectAll(!selectAll);
   };

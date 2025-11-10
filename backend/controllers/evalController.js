@@ -24,10 +24,42 @@ const createEvaluation = async (req, res) => {
       const existIds = evalExist.sheets.map((e) => e.assignmentId);
       const newIds = sheets.map((e) => e.assignmentId);
 
-      const allIncluded = newIds.every((id) => existIds.includes(id));
+      // Filter out IDs that already exist to avoid duplicates
+      const uniqueNewIds = newIds.filter((id) => !existIds.includes(id));
 
-      if (allIncluded)
-        return res.status(400).json({ err: "Evaluation already exists" });
+      if (uniqueNewIds.length === 0) {
+        return res
+          .status(400)
+          .json({ err: "All evaluation IDs already exist" });
+      }
+
+      // Append the unique new IDs
+      evalExist.sheets.push(
+        ...sheets.filter((e) => uniqueNewIds.includes(e.assignmentId))
+      );
+
+      evalExist.progress.uploaded += uniqueNewIds.length;
+
+      for (const sheet of evalExist.sheets) {
+        const candidate = await Candidate.findOne({
+          assignmentId: sheet.assignmentId,
+        });
+
+        if (!candidate) {
+          console.log(
+            `Candidate not found for assignmentId: ${sheet.assignmentId}`
+          );
+          continue;
+        }
+
+        candidate.isEvaluationAssigned = true;
+        await candidate.save();
+      }
+
+      await evalExist.save();
+      return res
+        .status(200)
+        .json({ msg: "New assignments added successfully" });
     }
 
     // Create new evaluation
@@ -255,21 +287,21 @@ const createEvaluation = async (req, res) => {
             <div class="assignment-card">
                 <div class="assignment-title">Evaluation Assignment Details</div>
                 <div class="assignment-detail">
-                    <span class="detail-label">Your Role: </span>
+                    <span class="detail-label">Your Role: &nbs;</span>
                     <span class="detail-value">${role}</span>
                 </div>
                 <div class="assignment-detail">
-                    <span class="detail-label">Evaluation Name: </span>
+                    <span class="detail-label">Evaluation Name: &nbsp;</span>
                     <span class="detail-value">${evaluation.name}</span>
                 </div>
                 <div class="assignment-detail">
-                    <span class="detail-label">Assigned By: </span>
+                    <span class="detail-label">Assigned By: &nbsp;</span>
                     <span class="detail-value">${
                       req.user?.name || req.user?.email || "NEXA Administrator"
                     }</span>
                 </div>
                 <div class="assignment-detail">
-                    <span class="detail-label">Assignment Date: </span>
+                    <span class="detail-label">Assignment Date: &nbsp;</span>
                     <span class="detail-value">${new Date().toLocaleDateString(
                       "en-US",
                       {
@@ -282,7 +314,7 @@ const createEvaluation = async (req, res) => {
             </div>
             
             <div class="evaluation-id">
-                Evaluation ID: ${evaluation.uuid}
+                Evaluation ID: &nbsp;${evaluation.uuid}
             </div>
             
             <p style="text-align: center; margin-bottom: 20px;">
