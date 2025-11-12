@@ -3,7 +3,12 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const multer = require("multer");
 const router = express.Router();
-const { create, getAll, getFile } = require("../controllers/qpKeyController");
+const {
+  create,
+  getAll,
+  getFile,
+  getByName,
+} = require("../controllers/qpKeyController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // ----------------------
@@ -28,6 +33,7 @@ mongoose.connection.once("open", () => {
 // ----------------------
 router.get("/", authMiddleware, getAll);
 router.get("/view/:type/:filename", getFile);
+router.get("/:name", getByName);
 router.post(
   "/",
   authMiddleware,

@@ -129,4 +129,18 @@ const getFile = async (req, res) => {
   }
 };
 
-module.exports = { create, getAll, getFile };
+const getByName = async (req, res) => {
+  try {
+    const { name } = req.params;
+    const qpKey = await QpKey.findOne({ qpPdfId: name });
+
+    if (!qpKey)
+      return res.status(500).send("Question Paper PDF / Key not found");
+
+    res.status(200).json({ success: true, data: qpKey });
+  } catch (error) {
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+module.exports = { create, getAll, getFile, getByName };

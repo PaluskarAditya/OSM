@@ -258,6 +258,7 @@ export default function Page() {
   const [visitedPages, setVisitedPages] = useState(0);
   const [pdfDOC, setPdfDOC] = useState(null);
   const [qp, setQP] = useState(null);
+  const [qpKey, setQpKey] = useState(null);
   const [speed, setSpeed] = useState(null);
   const [annotations, setAnnotations] = useState({});
   const [selectedTool, setSelectedTool] = useState(null);
@@ -501,6 +502,30 @@ export default function Page() {
 
     return () => clearInterval(interval);
   }, [uuid, token]);
+
+  useEffect(() => {
+    const getQpKey = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp-key/${qp.name}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          setQpKey(data.data);
+        }
+      } catch (error) {
+        toast.error(error.message);
+      }
+    };
+
+    getQpKey();
+  }, [qp]);
 
   // Render page
   const renderPage = async (pdf, num) => {
@@ -970,26 +995,34 @@ export default function Page() {
                 variant="outline"
                 onClick={() =>
                   window.open(
-                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/pdf/${uuid}`,
+                    `${
+                      process.env.NEXT_PUBLIC_BACKEND_URL
+                    }/api/v1/qp-key/view/qp/${qpKey?.qpPdfPath
+                      .split("/")
+                      .pop()}`,
                     "_blank"
                   )
                 }
                 className="flex-1 text-xs"
               >
-                <EyeIcon className="w-4 h-4 mr-1" /> QP
+                <EyeIcon className="w-4 h-4 mr-1" /> View PDF
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() =>
                   window.open(
-                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-key/${uuid}`,
+                    `${
+                      process.env.NEXT_PUBLIC_BACKEND_URL
+                    }/api/v1/qp-key/view/key/${qpKey?.qpPdfPath
+                      .split("/")
+                      .pop()}`,
                     "_blank"
                   )
                 }
                 className="flex-1 text-xs"
               >
-                <EyeIcon className="w-4 h-4 mr-1" /> Key
+                <EyeIcon className="w-4 h-4 mr-1" /> View Key
               </Button>
             </div>
           </div>
