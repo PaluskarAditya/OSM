@@ -70,6 +70,8 @@ const QuestionPaperMasterPage = () => {
 
   // Fetch initial data
   useEffect(() => {
+    document.title = "NEXA - Exams / Question Papers";
+
     const fetchInitialData = async () => {
       try {
         setIsLoading(true);

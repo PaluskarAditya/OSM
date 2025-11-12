@@ -84,4 +84,5 @@ const qpSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.models.QP || mongoose.model("QP", qpSchema);
+const QP = mongoose.models.QP || mongoose.model("QP", qpSchema);
+module.exports = QP;

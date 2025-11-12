@@ -131,6 +131,9 @@ app.get("/api/v1/combined", authMiddleware, async (req, res) => {
 // Institute Routes
 app.use("/api/v1/institute", require("./routes/instituteRoutes"));
 
+// Question Paper PDF / Key Routes
+app.use("/api/v1/qp-key", require("./routes/qpKeyRoutes"));
+
 app.listen(process.env.NODE_PORT, () =>
   console.log(`Server running on ${process.env.NODE_PORT}`)
 );

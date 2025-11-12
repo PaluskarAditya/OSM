@@ -418,7 +418,7 @@ export default function InwardPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <lable>Assign Examiner</lable>
+            <label>Assign Examiner</label>
             <Select
               value={selectedUser || ""}
               onValueChange={(value) => setSelectedUser(value)}

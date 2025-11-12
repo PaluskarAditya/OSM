@@ -78,6 +78,8 @@ export default function ImportQuestionPaperPage() {
 
   // Fetch initial data
   useEffect(() => {
+    document.title = "NEXA - Exams / Question Papers"
+
     const fetchData = async () => {
       try {
         setIsLoading(true);
