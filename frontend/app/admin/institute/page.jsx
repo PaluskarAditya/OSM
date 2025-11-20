@@ -56,6 +56,7 @@ const UsersTab = () => {
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState("");
   const [userData, setUserData] = useState([]);
+  const [userEditData, setUserEditData] = useState([]);
   const [dialogPassword, setDialogPassword] = useState("");
   const [dialogConfPassword, setDialogConfPassword] = useState("");
   const token = Cookies.get("token");
@@ -64,6 +65,13 @@ const UsersTab = () => {
     const role = Cookies.get("role");
     setRole(role);
   }, [, role]);
+
+  useEffect(() => {
+    if (action === "edit") {
+      const userToEdit = users.find((user) => selectedRows[0] === user._id);
+      setUserEditData({ ...userToEdit });
+    }
+  }, [action]);
 
   const genRandomPass = (length = 12) => {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -235,7 +243,7 @@ const UsersTab = () => {
   }, [autoGenPass]);
 
   const handleChange = (e) => {
-    setUser({ ...user, [e.target.name]: e.target.value });
+    setUserEditData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleUserCreate = async () => {
@@ -596,8 +604,10 @@ const UsersTab = () => {
               <div className="flex flex-col gap-2 col-span-2">
                 <label className="text-sm font-medium">Role</label>
                 <Select
-                  value={user.Role}
-                  onValueChange={(value) => setUser({ ...user, Role: value })}
+                  value={userData.Role}
+                  onValueChange={(value) =>
+                    setUserEditData(prev => ({ ...prev, Role: value }))
+                  }
                 >
                   <SelectTrigger className="w-full rounded-md">
                     <SelectValue placeholder="Select Role" />

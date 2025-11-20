@@ -112,9 +112,11 @@ export default function Page() {
           ]);
 
         setCombined(combinedData);
+        if (courseData.err) return setCourse([]);
         setCourse(courseData);
         setSubject(subjectData);
         setQpKeys(qpKeyData.data);
+        setLoading(false);
       }
       setLoading(false);
     };
@@ -473,9 +475,9 @@ export default function Page() {
                           </SelectItem>
                         ) : course.length < 1 ? (
                           <SelectItem>No Courses available</SelectItem>
-                        ) : (
+                        ) : Array.isArray(course) ? (
                           course
-                            .filter(
+                            ?.filter(
                               (c) =>
                                 c.isActive === true &&
                                 addDialogCombined &&
@@ -486,6 +488,8 @@ export default function Page() {
                                 {c.name}
                               </SelectItem>
                             ))
+                        ) : (
+                          <SelectItem>No Courses available</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -786,26 +790,27 @@ export default function Page() {
               <SelectValue placeholder="Select Semester" />
             </SelectTrigger>
             <SelectContent>
-              {loading === true ? (
+              {loading ? (
                 <SelectItem className="flex justify-center items-center">
                   Loading <LoaderIcon className="h-3 w-3 animate-spin" />
                 </SelectItem>
               ) : course.length < 1 ? (
                 <SelectItem>No Semester's available</SelectItem>
               ) : (
-                course
-                  .filter((c) => c.isActive === true)
-                  .flatMap((c) =>
-                    Array.from({ length: parseInt(c.semCount) }, (_, i) => (
-                      <SelectItem
-                        className="cursor-pointer"
-                        key={`${c.uuid}-${i + 1}`}
-                        value={i + 1}
-                      >
-                        {`Semester ${i + 1}`}
-                      </SelectItem>
-                    ))
+                Array.from(
+                  {
+                    length: Math.max(
+                      ...course
+                        .filter((c) => c.isActive === true)
+                        .map((c) => parseInt(c.semCount))
+                    ),
+                  },
+                  (_, i) => (
+                    <SelectItem key={i + 1} value={i + 1}>
+                      Semester {i + 1}
+                    </SelectItem>
                   )
+                )
               )}
             </SelectContent>
           </Select>

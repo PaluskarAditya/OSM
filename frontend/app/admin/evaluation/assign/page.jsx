@@ -28,6 +28,7 @@ import {
   Dialog,
   DialogHeader,
   DialogFooter,
+  DialogClose,
   DialogContent,
   DialogTrigger,
   DialogTitle,
@@ -49,6 +50,8 @@ import {
   CalendarIcon,
   File,
   FileIcon,
+  FilterIcon,
+  XIcon,
 } from "lucide-react";
 import {
   Select,
@@ -259,7 +262,9 @@ export default function EvaluationPage() {
         c.subjects?.includes(selectedAssignedSubject.uuid)
       );
 
-    setFilteredCandidates(data);
+    // console.log("Assigned Filtered Data:", data);
+    setAssignedCandidates(data);
+    // console.log("Assigned Filtered State Data:", filteredCandidates);
     setSelectedRows([]);
     setSelectAll(false);
   }, [
@@ -467,6 +472,14 @@ export default function EvaluationPage() {
     }
   };
 
+  const handleReset = () => {
+    setSelectedAssignedCombined(null);
+    setSelectedAssignedCourse(null);
+    setSelectedAssignedSemester(null);
+    setSelectedAssignedSubject(null);
+    setAssignedCandidates([]);
+  };
+
   // === Render ===
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 flex flex-col gap-5">
@@ -500,7 +513,11 @@ export default function EvaluationPage() {
           <div className="flex gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="default" className="gap-2 cursor-pointer">
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="gap-2 cursor-pointer"
+                >
                   <Download className="h-4 w-4" /> Export
                 </Button>
               </DropdownMenuTrigger>
@@ -513,21 +530,45 @@ export default function EvaluationPage() {
 
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="default" className="gap-2 cursor-pointer">
-                  <FileIcon className="h-4 w-4" /> View Assigned
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="gap-2 cursor-pointer"
+                >
+                  <Filter className="h-4 w-4" /> View Assigned
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-5xl w-auto">
+              <DialogContent className="lg:min-w-[80vw] md:min-w-[80vw]">
                 <DialogHeader>
-                  <DialogTitle>Assigned Evaluations</DialogTitle>
-                  <DialogDescription>
-                    View Candidates with Evaluations assigned
-                  </DialogDescription>
+                  <div className="flex w-full items-center justify-between mt-3">
+                    {/* LEFT SIDE (Title + Description) */}
+                    <div className="flex flex-col">
+                      <DialogTitle className="flex items-center gap-2">
+                        <FilterIcon className="h-5 w-5" />
+                        Filters
+                      </DialogTitle>
+                      <DialogDescription>
+                        View candidates assigned for evaluation
+                      </DialogDescription>
+                    </div>
+
+                    {/* RIGHT SIDE (Clear button) */}
+                    <Button
+                      onClick={handleReset}
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center cursor-pointer gap-1 text-xs"
+                    >
+                      clear filters
+                      <XIcon className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </DialogHeader>
-                <main className="flex flex-col gap-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {/* Stream/Degree/Year */}
-                    <div>
+                <div className="mt-4 flex flex-col gap-4 w-full">
+                  {/* FILTER GRID */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                    {/* Combined */}
+                    <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-gray-700">
                         Stream | Degree | Year
                       </label>
@@ -556,193 +597,175 @@ export default function EvaluationPage() {
                       </DropdownMenu>
                     </div>
 
-                    {selectedAssignedCombined && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-700">
-                          Course
-                        </label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-between text-left font-normal"
-                            >
-                              <span className="truncate">
-                                {selectedAssignedCourse?.name || "Select"}
-                              </span>
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="max-h-60 overflow-auto">
-                            {courses
-                              .filter((c) =>
-                                selectedAssignedCombined.course.includes(c.uuid)
-                              )
-                              .map((c) => (
-                                <DropdownMenuItem
-                                  key={c.uuid}
-                                  onSelect={() => setSelectedAssignedCourse(c)}
-                                >
-                                  {c.name}
-                                </DropdownMenuItem>
-                              ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
+                    {/* Course */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-gray-700">
+                        Course
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            disabled={!selectedAssignedCombined}
+                            className="w-full justify-between text-left font-normal"
+                          >
+                            <span className="truncate">
+                              {selectedAssignedCourse?.name || "Select"}
+                            </span>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="max-h-60 overflow-auto w-full">
+                          {courses
+                            .filter(
+                              (c) =>
+                                c.isActive &&
+                                selectedAssignedCombined?.course.includes(
+                                  c.uuid
+                                )
+                            )
+                            .map((c) => (
+                              <DropdownMenuItem
+                                key={c.uuid}
+                                onSelect={() => setSelectedAssignedCourse(c)}
+                              >
+                                {c.name}
+                              </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
 
-                    {selectedAssignedCourse && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-700">
-                          Semester
-                        </label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-between text-left font-normal"
-                            >
-                              <span className="truncate">
-                                {selectedAssignedSemester
-                                  ? `Sem ${selectedAssignedSemester}`
-                                  : "Select"}
-                              </span>
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            {Array.from(
-                              {
-                                length: Number(selectedAssignedCourse.semCount),
-                              },
-                              (_, i) => (
-                                <DropdownMenuItem
-                                  key={i + 1}
-                                  onSelect={() =>
-                                    setSelectedAssignedSemester(`${i + 1}`)
-                                  }
-                                >
-                                  Semester {i + 1}
-                                </DropdownMenuItem>
-                              )
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
+                    {/* Semester */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-gray-700">
+                        Semester
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            disabled={!selectedAssignedCourse}
+                            className="w-full justify-between text-left font-normal"
+                          >
+                            <span className="truncate">
+                              {selectedAssignedSemester
+                                ? `Sem ${selectedAssignedSemester}`
+                                : "Select"}
+                            </span>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="max-h-60">
+                          {Array.from(
+                            {
+                              length: Number(selectedAssignedCourse?.semCount),
+                            },
+                            (_, i) => (
+                              <DropdownMenuItem
+                                key={i + 1}
+                                onSelect={() =>
+                                  setSelectedAssignedSemester(`${i + 1}`)
+                                }
+                              >
+                                Semester {i + 1}
+                              </DropdownMenuItem>
+                            )
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
 
-                    {selectedAssignedSemester && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-700">
-                          Subject
-                        </label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-between text-left font-normal"
-                            >
-                              <span className="truncate">
-                                {selectedAssignedSubject?.name || "Select"}
-                              </span>
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="max-h-60 overflow-auto">
-                            {subjects
-                              .filter(
-                                (s) =>
-                                  s.course === selectedAssignedCourse?.uuid &&
-                                  s.semester === selectedAssignedSemester
-                              )
-                              .map((s) => (
-                                <DropdownMenuItem
-                                  key={s.uuid}
-                                  onSelect={() => setSelectedAssignedSubject(s)}
-                                >
-                                  {s.name}
-                                </DropdownMenuItem>
-                              ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
+                    {/* Subject */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-gray-700">
+                        Subject
+                      </label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            disabled={!selectedAssignedSemester}
+                            className="w-full justify-between text-left font-normal"
+                          >
+                            <span className="truncate">
+                              {selectedAssignedSubject?.name || "Select"}
+                            </span>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="max-h-60 overflow-auto">
+                          {subjects
+                            .filter(
+                              (s) =>
+                                s.course === selectedAssignedCourse?.uuid &&
+                                s.semester === selectedAssignedSemester
+                            )
+                            .map((s) => (
+                              <DropdownMenuItem
+                                key={s.uuid}
+                                onSelect={() => setSelectedAssignedSubject(s)}
+                              >
+                                {s.name}
+                              </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                  <div className="mt-4 overflow-auto max-h-96">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                        <TableRow>
-                          <TableHead className="w-12">#</TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Roll No</TableHead>
-                          <TableHead>PRN</TableHead>
-                          <TableHead>Course</TableHead>
-                          <TableHead>Subject</TableHead>
-                          <TableHead>Booklet</TableHead>
-                          <TableHead>Evaluation Assigned</TableHead>
-                        </TableRow>
-                      </TableHeader>
 
-                      <TableBody>
-                        {assignedCandidates.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={8}
-                              className="text-center py-8 text-gray-500"
-                            >
-                              {selectedAssignedSubject
-                                ? "No assigned answer-sheets for this subject"
-                                : "Select filters to see assigned candidates"}
+                  {/* TABLE HEADER */}
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Roll No</TableHead>
+                        <TableHead>Stream | Degree | Year</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead>Subject</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="max-h-[40vh] overflow-y-auto">
+                      {selectedAssignedSubject &&
+                        assignedCandidates.map((c, i) => (
+                          <TableRow key={c._id} className="hover:bg-gray-50">
+                            <TableCell>{c._id.slice(0, 5)}</TableCell>
+                            <TableCell>{c.FirstName + c.LastName}</TableCell>
+                            <TableCell>{c.RollNo}</TableCell>
+                            <TableCell>
+                              {combineds.find(
+                                (combined) => combined.uuid === c.combined
+                              )?.name || "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {courses.find(
+                                (course) => course.uuid === c.course
+                              )?.name || "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {subjects.find(
+                                (subject) =>
+                                  subject.uuid === selectedAssignedSubject.uuid
+                              )?.name || "N/A"}
                             </TableCell>
                           </TableRow>
-                        ) : (
-                          assignedCandidates.map((c, i) => {
-                            const booklet =
-                              selectedAssignedSubject?.uuid &&
-                              c.bookletNames?.[selectedAssignedSubject.uuid]
-                                ? c.bookletNames[selectedAssignedSubject.uuid]
-                                : "—";
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
-                            return (
-                              <TableRow
-                                key={c._id}
-                                className="hover:bg-gray-50"
-                              >
-                                <TableCell>{i + 1}</TableCell>
-                                <TableCell className="font-medium">
-                                  {c.FirstName} {c.LastName}
-                                </TableCell>
-                                <TableCell className="font-mono">
-                                  {c.RollNo}
-                                </TableCell>
-                                <TableCell className="font-mono">
-                                  {c.PRNNumber}
-                                </TableCell>
-                                <TableCell>
-                                  {courses.find((co) => co.uuid === c.course)
-                                    ?.name ?? "—"}
-                                </TableCell>
-                                <TableCell>
-                                  {selectedAssignedSubject?.name ?? "—"}
-                                </TableCell>
-                                <TableCell>
-                                  <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                                    {booklet}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="font-mono text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                    Assigned
-                                  </span>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </main>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="cursor-pointer text-xs"
+                    >
+                      Close
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
 

@@ -106,6 +106,13 @@ const create = async (req, res) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
+    const qpExists = await QP.findOne({
+      name: examName,
+      subject,
+    });
+
+    console.log("QP Exists:", qpExists);
+
     // Question Paper Processing
     const workbook = XLSX.readFile(file.path);
     const sheetName = workbook.SheetNames[0];
@@ -152,6 +159,16 @@ const create = async (req, res) => {
     });
 
     const sheetIds = sheets.map((c) => c.assignmentId);
+
+    if (qpExists) {
+      qpExists.data = questionData;
+      await qpExists.save();
+      return res.status(200).json({
+        success: true,
+        data: qpExists,
+        message: "Question paper updated successfully",
+      });
+    }
 
     const newQP = await QP.create({
       name: examName,
