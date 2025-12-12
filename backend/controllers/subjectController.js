@@ -322,7 +322,7 @@ const bulk = async (req, res) => {
         name: y.name,
         code: y.code,
         course: courseDoc.uuid,
-        combined: combinedDoc.uuid,
+        combined: combinedDoc?.uuid,
         exam: y.exam,
         semester: y.semester,
         type: y.type,

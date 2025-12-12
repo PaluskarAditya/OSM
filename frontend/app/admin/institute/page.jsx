@@ -69,6 +69,7 @@ const UsersTab = () => {
   useEffect(() => {
     if (action === "edit") {
       const userToEdit = users.find((user) => selectedRows[0] === user._id);
+      console.log("userToEdit", userToEdit);
       setUserEditData({ ...userToEdit });
     }
   }, [action]);
@@ -243,7 +244,7 @@ const UsersTab = () => {
   }, [autoGenPass]);
 
   const handleChange = (e) => {
-    setUserEditData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setUserEditData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleUserCreate = async () => {
@@ -606,7 +607,7 @@ const UsersTab = () => {
                 <Select
                   value={userData.Role}
                   onValueChange={(value) =>
-                    setUserEditData(prev => ({ ...prev, Role: value }))
+                    setUserEditData((prev) => ({ ...prev, Role: value }))
                   }
                 >
                   <SelectTrigger className="w-full rounded-md">

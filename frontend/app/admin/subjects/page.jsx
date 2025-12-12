@@ -216,6 +216,7 @@ export default function SubjectsPage() {
       setEditDialogCode(selectedSubject.code);
       setEditDialogSemester(selectedSubject.semester);
       setEditDialogExam(selectedSubject.exam);
+      console.log("Selected Subject Exam:", selectedSubject.exam);
       setEditDialogType(selectedSubject.type);
       setSelectedCourse(selectedSubject.course);
       setEditDialogCombined(selectedSubject.combined);
@@ -576,6 +577,7 @@ export default function SubjectsPage() {
       // Update frontend state
       setSubjects((prev) => [...prev, ...data.data.subjects]);
       setFilteredSubjects((prev) => [...prev, ...data.data.subjects]);
+      console.log("Subjects:", data.data.subjects);
 
       setDialogAction("");
       setLoading(false);
@@ -971,7 +973,7 @@ export default function SubjectsPage() {
                       .filter(
                         (el) =>
                           el.isActive === true &&
-                          selectedCombined?.course?.includes(el.uuid)
+                          selectedCombined?.course.includes(el.uuid)
                       )
                       .map((opt) => (
                         <SelectItem
@@ -1153,10 +1155,7 @@ export default function SubjectsPage() {
                   <SelectGroup>
                     {courses
                       .filter(
-                        (el) =>
-                          el.isActive === true &&
-                          editDialogCombined &&
-                          editDialogCombined.course?.includes(el.uuid)
+                        (el) => el.isActive === true && editDialogCombined
                       )
                       .map((opt) => (
                         <SelectItem
@@ -1208,7 +1207,7 @@ export default function SubjectsPage() {
               <Input
                 type="date"
                 value={editDialogExam}
-                onChange={(e) => setAddDialogExam(e.target.value)}
+                onChange={(e) => setEditDialogExam(e.target.value)}
               />
             </div>
 
@@ -1247,7 +1246,7 @@ export default function SubjectsPage() {
                 !editDialogSemester ||
                 !editDialogExam ||
                 !editDialogType ||
-                !selectedCombined ||
+                !editDialogCombined ||
                 !selectedCourse
               }
             >

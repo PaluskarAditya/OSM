@@ -514,7 +514,7 @@ export default function Page() {
                           <SelectItem>No Semester's available</SelectItem>
                         ) : (
                           course
-                            .filter((c) => c.isActive === true)
+                            .filter((c) => console.log("Course:", c.semCount) && c.isActive === true)
                             .flatMap((c) =>
                               Array.from(
                                 { length: parseInt(c.semCount) },
