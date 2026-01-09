@@ -337,7 +337,6 @@ export default function Page() {
                   <TableHead className="text-center hidden xl:table-cell">Total</TableHead>
                   <TableHead className="text-center hidden xl:table-cell">Uploaded</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -372,7 +371,7 @@ export default function Page() {
                 ) : (
                   filteredResults.map((report, index) => {
                     const isExpanded = expandedRows.has(report._id);
-                    const isPending = new Date(report.evaluationLastDate) > new Date();
+                    const isPending = report.status;
                     
                     return (
                       <>
@@ -435,24 +434,12 @@ export default function Page() {
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              isPending 
+                              report.status === 'pending'
                                 ? 'bg-yellow-100 text-yellow-800' 
                                 : 'bg-green-100 text-green-800'
                             }`}>
-                              {isPending ? 'Pending' : 'Completed'}
+                              {report.status === 'pending' ? 'Pending' : 'Completed'}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm" className="h-8 px-2">
-                                <Eye className="h-4 w-4" />
-                                <span className="sr-only">View</span>
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-8 px-2">
-                                <Download className="h-4 w-4" />
-                                <span className="sr-only">Download</span>
-                              </Button>
-                            </div>
                           </TableCell>
                         </TableRow>
                         
@@ -475,6 +462,7 @@ export default function Page() {
                                     <div className="text-sm">
                                       <p>Assigned: {new Date(report.assignedDatetime).toLocaleString()}</p>
                                       <p>Date: {new Date(report.date).toLocaleDateString()}</p>
+                                      <p>Last Evaluation Date: {new Date(report.date).toLocaleDateString()}</p>
                                     </div>
                                   </div>
                                   
@@ -503,10 +491,7 @@ export default function Page() {
                                   <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-500">Actions</p>
                                     <div className="flex flex-wrap gap-2">
-                                      <Button size="sm" variant="outline">
-                                        View Details
-                                      </Button>
-                                      <Button size="sm" variant="outline">
+                                      <Button size="sm" className="cursor-pointer" variant="outline">
                                         Download Report
                                       </Button>
                                     </div>

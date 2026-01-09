@@ -89,6 +89,49 @@ const createEvaluation = async (req, res) => {
 
     await evaluation.save();
 
+    // 🔹 Create initial report (once)
+    const populatedEval = await Evaluation.findById(evaluation._id).populate(
+      "examiners",
+      "FirstName LastName Email MobileNo"
+    );
+
+    const examinerNames = populatedEval.examiners
+      .map((e) => `${e.FirstName} ${e.LastName}`)
+      .join(", ");
+
+    const examinerEmails = populatedEval.examiners
+      .map((e) => e.Email)
+      .join(", ");
+
+    const examinerMobiles = populatedEval.examiners
+      .map((e) => e.MobileNo)
+      .join(", ");
+
+    await Result.create({
+      evaluationId: populatedEval._id,
+
+      examinerName: examinerNames,
+      email: examinerEmails,
+      mobile: examinerMobiles,
+
+      course: populatedEval.course,
+      semester: populatedEval.semester,
+      subject: populatedEval.subject,
+
+      date: populatedEval.createdAt,
+      examDate: populatedEval.examDate,
+      assignedDatetime: populatedEval.createdAt,
+      evaluationLastDate: populatedEval.endDate,
+
+      totalCount: populatedEval.sheets.length,
+      uploadCount: populatedEval.progress?.uploaded || 0,
+      totalCheckCount: populatedEval.progress?.checked || 0,
+      presentCount: populatedEval.progress.checked,
+
+      status: populatedEval.status,
+      IID: populatedEval.iid,
+    });
+
     // ✅ Send mail notification to assigned examiners/moderators
     const assignedIds = [
       ...(req.body.examiners || []),
@@ -592,42 +635,45 @@ const status = async (req, res) => {
     else if (checkedCount < total) evaluation.status = "In Progress";
     else evaluation.status = "Completed";
 
-    const justCompleted =
-      prevStatus !== "Completed" && evaluation.status === "Completed";
-
     // Save the evaluation (we mutated the doc above)
     await evaluation.save();
 
-    // Create a report as soon as evaluation is completed
-    if (evaluation.status === "Completed") {
-      const evaluations = await Evaluation.findById(evaluation.id);     
+    // 🔹 Sync report with evaluation (every status update)
+    const populatedEval = await Evaluation.findById(evaluation._id).populate(
+      "examiners",
+      "FirstName LastName Email MobileNo"
+    );
 
-      const examinerNames = evaluations.examiners.map((e) => e.FirstName + " " + e.LastName);
-      const examinerEmails = evaluations.examiners.map((e) => e.Email);
-      const examinerMobiles = evaluations.examiners.map((e) => e.MobileNo);
+    const examinerNames = populatedEval.examiners
+      .map((e) => `${e.FirstName} ${e.LastName}`)
+      .join(", ");
 
-      const reportBody = new Result({
-        examinerName: examinerNames.join(", "),
-        email: examinerEmails.join(", "),
-        course: evaluation.course,
-        semester: evaluation.semester,
-        subject: evaluation.subject,
-        date: evaluation.createdAt,
-        mobile: examinerMobiles.join(", "),
-        examDate: evaluation.examDate,
-        assignedDatetime: evaluation.updatedAt,
-        evaluationLastDate: evaluation.endDate,
-        totalCount: evaluation.sheets.length,
-        // presentCount: evaluation.presentCount,
-        // absentCount: evaluation.absentCount,
-        uploadCount: evaluation.progress.uploaded,
-        totalCheckCount: evaluation.progress.checked,
-        // selectedDateCheckCount: evaluation.selectedDateCheckCount,
-        IID: evaluation.iid,
-      });
+    const examinerEmails = populatedEval.examiners
+      .map((e) => e.Email)
+      .join(", ");
 
-      await reportBody.save();
-    }
+    const examinerMobiles = populatedEval.examiners
+      .map((e) => e.MobileNo)
+      .join(", ");
+
+    await Result.findOneAndUpdate(
+      { evaluationId: evaluation._id },
+      {
+        $set: {
+          examinerName: examinerNames,
+          email: examinerEmails,
+          mobile: examinerMobiles,
+
+          totalCount: populatedEval.sheets.length,
+          uploadCount: populatedEval.progress.uploaded,
+          totalCheckCount: populatedEval.progress.checked,
+          presentCount: populatedEval.progress.checked,
+
+          status: populatedEval.status,
+          updatedAt: new Date(),
+        },
+      }
+    );
 
     // Extract the updated sheet to return (safe)
     const updatedSheet = evaluation.sheets.find((s) => s.assignmentId === uuid);

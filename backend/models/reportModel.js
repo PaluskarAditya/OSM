@@ -18,6 +18,13 @@ const ResultSchema = new mongoose.Schema({
   totalCheckCount: { type: Number },
   selectedDateCheckCount: { type: Number,},
   IID: { type: String, required: true },
+  status: { type: String, required: true },
+  evaluationId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Evaluation",
+  unique: true, // VERY IMPORTANT
+  required: true
+}
 })
 
 const Result = mongoose.model('Result', ResultSchema);
