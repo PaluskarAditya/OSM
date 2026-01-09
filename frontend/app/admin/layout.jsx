@@ -501,8 +501,8 @@ export default function RootLayout({ children }) {
                       <SidebarMenuSub>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild>
-                            <Link href="/admin/results/view">
-                              View Evaluation Results
+                            <Link href="/admin/reports/view">
+                              View Reports
                             </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>

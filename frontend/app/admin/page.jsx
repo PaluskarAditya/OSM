@@ -607,12 +607,13 @@ export default function AdminDashboard() {
           <div className="lg:col-span-2 space-y-6">
             <EvaluationProgress evaluations={evaluations} users={users} />
             <PendingEvaluationsList />
-            <EvaluationDistributionChart />
+            {/* <EvaluationDistributionChart /> */}
           </div>
 
           {/* Right: Calendar */}
           <div className="lg:col-span-1">
             <AcademicCalendar
+            className="w-full"
               events={events}
               onAddEvent={(e) => setEvents((prev) => [...prev, e])}
             />

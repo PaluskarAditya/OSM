@@ -3,6 +3,7 @@ const Evaluation = require("../models/evalModel");
 const generate = require("../lib/generate");
 const User = require("../models/userModel");
 const Candidate = require("../models/candidateModel");
+const Result = require("../models/reportModel");
 const QP = require("../models/qpModel");
 
 // ✅ Create Evaluation
@@ -583,14 +584,50 @@ const status = async (req, res) => {
     evaluation.progress.uploaded = total;
     evaluation.progress.checked = checkedCount;
 
+    const prevStatus = evaluation.status;
+
     // 3) Update overall evaluation status
     // If none checked => Pending, some checked => In Progress, all checked => Completed
     if (checkedCount === 0) evaluation.status = "Pending";
     else if (checkedCount < total) evaluation.status = "In Progress";
     else evaluation.status = "Completed";
 
+    const justCompleted =
+      prevStatus !== "Completed" && evaluation.status === "Completed";
+
     // Save the evaluation (we mutated the doc above)
     await evaluation.save();
+
+    // Create a report as soon as evaluation is completed
+    if (evaluation.status === "Completed") {
+      const evaluations = await Evaluation.findById(evaluation.id);     
+
+      const examinerNames = evaluations.examiners.map((e) => e.FirstName + " " + e.LastName);
+      const examinerEmails = evaluations.examiners.map((e) => e.Email);
+      const examinerMobiles = evaluations.examiners.map((e) => e.MobileNo);
+
+      const reportBody = new Result({
+        examinerName: examinerNames.join(", "),
+        email: examinerEmails.join(", "),
+        course: evaluation.course,
+        semester: evaluation.semester,
+        subject: evaluation.subject,
+        date: evaluation.createdAt,
+        mobile: examinerMobiles.join(", "),
+        examDate: evaluation.examDate,
+        assignedDatetime: evaluation.updatedAt,
+        evaluationLastDate: evaluation.endDate,
+        totalCount: evaluation.sheets.length,
+        // presentCount: evaluation.presentCount,
+        // absentCount: evaluation.absentCount,
+        uploadCount: evaluation.progress.uploaded,
+        totalCheckCount: evaluation.progress.checked,
+        // selectedDateCheckCount: evaluation.selectedDateCheckCount,
+        IID: evaluation.iid,
+      });
+
+      await reportBody.save();
+    }
 
     // Extract the updated sheet to return (safe)
     const updatedSheet = evaluation.sheets.find((s) => s.assignmentId === uuid);
