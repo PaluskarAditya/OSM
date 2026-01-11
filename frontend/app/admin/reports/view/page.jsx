@@ -19,15 +19,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Download, 
-  Filter, 
-  Search, 
+import {
+  Download,
+  Filter,
+  Search,
   RefreshCw,
   ChevronDown,
   ChevronUp,
   Eye,
-  FileText
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -44,11 +44,14 @@ export default function Page() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [course, setCourse] = useState([]);
+  const [subjects, setSubjects] = useState([]);
 
   useEffect(() => {
     document.title = "NEXA - Reports";
     fetchResults();
+    fetchData();
   }, []);
 
   const fetchResults = async () => {
@@ -70,6 +73,51 @@ export default function Page() {
     }
   };
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [courseRes, subjectRes] = await Promise.all([
+        fetch("http://localhost:8000/api/v1/course", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+        }),
+        fetch("http://localhost:8000/api/v1/subject", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+        }),
+      ]);
+      const coursesData = await courseRes.json();
+      const subjectsData = await subjectRes.json();
+
+      setCourse(coursesData);
+      setSubjects(subjectsData);
+    } catch (error) {}
+  };
+
+  const getCourseName = (courseId) => {
+    const courseObj = course.find((c) => c.uuid === courseId);
+    return courseObj ? courseObj.name : "Unknown Course";
+  };
+
+  const getSubjectName = (subjectId) => {
+    const subjectObj = subjects.find((s) => s.uuid === subjectId);
+    console.log(
+      "Subject ID:",
+      subjectId,
+      "Subject Object:",
+      subjectObj,
+      "Subjects:",
+      subjects
+    );
+    return subjectObj ? subjectObj.name : "Unknown Subject";
+  };
+
   const toggleRowExpansion = (id) => {
     const newExpandedRows = new Set(expandedRows);
     if (newExpandedRows.has(id)) {
@@ -81,69 +129,115 @@ export default function Page() {
   };
 
   const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
     }
     setSortConfig({ key, direction });
 
     const sortedResults = [...results].sort((a, b) => {
-      if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-      if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
+      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
       return 0;
     });
     setResults(sortedResults);
   };
 
   const filteredResults = results.filter((report) => {
-    const matchesSearch = 
+    const matchesSearch =
       report.examinerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.course?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.subject?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCourse = selectedCourse === "all" || report.course === selectedCourse;
-    
+
+    const matchesCourse =
+      selectedCourse === "all" || report.course === selectedCourse;
+
     return matchesSearch && matchesCourse;
   });
 
-  const courses = [...new Set(results.map(report => report.course))];
+  function parseAnyDate(input) {
+    if (!input) return null;
+
+    // If already a Date
+    if (input instanceof Date) return input;
+
+    // If timestamp
+    if (typeof input === "number") return new Date(input);
+
+    // If string → clean ordinal suffixes (10th → 10)
+    if (typeof input === "string") {
+      const cleaned = input.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+
+      const parsed = new Date(cleaned);
+      if (!isNaN(parsed)) return parsed;
+    }
+
+    return null;
+  }
+
+  function formatDate(input) {
+    const date = parseAnyDate(input);
+    if (!date) return "—";
+
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  const courses = [...new Set(results.map((report) => report.course))];
 
   const exportToCSV = () => {
     const headers = [
-      'Sr No', 'Examiner Name', 'Email', 'Course', 'Semester',
-      'Subject', 'Date', 'Mobile', 'Exam Date', 'Assigned Datetime',
-      'Evaluation Last Date', 'Total Count', 'Present Count', 'Absent Count',
-      'Upload Count', 'Total Check Count'
+      "Sr No",
+      "Examiner Name",
+      "Email",
+      "Course",
+      "Semester",
+      "Subject",
+      "Date",
+      "Mobile",
+      "Exam Date",
+      "Assigned Datetime",
+      "Evaluation Last Date",
+      "Total Count",
+      "Present Count",
+      "Absent Count",
+      "Upload Count",
+      "Total Check Count",
     ];
-    
-    const csvContent = [
-      headers.join(','),
-      ...filteredResults.map((report, index) => [
-        index + 1,
-        `"${report.examinerName}"`,
-        `"${report.email}"`,
-        `"${report.course}"`,
-        report.semester,
-        `"${report.subject}"`,
-        `"${new Date(report.date).toLocaleDateString()}"`,
-        `"${report.mobile}"`,
-        `"${new Date(report.examDate).toLocaleDateString()}"`,
-        `"${new Date(report.assignedDatetime).toLocaleString()}"`,
-        `"${new Date(report.evaluationLastDate).toLocaleDateString()}"`,
-        report.totalCount,
-        report.presentCount || 0,
-        report.absentCount || 0,
-        report.uploadCount,
-        report.totalCheckCount
-      ].join(','))
-    ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const csvContent = [
+      headers.join(","),
+      ...filteredResults.map((report, index) =>
+        [
+          index + 1,
+          `"${report.examinerName}"`,
+          `"${report.email}"`,
+          `"${report.course}"`,
+          report.semester,
+          `"${report.subject}"`,
+          `"${new Date(report.date).toLocaleDateString()}"`,
+          `"${report.mobile}"`,
+          `"${new Date(report.examDate).toLocaleDateString()}"`,
+          `"${new Date(report.assignedDatetime).toLocaleString()}"`,
+          `"${new Date(report.evaluationLastDate).toLocaleDateString()}"`,
+          report.totalCount,
+          report.presentCount || 0,
+          report.absentCount || 0,
+          report.uploadCount,
+          report.totalCheckCount,
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `reports-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `reports-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
   };
 
@@ -163,7 +257,7 @@ export default function Page() {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={fetchResults}>
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -190,13 +284,14 @@ export default function Page() {
                 className="pl-10"
               />
             </div>
-            
+
             <div className="flex gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Filter className="h-4 w-4 mr-2" />
-                    Course: {selectedCourse === "all" ? "All Courses" : selectedCourse}
+                    Course:{" "}
+                    {selectedCourse === "all" ? "All Courses" : selectedCourse}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
@@ -231,42 +326,52 @@ export default function Page() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-gradient-to-br from-green-50 to-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Papers</p>
                 <p className="text-2xl font-bold">
-                  {results.reduce((sum, report) => sum + (report.totalCount || 0), 0)}
+                  {results.reduce(
+                    (sum, report) => sum + (report.totalCount || 0),
+                    0
+                  )}
                 </p>
               </div>
               <Eye className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-gradient-to-br from-purple-50 to-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Uploaded Papers</p>
                 <p className="text-2xl font-bold">
-                  {results.reduce((sum, report) => sum + (report.uploadCount || 0), 0)}
+                  {results.reduce(
+                    (sum, report) => sum + (report.uploadCount || 0),
+                    0
+                  )}
                 </p>
               </div>
               <Download className="h-8 w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-gradient-to-br from-orange-50 to-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Pending Evaluation</p>
                 <p className="text-2xl font-bold">
-                  {results.filter(r => new Date(r.evaluationLastDate) > new Date()).length}
+                  {
+                    results.filter(
+                      (r) => new Date(r.evaluationLastDate) > new Date()
+                    ).length
+                  }
                 </p>
               </div>
               <RefreshCw className="h-8 w-8 text-orange-500" />
@@ -293,49 +398,58 @@ export default function Page() {
               <TableHeader className="bg-gray-50/50">
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => handleSort('examinerName')}
+                    onClick={() => handleSort("examinerName")}
                   >
                     <div className="flex items-center gap-1">
                       Examiner
-                      {sortConfig.key === 'examinerName' && (
-                        sortConfig.direction === 'asc' ? 
-                        <ChevronUp className="h-4 w-4" /> : 
-                        <ChevronDown className="h-4 w-4" />
-                      )}
+                      {sortConfig.key === "examinerName" &&
+                        (sortConfig.direction === "asc" ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        ))}
                     </div>
                   </TableHead>
                   <TableHead className="hidden md:table-cell">Email</TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => handleSort('course')}
+                    onClick={() => handleSort("course")}
                   >
                     <div className="flex items-center gap-1">
                       Course
-                      {sortConfig.key === 'course' && (
-                        sortConfig.direction === 'asc' ? 
-                        <ChevronUp className="h-4 w-4" /> : 
-                        <ChevronDown className="h-4 w-4" />
-                      )}
+                      {sortConfig.key === "course" &&
+                        (sortConfig.direction === "asc" ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        ))}
                     </div>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell">Subject</TableHead>
-                  <TableHead 
+                  <TableHead className="hidden lg:table-cell">
+                    Subject
+                  </TableHead>
+                  <TableHead
                     className="cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => handleSort('examDate')}
+                    onClick={() => handleSort("examDate")}
                   >
                     <div className="flex items-center gap-1">
                       Exam Date
-                      {sortConfig.key === 'examDate' && (
-                        sortConfig.direction === 'asc' ? 
-                        <ChevronUp className="h-4 w-4" /> : 
-                        <ChevronDown className="h-4 w-4" />
-                      )}
+                      {sortConfig.key === "examDate" &&
+                        (sortConfig.direction === "asc" ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        ))}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center hidden xl:table-cell">Total</TableHead>
-                  <TableHead className="text-center hidden xl:table-cell">Uploaded</TableHead>
+                  <TableHead className="text-center hidden xl:table-cell">
+                    Total
+                  </TableHead>
+                  <TableHead className="text-center hidden xl:table-cell">
+                    Uploaded
+                  </TableHead>
                   <TableHead className="text-center">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -360,9 +474,13 @@ export default function Page() {
                       <div className="flex flex-col items-center justify-center gap-3">
                         <FileText className="h-12 w-12 text-gray-300" />
                         <div>
-                          <p className="text-gray-500 font-medium">No reports found</p>
+                          <p className="text-gray-500 font-medium">
+                            No reports found
+                          </p>
                           <p className="text-sm text-gray-400 mt-1">
-                            {searchTerm ? "Try adjusting your search or filters" : "No reports available"}
+                            {searchTerm
+                              ? "Try adjusting your search or filters"
+                              : "No reports available"}
                           </p>
                         </div>
                       </div>
@@ -372,10 +490,13 @@ export default function Page() {
                   filteredResults.map((report, index) => {
                     const isExpanded = expandedRows.has(report._id);
                     const isPending = report.status;
-                    
+
                     return (
                       <>
-                        <TableRow key={report._id} className="hover:bg-gray-50/50 transition-colors">
+                        <TableRow
+                          key={report.id}
+                          className="hover:bg-gray-50/50 transition-colors"
+                        >
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -392,8 +513,12 @@ export default function Page() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{report.examinerName}</p>
-                              <p className="text-xs text-gray-500 md:hidden">{report.email}</p>
+                              <p className="font-medium">
+                                {report.examinerName}
+                              </p>
+                              <p className="text-xs text-gray-500 md:hidden">
+                                {report.email}
+                              </p>
                             </div>
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
@@ -401,48 +526,70 @@ export default function Page() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-medium">{report.course}</span>
-                              <span className="text-xs text-gray-500">Sem {report.semester}</span>
+                              <span className="font-medium">
+                                {getCourseName(report.course)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Sem {report.semester}
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <p className="text-sm truncate max-w-[150px]">{report.subject}</p>
+                            <p className="text-sm truncate max-w-[150px]">
+                              {getSubjectName(report.subject)}
+                            </p>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="text-sm">
-                                {new Date(report.examDate).toLocaleDateString()}
+                                {formatDate(report.examDate)}
                               </span>
                               <span className="text-xs text-gray-500">
-                                Due: {new Date(report.evaluationLastDate).toLocaleDateString()}
+                                Due: {formatDate(report.evaluationLastDate)}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center hidden xl:table-cell">
                             <div className="flex flex-col items-center">
-                              <span className="font-medium">{report.totalCount}</span>
-                              <span className="text-xs text-gray-500">Papers</span>
+                              <span className="font-medium">
+                                {report.totalCount}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Papers
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center hidden xl:table-cell">
                             <div className="flex flex-col items-center">
-                              <span className={`font-medium ${report.uploadCount === report.totalCount ? 'text-green-600' : 'text-orange-600'}`}>
+                              <span
+                                className={`font-medium ${
+                                  report.uploadCount === report.totalCount
+                                    ? "text-green-600"
+                                    : "text-orange-600"
+                                }`}
+                              >
                                 {report.uploadCount || 0}
                               </span>
-                              <span className="text-xs text-gray-500">Uploaded</span>
+                              <span className="text-xs text-gray-500">
+                                Uploaded
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              report.status === 'Pending'
-                                ? 'bg-yellow-100 text-yellow-800' 
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {report.status === 'Pending' ? 'Pending' : 'Completed'}
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                report.status === "Pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {report.status === "Pending"
+                                ? "Pending"
+                                : "Completed"}
                             </span>
                           </TableCell>
                         </TableRow>
-                        
+
                         {/* Expanded Row Details */}
                         {isExpanded && (
                           <TableRow className="bg-blue-50/30">
@@ -450,48 +597,91 @@ export default function Page() {
                               <div className="p-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                   <div className="space-y-2">
-                                    <p className="text-sm font-medium text-gray-500">Contact Info</p>
+                                    <p className="text-sm font-medium text-gray-500">
+                                      Contact Info
+                                    </p>
                                     <div className="text-sm">
-                                      <p>Email: {report.email || 'N/A'}</p>
-                                      <p>Mobile: {report.mobile || 'N/A'}</p>
+                                      <p>Email: {report.email || "N/A"}</p>
+                                      <p>Mobile: {report.mobile || "N/A"}</p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="space-y-2">
-                                    <p className="text-sm font-medium text-gray-500">Assignment Details</p>
+                                    <p className="text-sm font-medium text-gray-500">
+                                      Assignment Details
+                                    </p>
                                     <div className="text-sm">
-                                      <p>Assigned: {new Date(report.assignedDatetime).toLocaleString()}</p>
-                                      <p>Date: {new Date(report.date).toLocaleDateString()}</p>
-                                      <p>Last Evaluation Date: {new Date(report.date).toLocaleDateString()}</p>
+                                      <p>
+                                        Assigned:{" "}
+                                        {new Date(
+                                          report.assignedDatetime
+                                        ).toLocaleString()}
+                                      </p>
+                                      <p>
+                                        Date:{" "}
+                                        {new Date(
+                                          report.date
+                                        ).toLocaleDateString()}
+                                      </p>
+                                      <p>
+                                        Last Evaluation Date:{" "}
+                                        {new Date(
+                                          report.date
+                                        ).toLocaleDateString()}
+                                      </p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="space-y-2">
-                                    <p className="text-sm font-medium text-gray-500">Paper Counts</p>
+                                    <p className="text-sm font-medium text-gray-500">
+                                      Paper Counts
+                                    </p>
                                     <div className="grid grid-cols-2 gap-2">
                                       <div className="text-center p-2 bg-white rounded border">
-                                        <p className="font-bold">{report.totalCount}</p>
-                                        <p className="text-xs text-gray-500">Total</p>
+                                        <p className="font-bold">
+                                          {report.totalCount}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Total
+                                        </p>
                                       </div>
                                       <div className="text-center p-2 bg-white rounded border">
-                                        <p className="font-bold">{report.uploadCount || 0}</p>
-                                        <p className="text-xs text-gray-500">Uploaded</p>
+                                        <p className="font-bold">
+                                          {report.uploadCount || 0}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Uploaded
+                                        </p>
                                       </div>
                                       <div className="text-center p-2 bg-white rounded border">
-                                        <p className="font-bold">{report.totalCheckCount || 0}</p>
-                                        <p className="text-xs text-gray-500">Checked</p>
+                                        <p className="font-bold">
+                                          {report.totalCheckCount || 0}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Checked
+                                        </p>
                                       </div>
                                       <div className="text-center p-2 bg-white rounded border">
-                                        <p className="font-bold">{report.presentCount || 0}</p>
-                                        <p className="text-xs text-gray-500">Present</p>
+                                        <p className="font-bold">
+                                          {report.presentCount || 0}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Present
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="space-y-2">
-                                    <p className="text-sm font-medium text-gray-500">Actions</p>
+                                    <p className="text-sm font-medium text-gray-500">
+                                      Actions
+                                    </p>
                                     <div className="flex flex-wrap gap-2">
-                                      <Button size="sm" className="cursor-pointer" variant="outline">
+                                      <Button
+                                        size="sm"
+                                        className="cursor-pointer"
+                                        variant="outline"
+                                      >
                                         Download Report
                                       </Button>
                                     </div>

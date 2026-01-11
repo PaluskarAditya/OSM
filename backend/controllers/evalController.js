@@ -127,7 +127,7 @@ const createEvaluation = async (req, res) => {
       totalCount: populatedEval.sheets.length,
       uploadCount: populatedEval.progress?.uploaded || 0,
       totalCheckCount: populatedEval.progress?.checked || 0,
-      presentCount: populatedEval.progress?.checked,
+      presentCount: populatedEval.progress?.uploaded,
 
       status: populatedEval.status,
       IID: populatedEval.iid,
