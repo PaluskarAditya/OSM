@@ -92,18 +92,19 @@ const createEvaluation = async (req, res) => {
     // 🔹 Create initial report (once)
     const populatedEval = await Evaluation.findById(evaluation._id).populate(
       "examiners",
-      "FirstName LastName Email MobileNo"
     );
 
-    const examinerNames = populatedEval.examiners
+    const examiners = await User.find({ _id: { $in: populatedEval.examiners } });
+
+    const examinerNames = examiners
       .map((e) => `${e.FirstName} ${e.LastName}`)
       .join(", ");
 
-    const examinerEmails = populatedEval.examiners
+    const examinerEmails = examiners
       .map((e) => e.Email)
       .join(", ");
 
-    const examinerMobiles = populatedEval.examiners
+    const examinerMobiles = examiners
       .map((e) => e.MobileNo)
       .join(", ");
 
@@ -126,7 +127,7 @@ const createEvaluation = async (req, res) => {
       totalCount: populatedEval.sheets.length,
       uploadCount: populatedEval.progress?.uploaded || 0,
       totalCheckCount: populatedEval.progress?.checked || 0,
-      presentCount: populatedEval.progress.checked,
+      presentCount: populatedEval.progress?.checked,
 
       status: populatedEval.status,
       IID: populatedEval.iid,

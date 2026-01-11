@@ -87,9 +87,45 @@ export default function SubjectsPage() {
     getData();
   }, []);
 
+  const safeJson = async (res, fallback = []) => {
+    try {
+      const text = await res.text();
+      if (!text) return fallback; // empty body
+      return JSON.parse(text);
+    } catch {
+      return fallback; // invalid JSON
+    }
+  };
+
   const getData = async () => {
     setLoading(true);
+
     try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const responses = await Promise.allSettled([
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
+          headers,
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degree`, {
+          headers,
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
+          headers,
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/course`, {
+          headers,
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combined`, {
+          headers,
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subject`, {
+          headers,
+        }),
+      ]);
+
       const [
         streamRes,
         degreeRes,
@@ -97,81 +133,42 @@ export default function SubjectsPage() {
         courseRes,
         combinedRes,
         subjectRes,
+      ] = responses.map((r) => (r.status === "fulfilled" ? r.value : null));
+
+      const [
+        streamData,
+        degreeData,
+        yearData,
+        courseData,
+        combinedData,
+        subjectData,
       ] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degree`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/course`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combined`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subject`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
+        streamRes ? safeJson(streamRes, []) : [],
+        degreeRes ? safeJson(degreeRes, []) : [],
+        yearRes ? safeJson(yearRes, []) : [],
+        courseRes ? safeJson(courseRes, []) : [],
+        combinedRes ? safeJson(combinedRes, []) : [],
+        subjectRes ? safeJson(subjectRes, []) : [],
       ]);
 
-      if (streamRes.ok && degreeRes.ok && yearRes.ok) {
-        const [
-          streamData,
-          degreeData,
-          yearData,
-          courseData,
-          combinedData,
-          subjectData,
-        ] = await Promise.all([
-          streamRes.json(),
-          degreeRes.json(),
-          yearRes.json(),
-          courseRes.json(),
-          combinedRes.json(),
-          subjectRes.json(),
-        ]);
+      // Active filters (safe)
+      setStreams(streamData.filter((el) => el?.isActive));
+      setDegrees(degreeData.filter((el) => el?.isActive));
+      setYears(yearData.filter((el) => el?.isActive));
 
-        const activeStreams = streamData.filter((el) => el.isActive);
-        const activeDegrees = degreeData.filter((el) => el.isActive);
-        const activeYears = yearData.filter((el) => el.isActive);
-        setStreams(activeStreams);
-        setDegrees(activeDegrees);
-        setYears(activeYears);
-        setCourses(courseData);
-        setCombineds(combinedData);
+      setCourses(courseData);
+      setCombineds(combinedData);
 
-        if (subjectData.err) {
-          setSubjects([]);
-          setFilteredSubjects([]);
-          setLoading(false);
-          return;
-        }
-
+      // Subject handling (UX-friendly)
+      if (!Array.isArray(subjectData) || subjectData.length === 0) {
+        setSubjects([]);
+        setFilteredSubjects([]);
+      } else {
         setSubjects(subjectData);
         setFilteredSubjects(subjectData);
-        setLoading(false);
-      } else {
-        toast.error("Failed to fetch one or more resources");
       }
-      setLoading(false);
-    } catch (error) {
-      toast.error(error.message);
+    } catch (err) {
+    } finally {
       setLoading(false);
     }
   };
@@ -484,6 +481,10 @@ export default function SubjectsPage() {
     return course?.name.slice(0, 10) || "N/A";
   };
 
+  const displayedSubjects = filteredSubjects.filter((subject) =>
+    viewMode === "active" ? subject.isActive : !subject.isActive
+  );
+
   const handleExcelImport = async () => {
     try {
       setLoading(true);
@@ -572,15 +573,25 @@ export default function SubjectsPage() {
       }
 
       const data = await res.json();
-      toast.success(`${sanitized_data.length} subjects imported successfully`);
-
+      toast.success(
+        `${data.data.subjects.length} subjects imported successfully`
+      );
+      console.log("Subjects:", displayedSubjects, data.data.subjects);
+      
+      const normalizedSubjects = data.data.subjects.map((s) => ({
+        ...s,
+        isActive: s.isActive ?? true, // default active
+      }));
+      
       // Update frontend state
-      setSubjects((prev) => [...prev, ...data.data.subjects]);
-      setFilteredSubjects((prev) => [...prev, ...data.data.subjects]);
-      console.log("Subjects:", data.data.subjects);
+      setSubjects(normalizedSubjects);
+      setFilteredSubjects(normalizedSubjects);
+      
+      console.log("After Subjects:", normalizedSubjects);
 
       setDialogAction("");
       setLoading(false);
+      setFile(null);
     } catch (error) {
       toast.error(error.message);
       setLoading(false);
@@ -614,10 +625,6 @@ export default function SubjectsPage() {
 
     setFilteredSubjects(newFiltered);
   }, [streams, degrees, years, courses, subjects]);
-
-  const displayedSubjects = filteredSubjects.filter((subject) =>
-    viewMode === "active" ? subject.isActive : !subject.isActive
-  );
 
   return (
     <div className="flex flex-col h-full bg-white p-4 sm:p-6 text-sm">
