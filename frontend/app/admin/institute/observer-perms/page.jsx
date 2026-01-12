@@ -489,7 +489,7 @@ export default function ObserverPermissionsPage() {
                                         onCheckedChange={() =>
                                           handlePermissionToggle(route.key)
                                         }
-                                        className="data-[state=checked]:bg-green-600"
+                                        className="data-[state=checked]:bg-green-600 cursor-pointer"
                                       />
                                     </div>
                                   </div>
