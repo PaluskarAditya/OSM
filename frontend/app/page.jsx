@@ -99,6 +99,8 @@ export default function LoginPage() {
           Cookies.set("role", data.role);
           Cookies.set("mail", data.mail);
           Cookies.set("iid", data.iid);
+          Cookies.set("perms", data.perms)
+          Cookies.set("id", data.id)
           setLoading(false);
           return;
         }
@@ -108,6 +110,8 @@ export default function LoginPage() {
         Cookies.set("role", data.role);
         Cookies.set("mail", data.mail);
         Cookies.set("iid", data.iid);
+        Cookies.set("perms", data.perms)
+        Cookies.set("id", data.id)
         toast.success("Login Successful");
         router.push("/admin");
         return;

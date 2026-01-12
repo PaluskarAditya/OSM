@@ -2,13 +2,8 @@
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectItem,
-  SelectContent,
-} from "@/components/ui/select";
+import { toast } from "sonner";
+import ROUTES from "../../../../lib/ROUTES.js";
 import {
   Card,
   CardContent,
@@ -44,67 +39,8 @@ export default function ObserverPermissionsPage() {
   const [selectedObserver, setSelectedObserver] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState({});
+  const [permissions, setPermissions] = useState([]);
   const [activeTab, setActiveTab] = useState("permissions");
-
-  const ROUTES = [
-    {
-      key: "admin.streams",
-      route: "/admin/streams",
-      title: "Streams Management",
-      category: "Exams & Subjects",
-      description: "Manage all streams and their configurations",
-    },
-    {
-      key: "admin.degrees",
-      route: "/admin/degrees",
-      title: "Degrees Management",
-      category: "Exams & Subjects",
-      description: "Configure academic degrees and their properties",
-    },
-    {
-      key: "admin.academic-years",
-      route: "/admin/academic-years",
-      title: "Academic Years",
-      category: "Exams & Subjects",
-      description: "Set up and manage academic year timelines",
-    },
-    {
-      key: "admin.courses",
-      route: "/admin/courses",
-      title: "Courses Management",
-      category: "Exams & Courses",
-      description: "Handle course creation, updates, and assignments",
-    },
-    {
-      key: "admin.subjects",
-      route: "/admin/subjects",
-      title: "Subjects Management",
-      category: "Exams & Subjects",
-      description: "Handle subject creation, updates, and assignments",
-    },
-    {
-      key: "admin.reports",
-      route: "/admin/reports",
-      title: "Reports & Analytics",
-      category: "Analytics",
-      description: "Access system reports and analytics dashboard",
-    },
-    {
-      key: "admin.settings",
-      route: "/admin/settings",
-      title: "System Settings",
-      category: "Administration",
-      description: "Configure system-wide settings and preferences",
-    },
-    {
-      key: "admin.audit",
-      route: "/admin/audit-logs",
-      title: "Audit Logs",
-      category: "Security",
-      description: "View system activity and access logs",
-    },
-  ];
 
   useEffect(() => {
     getObservers();
@@ -112,7 +48,7 @@ export default function ObserverPermissionsPage() {
 
   useEffect(() => {
     if (selectedObserver) {
-      loadObserverPermissions(selectedObserver._id);
+      getObserverPermissions(selectedObserver._id);
     }
   }, [selectedObserver]);
 
@@ -140,17 +76,31 @@ export default function ObserverPermissionsPage() {
     }
   };
 
+  const getObserverPermissions = async (observerId) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users/permissions/${observerId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+      setPermissions(data.perms || []);
+    } catch (error) {
+      console.error("Failed to fetch observer permissions:", error);
+    }
+  };
+
   const loadObserverPermissions = async (observerId) => {
     try {
-      // Mock API call - replace with actual endpoint
-      // const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/permissions/${observerId}`);
-      // const data = await res.json();
+      const mockPermissions = ROUTES.filter(() => Math.random() > 0.5) // randomly allow
+        .map((route) => route.key);
 
-      // For now, create mock permissions (all false initially)
-      const mockPermissions = {};
-      ROUTES.forEach((route) => {
-        mockPermissions[route.key] = Math.random() > 0.5; // Random true/false for demo
-      });
       setPermissions(mockPermissions);
     } catch (error) {
       console.error("Failed to load permissions:", error);
@@ -158,47 +108,44 @@ export default function ObserverPermissionsPage() {
   };
 
   const handlePermissionToggle = (routeKey) => {
-    setPermissions((prev) => ({
-      ...prev,
-      [routeKey]: !prev[routeKey],
-    }));
+    setPermissions(
+      (prev) =>
+        prev.includes(routeKey)
+          ? prev.filter((key) => key !== routeKey) // remove
+          : [...prev, routeKey] // add
+    );
   };
 
   const savePermissions = async () => {
     if (!selectedObserver) return;
 
     try {
-      // Mock API call - replace with actual endpoint
-      // await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/permissions/${selectedObserver._id}`, {
-      //   method: "PUT",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     Authorization: `Bearer ${Cookies.get("token")}`,
-      //   },
-      //   body: JSON.stringify({ permissions })
-      // });
+      await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users/permissions/${selectedObserver._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Cookies.get("token")}`,
+          },
+          body: JSON.stringify({ permissions }),
+        }
+      );
 
       // Show success message
-      alert("Permissions saved successfully!");
+      toast.success("Permissions saved successfully!");
     } catch (error) {
       console.error("Failed to save permissions:", error);
-      alert("Failed to save permissions");
+      toast.error("Failed to save permissions");
     }
   };
 
   const resetPermissions = () => {
-    const resetPerms = {};
-    ROUTES.forEach((route) => {
-      resetPerms[route.key] = false;
-    });
-    setPermissions(resetPerms);
+    loadObserverPermissions();
   };
 
   const grantAllPermissions = () => {
-    const allPerms = {};
-    ROUTES.forEach((route) => {
-      allPerms[route.key] = true;
-    });
+    const allPerms = [...ROUTES.map((route) => route.key)];
     setPermissions(allPerms);
   };
 
@@ -512,7 +459,7 @@ export default function ObserverPermissionsPage() {
                                           <h4 className="font-medium text-gray-900">
                                             {route.title}
                                           </h4>
-                                          {permissions[route.key] ? (
+                                          {permissions.includes(route.key) ? (
                                             <Badge
                                               variant="default"
                                               className="bg-green-100 text-green-800"
@@ -536,7 +483,8 @@ export default function ObserverPermissionsPage() {
                                       </div>
                                       <Switch
                                         checked={
-                                          permissions[route.key] || false
+                                          permissions.includes(route.key) ||
+                                          false
                                         }
                                         onCheckedChange={() =>
                                           handlePermissionToggle(route.key)

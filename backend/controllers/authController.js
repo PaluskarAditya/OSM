@@ -35,6 +35,8 @@ const login = async (req, res) => {
         mail: user.Email,
         iid: user.IID,
         changePassword: user.isPasswordChanged,
+        perms: Array.isArray(user.allowedRoutes) ? user.allowedRoutes : [],
+        id: user._id,
       });
       return;
     }

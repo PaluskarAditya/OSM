@@ -121,6 +121,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    allowedRoutes: {
+      type: [String],
+      default: undefined,
+    }
   },
   { timestamps: true }
 );

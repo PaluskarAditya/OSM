@@ -128,7 +128,45 @@ const getUsers = async (req, res) => {
   }
 };
 
+const observerPermissions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { permissions } = req.body;
+
+    // Find the user by ID
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ err: "User not found" });
+    }
+
+    // Update the user's permissions
+    user.allowedRoutes = permissions;
+    await user.save();
+
+    res.status(200).json({ message: "Permissions updated successfully" });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+};
+
+const getObserverPermissions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // Find the user by ID
+    const user = await User.findById(userId).select("allowedRoutes");
+    if (!user) {
+      return res.status(404).json({ err: "User not found" });
+    }
+
+    res.status(200).json({ perms: user.allowedRoutes });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+};
+
 module.exports = {
   createUser,
   getUsers,
+  observerPermissions,
+  getObserverPermissions,
 };
