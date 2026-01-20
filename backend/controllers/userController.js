@@ -164,9 +164,28 @@ const getObserverPermissions = async (req, res) => {
   }
 };
 
+const resetPassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findByIdAndUpdate(userId, {
+      isPasswordChanged: false,
+    });
+
+    if (!user) {
+      return res.status(404).json({ err: "User not found" });
+    }
+
+    res.status(200).json({ message: "Password reset initiated successfully" });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+};
+
 module.exports = {
   createUser,
   getUsers,
   observerPermissions,
   getObserverPermissions,
+  resetPassword,
 };

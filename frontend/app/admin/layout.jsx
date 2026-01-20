@@ -240,7 +240,7 @@ export default function RootLayout({ children }) {
   const canAccess = (key) => role === "Admin" || permissions.includes(key);
 
   const hasAnyAccess = (keys = []) =>
-    role === "Admin" || keys.some((k) => permissions.includes(k));
+    role === "Admin" || keys.some((k) => permissions && permissions.includes(k));
 
   return (
     <main className="flex h-screen">
