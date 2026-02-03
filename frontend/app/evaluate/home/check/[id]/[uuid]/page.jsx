@@ -17,6 +17,24 @@ import {
   ArrowRightIcon,
   EyeIcon,
   DownloadIcon,
+  Maximize2,
+  Minimize2,
+  SaveIcon,
+  SettingsIcon,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+  GridIcon,
+  FileTextIcon,
+  CalculatorIcon,
+  AlertCircleIcon,
+  CheckCircleIcon,
+  InfoIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
+  MenuIcon,
+  XIcon,
+  LayoutIcon,
 } from "lucide-react";
 import {
   Table,
@@ -31,6 +49,33 @@ import Cookies from "js-cookie";
 import * as pdfjsLib from "pdfjs-dist";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -71,36 +116,43 @@ const renderQuestionHierarchyTable = (
       const isSelected = selectedQuestion?.QuestionNo === questionNo;
 
       rows.push(
-        <TableRow
+        <motion.tr
           key={questionNo}
           onClick={() => onQuestionSelect(question)}
-          className={`cursor-pointer transition-colors ${
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`cursor-pointer transition-all duration-200 ${
             isSelected
-              ? "bg-blue-50 border-l-4 border-l-blue-500"
-              : "hover:bg-gray-50"
+              ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500"
+              : "hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
           }`}
         >
-          <TableCell className="border-r text-center p-2">
+          <TableCell className="text-center p-3">
             <Badge
-              variant="outline"
-              className={`${
+              className={`transition-all duration-300 ${
                 isSelected
-                  ? "bg-blue-500 text-white"
-                  : "bg-green-100 text-green-800"
-              } font-semibold text-xs`}
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-110"
+                  : "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 hover:shadow-md"
+              } font-semibold text-xs px-3 py-1.5 rounded-full`}
             >
               {questionNo}
             </Badge>
           </TableCell>
-          <TableCell className="border-r text-center p-2 text-xs font-medium">
+          <TableCell className="text-center p-3 text-sm font-medium text-gray-700">
             {maxMarks}
           </TableCell>
-          <TableCell className="text-center p-2 text-xs font-semibold">
-            <span className={score > 0 ? "text-green-600" : "text-red-600"}>
+          <TableCell className="text-center p-3 text-sm font-semibold">
+            <span
+              className={`${
+                score > 0
+                  ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white px-3 py-1 rounded-full"
+                  : "text-rose-600"
+              }`}
+            >
               {score}
             </span>
           </TableCell>
-        </TableRow>
+        </motion.tr>
       );
 
       processedQuestions.add(questionNo);
@@ -149,7 +201,6 @@ const getAllLeafQuestions = (data) => {
 };
 
 // Score Calculation Helper Function
-// === NEW: Calculate correct total score with optional logic ===
 const calculateTotalScoreWithOptionals = (qpData, scores) => {
   if (!qpData || !Array.isArray(qpData) || qpData.length === 0) return 0;
 
@@ -212,40 +263,89 @@ const calculateTotalScoreWithOptionals = (qpData, scores) => {
 const FinishPaperDialog = ({ isOpen, onClose, onConfirm, loading }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-        <h2 className="text-lg font-bold mb-3">Finish Evaluation?</h2>
-        <p className="text-sm text-gray-600 mb-5">
-          This action cannot be undone.
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-gradient-to-br from-white to-gray-50/80 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/30 max-w-md w-full"
+      >
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500">
+            <CheckCircleIcon className="h-8 w-8 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Finish Evaluation?
+            </h2>
+            <p className="text-gray-600 mt-1">
+              This will submit your evaluation permanently
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
+          This action cannot be undone. Please ensure all questions have been
+          evaluated.
         </p>
-        <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+        <div className="flex gap-4 justify-end">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="rounded-full px-6 bg-white/50 backdrop-blur-sm"
+          >
             Cancel
           </Button>
           <Button
             onClick={onConfirm}
             disabled={loading}
-            className="bg-green-600 hover:bg-green-700"
+            className="rounded-full px-8 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg"
           >
-            {loading ? "Saving..." : "Finish"}
+            {loading ? (
+              <>
+                <RotateCw className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Finish & Submit"
+            )}
           </Button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
 const ErrorDialog = ({ isOpen, onClose, title, message }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-        <h2 className="text-lg font-bold text-red-600 mb-3">{title}</h2>
-        <p className="text-sm text-gray-700 mb-5">{message}</p>
-        <Button onClick={onClose} className="w-full">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-gradient-to-br from-white to-rose-50/80 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/30 max-w-md w-full"
+      >
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500">
+            <AlertCircleIcon className="h-8 w-8 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-rose-700">{title}</h2>
+          </div>
+        </div>
+        <p className="text-gray-700 mb-8 bg-gradient-to-r from-rose-50 to-pink-50 p-4 rounded-lg border border-rose-100">
+          {message}
+        </p>
+        <Button
+          onClick={onClose}
+          className="w-full rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white"
+        >
           OK
         </Button>
-      </div>
+      </motion.div>
     </div>
   );
 };
@@ -275,6 +375,9 @@ export default function Page() {
     message: "",
   });
   const [revisitCount, setRevisitCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1.6);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const canvasRef = useRef(null);
   const drawCanvasRef = useRef(null);
   const contextRef = useRef(null);
@@ -533,7 +636,7 @@ export default function Page() {
 
     try {
       const page = await pdf.getPage(num);
-      const viewport = page.getViewport({ scale: 1.6 });
+      const viewport = page.getViewport({ scale: zoomLevel });
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
@@ -554,7 +657,7 @@ export default function Page() {
 
   useEffect(() => {
     if (pdfDOC) renderPage(pdfDOC, currentPage);
-  }, [currentPage, pdfDOC]);
+  }, [currentPage, pdfDOC, zoomLevel]);
 
   const MARKS = [0, 0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "NA"];
   const ANNOTATIONS = [
@@ -562,7 +665,7 @@ export default function Page() {
     <CircleXIcon className="h-5 w-5" />,
     <TypeIcon className="h-5 w-5" />,
     <PencilIcon className="h-5 w-5" />,
-    <Badge className="bg-blue-600 text-white px-2 py-1 text-xs font-bold">
+    <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-2 py-1 text-xs font-bold rounded-full">
       #
     </Badge>,
     <UndoIcon className="h-5 w-5" />,
@@ -817,24 +920,51 @@ export default function Page() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Loading */}
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-3"></div>
-            <p className="font-semibold">Saving Evaluation...</p>
-          </div>
-        </div>
-      )}
+    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50/50 via-white to-blue-50/30 backdrop-blur-sm overflow-hidden">
+      {/* Background Elements */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-200/20 to-indigo-200/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-40 left-1/4 w-96 h-96 bg-gradient-to-br from-emerald-200/10 to-cyan-200/10 rounded-full blur-3xl" />
+      </div>
 
+      {/* Loading Overlay */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              className="bg-gradient-to-br from-white to-gray-50/90 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/30 flex flex-col items-center"
+            >
+              <div className="relative mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
+                  <RotateCw className="h-10 w-10 text-white animate-spin" />
+                </div>
+                <div className="absolute inset-0 border-4 border-blue-200/50 rounded-full animate-ping" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Saving Evaluation
+              </h3>
+              <p className="text-gray-600 text-center max-w-sm">
+                Please wait while we save your progress...
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dialogs */}
       <FinishPaperDialog
         isOpen={finishDialogOpen}
         onClose={() => setFinishDialogOpen(false)}
         onConfirm={confirmFinish}
         loading={loading}
       />
-
       <ErrorDialog
         isOpen={errorDialog.open}
         onClose={() => setErrorDialog({ ...errorDialog, open: false })}
@@ -843,128 +973,380 @@ export default function Page() {
       />
 
       {/* Header */}
-      <header className="bg-white border-b p-3 shadow-sm">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Link href={`/evaluate/home/check/${id}`}>
-              <Button size="sm" variant="outline" className="gap-1">
-                <ArrowLeftIcon className="w-4 h-4" /> Back
-              </Button>
-            </Link>
-            <span className="font-medium text-sm">
-              {qp?.name || "Loading..."}
-              {revisitCount > 0 && (
-                <Badge
-                  className="ml-2 bg-orange-100 text-orange-800"
-                  variant="secondary"
-                >
-                  Revisit #{revisitCount}/5
-                </Badge>
-              )}
-            </span>
-          </div>
-          <div className="flex gap-4 text-sm">
-            <span className="flex items-center gap-1">
-              <TimerIcon className="w-4 h-4 text-blue-600" /> 00:11:22
-            </span>
-            <span className="flex items-center gap-1">
-              <WifiIcon className="w-4 h-4 text-green-600" /> {speed} Mbps
-            </span>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Tools */}
-        <aside className="w-20 lg:w-64 bg-white border-r overflow-y-auto p-3 space-y-6 flex-shrink-0">
-          <div>
-            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">
-              QUICK MARKS
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              {MARKS.map((m) => (
+      <motion.header
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-xl border-b border-white/30 shadow-lg"
+      >
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href={`/evaluate/home/check/${id}`}>
                 <Button
-                  key={m}
                   size="sm"
                   variant="outline"
-                  onClick={() => handleMarkAssignment(m)}
-                  className={`text-xs h-8 ${
-                    selectedQuestion &&
-                    questionScores[selectedQuestion.QuestionNo] ===
-                      (m === "NA" ? 0 : m)
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white"
-                  }`}
+                  className="gap-2 rounded-full bg-white/60 backdrop-blur-sm hover:bg-white/80 border-white/50 shadow-sm"
                 >
-                  {m}
+                  <ArrowLeftIcon className="w-4 h-4" /> Back
                 </Button>
-              ))}
+              </Link>
+              <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-gray-300/50 to-transparent" />
+              <div>
+                <h1 className="font-bold text-lg bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  {qp?.name || "Answer Sheet Evaluation"}
+                </h1>
+                <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
+                  {revisitCount > 0 && (
+                    <Badge className="bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 border-amber-200">
+                      Revisit #{revisitCount}/5
+                    </Badge>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <TimerIcon className="w-3.5 h-3.5" /> 00:11:22
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <WifiIcon className="w-3.5 h-3.5" /> {speed} Mbps
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-bold text-gray-600 mb-2 hidden lg:block">
-              ANNOTATIONS
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              {ANNOTATIONS.map((icon, i) => {
-                const tool = ["check", "cross", "text", "pencil", "number"][i];
-                const isActive = selectedTool === tool;
-                return (
+            <div className="flex items-center gap-3">
+              <Button
+                size="icon"
+                variant="outline"
+                className="rounded-full bg-white/60 backdrop-blur-sm border-white/50"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
+              </Button>
+              <Sheet>
+                <SheetTrigger asChild>
                   <Button
-                    key={i}
                     size="icon"
                     variant="outline"
-                    onClick={() => handleAnnotationMap(i)}
-                    className={`h-8 w-8 lg:h-10 lg:w-10 ${
-                      isActive
-                        ? "bg-blue-100 border-blue-500 text-blue-700"
-                        : ""
-                    }`}
-                    title={tool ? `Tool: ${tool}` : i === 5 ? "Undo" : "Clear"}
+                    className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 lg:hidden"
                   >
-                    {icon}
+                    <MenuIcon className="w-4 h-4" />
                   </Button>
-                );
-              })}
+                </SheetTrigger>
+                <SheetContent side="left" className="bg-white/95 backdrop-blur-lg">
+                  <SheetHeader>
+                    <SheetTitle>Tools & Navigation</SheetTitle>
+                    <SheetDescription>
+                      Quick access to evaluation tools
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-6">
+                    {/* Mobile Quick Marks */}
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3">Quick Marks</h3>
+                      <div className="grid grid-cols-4 gap-2">
+                        {MARKS.map((m) => (
+                          <Button
+                            key={m}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMarkAssignment(m)}
+                            className="text-xs"
+                          >
+                            {m}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Mobile Annotations */}
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3">Annotations</h3>
+                      <div className="grid grid-cols-4 gap-2">
+                        {ANNOTATIONS.map((icon, i) => (
+                          <Button
+                            key={i}
+                            size="icon"
+                            variant="outline"
+                            onClick={() => handleAnnotationMap(i)}
+                          >
+                            {icon}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
-        </aside>
+        </div>
+      </motion.header>
 
-        {/* Center: PDF */}
-        <main className="flex-1 bg-gray-100 flex flex-col overflow-hidden">
-          <div className="bg-white border-b p-3 flex justify-between items-center">
-            <span className="font-medium text-sm">
-              Page {currentPage} / {totalPages}
-            </span>
-            <div className="flex gap-1">
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="h-8 w-8"
-              >
-                <ArrowLeftIcon className="w-4 h-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="h-8 w-8"
-              >
-                <ArrowRightIcon className="w-4 h-4" />
-              </Button>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar - Annotations */}
+        <motion.aside
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="hidden lg:flex w-20 xl:w-80 bg-gradient-to-b from-white/70 to-white/40 backdrop-blur-lg border-r border-white/30 flex-col overflow-y-auto flex-shrink-0"
+        >
+          <div className="p-4 border-b border-white/30">
+            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <PencilIcon className="w-4 h-4" />
+              <span className="hidden xl:inline">Annotation Tools</span>
+            </h2>
+          </div>
+
+          <div className="flex-1 p-4 space-y-6">
+            {/* Annotations Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-gray-600 hidden xl:block">
+                  QUICK MARKS
+                </h3>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <InfoIcon className="w-4 h-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Assign marks to selected question</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
+                {MARKS.map((m) => {
+                  const isActive = selectedQuestion && 
+                    questionScores[selectedQuestion.QuestionNo] === (m === "NA" ? 0 : m);
+                  return (
+                    <motion.div
+                      key={m}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleMarkAssignment(m)}
+                        className={`text-xs h-9 w-full transition-all duration-300 ${
+                          isActive
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
+                            : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
+                        }`}
+                      >
+                        {m}
+                      </Button>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Annotations Tools */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-gray-600 hidden xl:block">
+                ANNOTATION TOOLS
+              </h3>
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                {ANNOTATIONS.map((icon, i) => {
+                  const tool = ["check", "cross", "text", "pencil", "number"][i];
+                  const isActive = selectedTool === tool;
+                  const isAction = i >= 5;
+                  return (
+                    <motion.div
+                      key={i}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => handleAnnotationMap(i)}
+                        className={`h-12 w-12 rounded-xl transition-all duration-300 ${
+                          isActive
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
+                            : isAction
+                            ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 border-rose-200 hover:bg-rose-200"
+                            : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
+                        }`}
+                        title={
+                          tool
+                            ? `${tool.charAt(0).toUpperCase() + tool.slice(1)} Tool`
+                            : i === 5
+                            ? "Undo last annotation"
+                            : "Clear all annotations"
+                        }
+                      >
+                        {icon}
+                      </Button>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Questions Section - Moved Below */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-gray-600 hidden xl:block">
+                  QUESTIONS
+                </h3>
+                <Badge className="bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 text-xs">
+                  {Object.keys(questionScores).length} Scored
+                </Badge>
+              </div>
+              <div className="border rounded-xl overflow-hidden bg-white/40 backdrop-blur-sm">
+                <div className="max-h-64 overflow-y-auto">
+                  <Table>
+                    <TableHeader className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 backdrop-blur-sm">
+                      <TableRow>
+                        <TableHead className="text-center text-xs py-3 font-semibold">
+                          Q.No
+                        </TableHead>
+                        <TableHead className="text-center text-xs py-3 font-semibold">
+                          Out of
+                        </TableHead>
+                        <TableHead className="text-center text-xs py-3 font-semibold">
+                          Score
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {qp ? (
+                        renderQuestionHierarchyTable(
+                          qp.data,
+                          setSelectedQuestion,
+                          questionScores,
+                          selectedQuestion
+                        )
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={3}
+                            className="text-center text-sm py-4"
+                          >
+                            <div className="animate-pulse flex flex-col items-center gap-2">
+                              <div className="h-2 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-24"></div>
+                              <div className="h-2 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-16"></div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.aside>
+
+        {/* Main PDF Viewer */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-gray-100/50 to-gray-200/30">
+          {/* PDF Controls */}
+          <div className="bg-gradient-to-r from-white/70 to-white/40 backdrop-blur-lg border-b border-white/30 p-3">
+            <div className="flex items-center justify-between max-w-6xl mx-auto">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
+                  >
+                    <ChevronLeftIcon className="w-4 h-4" />
+                  </Button>
+                  <span className="font-medium text-sm bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
+                  >
+                    <ChevronRightIcon className="w-4 h-4" />
+                  </Button>
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
+                    className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium w-16 text-center">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => setZoomLevel((z) => Math.min(3, z + 0.2))}
+                    className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    window.open(
+                      `${
+                        process.env.NEXT_PUBLIC_BACKEND_URL
+                      }/api/v1/qp-key/view/qp/${qpKey?.qpPdfPath
+                        .split("/")
+                        .pop()}`,
+                      "_blank"
+                    )
+                  }
+                  className="gap-2 rounded-full bg-white/60 backdrop-blur-sm border-white/50"
+                >
+                  <EyeIcon className="w-4 h-4" /> View PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    window.open(
+                      `${
+                        process.env.NEXT_PUBLIC_BACKEND_URL
+                      }/api/v1/qp-key/view/key/${qpKey?.qpPdfPath
+                        .split("/")
+                        .pop()}`,
+                      "_blank"
+                    )
+                  }
+                  className="gap-2 rounded-full bg-white/60 backdrop-blur-sm border-white/50"
+                >
+                  <EyeIcon className="w-4 h-4" /> View Key
+                </Button>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto relative bg-gray-200 p-2">
-            <div className="max-w-4xl mx-auto bg-white shadow-lg">
+          {/* PDF Canvas */}
+          <div className="flex-1 overflow-auto p-4 bg-gradient-to-br from-gray-100/50 to-gray-200/30">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="max-w-5xl mx-auto bg-white/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/30 overflow-hidden"
+            >
               <div className="relative">
-                <canvas ref={canvasRef} className="block w-full h-auto" />
+                <canvas
+                  ref={canvasRef}
+                  className="block w-full h-auto shadow-inner"
+                />
                 <canvas
                   ref={drawCanvasRef}
                   className="absolute inset-0 w-full h-full cursor-crosshair"
@@ -982,173 +1364,213 @@ export default function Page() {
                   }}
                 />
               </div>
-            </div>
+            </motion.div>
           </div>
         </main>
 
-        {/* Right: Info */}
-        <aside className="w-full lg:w-80 bg-white border-l flex flex-col overflow-hidden flex-shrink-0">
-          <div className="p-3 border-b">
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  window.open(
-                    `${
-                      process.env.NEXT_PUBLIC_BACKEND_URL
-                    }/api/v1/qp-key/view/qp/${qpKey?.qpPdfPath
-                      .split("/")
-                      .pop()}`,
-                    "_blank"
-                  )
-                }
-                className="flex-1 text-xs"
-              >
-                <EyeIcon className="w-4 h-4 mr-1" /> View PDF
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  window.open(
-                    `${
-                      process.env.NEXT_PUBLIC_BACKEND_URL
-                    }/api/v1/qp-key/view/key/${qpKey?.qpPdfPath
-                      .split("/")
-                      .pop()}`,
-                    "_blank"
-                  )
-                }
-                className="flex-1 text-xs"
-              >
-                <EyeIcon className="w-4 h-4 mr-1" /> View Key
-              </Button>
-            </div>
+        {/* Right Sidebar - Score & Pages */}
+        <motion.aside
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="hidden lg:flex w-80 bg-gradient-to-b from-white/70 to-white/40 backdrop-blur-lg border-l border-white/30 flex-col overflow-y-auto flex-shrink-0"
+        >
+          <div className="p-4 border-b border-white/30">
+            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <CalculatorIcon className="w-4 h-4" />
+              Evaluation Summary
+            </h2>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
-            {/* Questions Table */}
-            <div className="border rounded-lg overflow-hidden">
-              <div className="max-h-48 overflow-y-auto">
-                <Table>
-                  <TableHeader className="bg-gray-50 sticky top-0">
-                    <TableRow>
-                      <TableHead className="text-center text-xs py-2 border-r">
-                        Q
-                      </TableHead>
-                      <TableHead className="text-center text-xs py-2 border-r">
-                        Out of
-                      </TableHead>
-                      <TableHead className="text-center text-xs py-2">
-                        Score
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {qp ? (
-                      renderQuestionHierarchyTable(
-                        qp.data,
-                        setSelectedQuestion,
-                        questionScores,
-                        selectedQuestion
-                      )
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={3}
-                          className="text-center text-xs py-4"
-                        >
-                          Loading questions...
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-
+          <div className="flex-1 p-4 space-y-6">
             {/* Selected Question Details */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <h4 className="font-bold text-sm text-blue-800 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-br from-blue-50/70 to-indigo-50/70 backdrop-blur-sm rounded-xl border border-blue-100/50 p-4"
+            >
+              <h4 className="font-bold text-sm text-blue-800 mb-3 flex items-center gap-2">
+                <FileTextIcon className="w-4 h-4" />
                 {selectedQuestion
-                  ? `Question ${selectedQuestion.QuestionNo} (${
-                      questionScores[selectedQuestion.QuestionNo] ?? 0
-                    }/${selectedQuestion.Marks})`
+                  ? `Question ${selectedQuestion.QuestionNo}`
                   : "Select Question"}
               </h4>
-              <p className="text-xs text-gray-700 line-clamp-3">
-                {selectedQuestion?.QuestionText ||
-                  "Click a question from the table above to view details and assign marks."}
-              </p>
-            </div>
+              {selectedQuestion ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">Marks Assigned</span>
+                    <Badge className="bg-gradient-to-r from-emerald-500 to-green-500 text-white text-sm">
+                      {questionScores[selectedQuestion.QuestionNo] ?? 0} /{" "}
+                      {selectedQuestion.Marks}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-700 line-clamp-3 bg-white/50 p-3 rounded-lg">
+                    {selectedQuestion.QuestionText ||
+                      "No description available"}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-600">
+                  Click a question from the list to view details and assign
+                  marks.
+                </p>
+              )}
+            </motion.div>
 
-            {/* Total Score & Actions */}
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
-              <p className="text-center text-sm font-semibold text-gray-700 mb-1">
+            {/* Total Score */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-gradient-to-br from-emerald-50/70 to-green-50/70 backdrop-blur-sm rounded-xl border border-emerald-100/50 p-5 text-center"
+            >
+              <p className="text-sm font-semibold text-gray-700 mb-2">
                 Total Score
               </p>
-              <p className="text-center text-2xl font-bold text-green-600 mb-3">
-                {totalScore.toFixed(2)} / {qp?.totalMarks || 0}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 text-xs text-red-600 border-red-300 hover:bg-red-50"
-                >
-                  Reject
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handlePaperFinish}
-                  className="flex-1 text-xs bg-green-600 hover:bg-green-700"
-                  disabled={revisitCount >= 5}
-                >
-                  Finish {revisitCount > 0 && `(#${revisitCount})`}
-                </Button>
+              <div className="space-y-2">
+                <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                  {totalScore.toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  out of {qp?.totalMarks || 0} marks
+                </p>
               </div>
-            </div>
+              <Progress
+                value={(totalScore / (qp?.totalMarks || 100)) * 100}
+                className="h-2 mt-4 bg-gradient-to-r from-emerald-200 to-green-200"
+              />
+            </motion.div>
+
+            {/* Action Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-3"
+            >
+              <Button
+                size="lg"
+                onClick={handlePaperFinish}
+                disabled={revisitCount >= 5}
+                className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {revisitCount > 0 ? (
+                  <>
+                    <CheckCircleIcon className="mr-2 h-5 w-5" />
+                    Finish (Revisit #{revisitCount})
+                  </>
+                ) : (
+                  <>
+                    <CheckCircleIcon className="mr-2 h-5 w-5" />
+                    Finish Evaluation
+                  </>
+                )}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full rounded-xl bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+              >
+                <AlertCircleIcon className="mr-2 h-5 w-5" />
+                Reject Paper
+              </Button>
+            </motion.div>
 
             {/* Pages Overview */}
-            <div className="border rounded-lg p-3 bg-white">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-sm font-semibold">Pages</h4>
-                <div className="flex gap-3 text-xs">
-                  <span className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-green-500 rounded"></div>{" "}
-                    {visitedPages}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-orange-500 rounded"></div>{" "}
-                    {totalPages - visitedPages}
-                  </span>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-gradient-to-br from-white/60 to-white/40 backdrop-blur-sm rounded-xl border border-white/30 p-4"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <GridIcon className="w-4 h-4" />
+                  Pages Overview
+                </h4>
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-emerald-500 to-green-500"></div>
+                    <span>Visited ({visitedPages})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                    <span>Remaining ({totalPages - visitedPages})</span>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-6 gap-1">
+              <div className="grid grid-cols-6 gap-2">
                 {Array.from({ length: totalPages }, (_, i) => {
                   const pageNum = i + 1;
                   const hasAnnotations = !!annotations[pageNum]?.length;
                   const isCurrent = pageNum === currentPage;
 
-                  let bgColor = "bg-orange-500"; // Not visited
-                  if (hasAnnotations) bgColor = "bg-green-500"; // Visited
-                  if (isCurrent) bgColor = "bg-blue-500"; // Current page
+                  let bgClass = "bg-gradient-to-r from-amber-500 to-orange-500";
+                  if (hasAnnotations)
+                    bgClass = "bg-gradient-to-r from-emerald-500 to-green-500";
+                  if (isCurrent)
+                    bgClass = "bg-gradient-to-r from-blue-500 to-indigo-600";
 
                   return (
-                    <Badge
+                    <motion.div
                       key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`cursor-pointer text-xs h-7 flex items-center justify-center text-white ${bgColor} hover:opacity-80 transition-opacity`}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                     >
-                      {pageNum}
-                    </Badge>
+                      <Badge
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`cursor-pointer text-xs h-8 w-8 flex items-center justify-center text-white ${bgClass} hover:shadow-lg transition-all duration-300 rounded-lg`}
+                      >
+                        {pageNum}
+                      </Badge>
+                    </motion.div>
                   );
                 })}
               </div>
+              <div className="mt-4 pt-4 border-t border-white/30">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Progress</span>
+                  <span>
+                    {Math.round((visitedPages / totalPages) * 100)}%
+                  </span>
+                </div>
+                <Progress
+                  value={(visitedPages / totalPages) * 100}
+                  className="h-2 mt-2 bg-gradient-to-r from-gray-200 to-gray-300"
+                />
+              </div>
+            </motion.div>
+          </div>
+        </motion.aside>
+
+        {/* Mobile Bottom Bar */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-r from-white/90 to-white/80 backdrop-blur-xl border-t border-white/30 shadow-lg">
+          <div className="p-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center">
+                <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 mb-1">
+                  {currentPage}/{totalPages}
+                </Badge>
+                <p className="text-xs text-gray-600">Page</p>
+              </div>
+              <div className="text-center">
+                <Badge className="bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 mb-1">
+                  {totalScore.toFixed(1)}
+                </Badge>
+                <p className="text-xs text-gray-600">Score</p>
+              </div>
+              <div className="text-center">
+                <Button
+                  size="sm"
+                  onClick={handlePaperFinish}
+                  className="w-full rounded-full bg-gradient-to-r from-emerald-500 to-green-500 text-white text-xs"
+                >
+                  Finish
+                </Button>
+              </div>
             </div>
           </div>
-        </aside>
+        </div>
       </div>
     </div>
   );

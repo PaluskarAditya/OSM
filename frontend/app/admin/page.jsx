@@ -14,8 +14,18 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
+  BarChart3,
+  CalendarDays,
+  ClipboardList,
+  UserCheck,
+  Download,
+  MoreVertical,
+  Filter,
+  Search,
+  RefreshCw,
 } from "lucide-react";
-import { Pie, PieChart, ResponsiveContainer } from "recharts";
+import { Pie, PieChart, ResponsiveContainer, Cell } from "recharts";
 import {
   Dialog,
   DialogContent,
@@ -46,15 +56,32 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import Cookies from "js-cookie";
 
 // Chart Data
 const chartData = [
-  { name: "Math", value: 275, fill: "hsl(var(--chart-1))" },
-  { name: "Physics", value: 200, fill: "hsl(var(--chart-2))" },
-  { name: "Chemistry", value: 287, fill: "hsl(var(--chart-3))" },
-  { name: "Biology", value: 173, fill: "hsl(var(--chart-4))" },
-  { name: "Others", value: 190, fill: "hsl(var(--chart-5))" },
+  { name: "Math", value: 275, fill: "hsl(var(--chart-1))", color: "#3b82f6" },
+  { name: "Physics", value: 200, fill: "hsl(var(--chart-2))", color: "#10b981" },
+  { name: "Chemistry", value: 287, fill: "hsl(var(--chart-3))", color: "#8b5cf6" },
+  { name: "Biology", value: 173, fill: "hsl(var(--chart-4))", color: "#f59e0b" },
+  { name: "Others", value: 190, fill: "hsl(var(--chart-5))", color: "#ef4444" },
 ];
 
 const chartConfig = {
@@ -71,16 +98,16 @@ const chartConfig = {
 // Loading Skeletons
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
       {[...Array(4)].map((_, i) => (
-        <Card key={i} className="bg-muted/50">
-          <CardContent className="p-5">
+        <Card key={i} className="bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200/50 animate-pulse">
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-7 w-16" />
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-28 rounded-full" />
+                <Skeleton className="h-8 w-20 rounded-lg" />
               </div>
-              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-12 w-12 rounded-xl" />
             </div>
           </CardContent>
         </Card>
@@ -90,11 +117,31 @@ function StatsSkeleton() {
 }
 
 function ChartSkeleton() {
-  return <Skeleton className="h-64 w-full rounded-xl" />;
+  return (
+    <Card className="border border-gray-200/50">
+      <CardHeader>
+        <Skeleton className="h-6 w-48 rounded-lg" />
+        <Skeleton className="h-4 w-32 rounded-lg" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </CardContent>
+    </Card>
+  );
 }
 
 function CalendarSkeleton() {
-  return <Skeleton className="h-96 w-full rounded-xl" />;
+  return (
+    <Card className="h-full border border-gray-200/50">
+      <CardHeader>
+        <Skeleton className="h-6 w-40 rounded-lg" />
+        <Skeleton className="h-4 w-28 rounded-lg" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </CardContent>
+    </Card>
+  );
 }
 
 // Stats Cards
@@ -106,13 +153,17 @@ function StatsCards({ exams, subjects, evaluated, uploaded }) {
       icon: BookOpen,
       color: "text-blue-600",
       bg: "bg-blue-50",
+      border: "border-blue-100",
+      trend: "+12%",
     },
     {
-      label: "Subjects Active",
+      label: "Active Subjects",
       value: subjects,
       icon: Users,
-      color: "text-green-600",
-      bg: "bg-green-50",
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      border: "border-emerald-100",
+      trend: "+8%",
     },
     {
       label: "Evaluated",
@@ -120,30 +171,50 @@ function StatsCards({ exams, subjects, evaluated, uploaded }) {
       icon: CheckCircle2,
       color: "text-purple-600",
       bg: "bg-purple-50",
+      border: "border-purple-100",
+      trend: "+24%",
     },
     {
       label: "Uploaded",
       value: uploaded,
       icon: Upload,
-      color: "text-orange-600",
-      bg: "bg-orange-50",
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+      border: "border-amber-100",
+      trend: "+15%",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
       {stats.map((stat) => (
-        <Card key={stat.label} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
+        <Card 
+          key={stat.label} 
+          className={`group hover:shadow-lg transition-all duration-300 border ${stat.border} hover:-translate-y-1 hover:border-gray-300`}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-600">
                   {stat.label}
                 </p>
-                <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold text-gray-900">
+                    {stat.value}
+                  </p>
+                  <Badge variant="outline" className="text-xs border-green-200 bg-green-50 text-green-700">
+                    {stat.trend}
+                  </Badge>
+                </div>
               </div>
-              <div className={`p-2.5 rounded-full ${stat.bg}`}>
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <div className={`p-3 rounded-xl ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
+                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>This month</span>
+                <span className="font-medium">View details</span>
               </div>
             </div>
           </CardContent>
@@ -158,48 +229,83 @@ function EvaluationDistributionChart() {
   const total = useMemo(() => chartData.reduce((a, c) => a + c.value, 0), []);
 
   return (
-    <Card className="col-span-1 lg:col-span-1">
-      <CardHeader>
-        <CardTitle className="text-lg">Evaluation Distribution</CardTitle>
-        <CardDescription>By Subject</CardDescription>
+    <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Evaluation Distribution
+            </CardTitle>
+            <CardDescription className="text-gray-500">
+              By subject area
+            </CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>View details</DropdownMenuItem>
+              <DropdownMenuItem>Export data</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Refresh</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardHeader>
-      <CardContent className="flex items-center justify-center p-4">
-        <ChartContainer
-          config={chartConfig}
-          className="h-56 w-full max-w-[220px]"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              <Pie
-                data={chartData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={60}
-                outerRadius={85}
-                paddingAngle={3}
-              >
-                <text
-                  x="50%"
-                  y="50%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-foreground text-2xl font-bold"
+      <CardContent className="flex flex-col items-center justify-center p-4 md:p-6">
+        <div className="w-full max-w-xs">
+          <ChartContainer config={chartConfig} className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <ChartTooltip 
+                  content={<ChartTooltipContent hideLabel className="bg-white shadow-lg border rounded-lg" />} 
+                />
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={65}
+                  outerRadius={90}
+                  paddingAngle={2}
+                  strokeWidth={2}
+                  stroke="white"
                 >
-                  {total}
-                </text>
-                <text
-                  x="50%"
-                  y="58%"
-                  textAnchor="middle"
-                  className="fill-muted-foreground text-xs"
-                >
-                  Total
-                </text>
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+        <div className="mt-6 w-full">
+          <div className="text-center mb-4">
+            <div className="text-4xl font-bold text-gray-900">{total}</div>
+            <div className="text-sm text-gray-500">Total evaluations</div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {chartData.map((item) => (
+              <div key={item.name} className="text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <div 
+                    className="h-3 w-3 rounded-full" 
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    {item.name}
+                  </span>
+                </div>
+                <div className="text-lg font-semibold mt-1">{item.value}</div>
+                <div className="text-xs text-gray-500">
+                  {Math.round((item.value / total) * 100)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -222,7 +328,7 @@ function AcademicCalendar({ events, onAddEvent }) {
     events.some(
       (e) => e.isExam && new Date(e.from).toDateString() === d.toDateString()
     )
-      ? "bg-red-100 rounded-full"
+      ? "bg-red-50 rounded-lg"
       : "";
 
   const handleAdd = () => {
@@ -248,66 +354,118 @@ function AcademicCalendar({ events, onAddEvent }) {
 
   return (
     <>
-      <Card className="h-full">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Academic Calendar</CardTitle>
-              <CardDescription>Exams & Events</CardDescription>
+      <Card className="h-full border border-gray-200 hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-semibold text-gray-900">
+                Academic Calendar
+              </CardTitle>
+              <CardDescription className="text-gray-500">
+                Upcoming exams & events
+              </CardDescription>
             </div>
-            <Button size="sm" onClick={() => setOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Add
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-9">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Today
+              </Button>
+              <Button size="sm" onClick={() => setOpen(true)} className="h-9">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={setDate}
-            className="rounded-md border"
-            tileClassName={tileClassName}
-          />
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            <p className="text-sm font-medium">
-              {date.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "short",
-                day: "numeric",
-              })}
-            </p>
-            {dayEvents.length > 0 ? (
-              dayEvents.map((e) => (
-                <div
-                  key={e.id}
-                  className={`p-3 rounded-lg border-l-4 text-sm ${
-                    e.isExam
-                      ? "border-red-500 bg-red-50"
-                      : "border-blue-500 bg-blue-50"
-                  }`}
-                >
-                  <div className="flex justify-between">
-                    <span className="font-medium">{e.title}</span>
-                    <Badge
-                      variant={e.isExam ? "destructive" : "secondary"}
-                      className="text-xs"
-                    >
-                      {e.isExam ? "Exam" : "Event"}
-                    </Badge>
+        <CardContent className="space-y-6">
+          <div className="bg-gray-50 rounded-xl p-4">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              className="w-full"
+              classNames={{
+                day: "h-9 w-9 rounded-lg hover:bg-gray-100",
+                day_selected: "bg-blue-600 text-white hover:bg-blue-700",
+                day_today: "bg-gray-100 font-semibold",
+              }}
+              tileClassName={tileClassName}
+            />
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">
+                {date.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </h3>
+              <Badge variant="outline" className="text-xs">
+                {dayEvents.length} {dayEvents.length === 1 ? "event" : "events"}
+              </Badge>
+            </div>
+            
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+              {dayEvents.length > 0 ? (
+                dayEvents.map((e) => (
+                  <div
+                    key={e.id}
+                    className={`p-4 rounded-lg border transition-all hover:shadow-sm ${
+                      e.isExam
+                        ? "border-red-200 bg-red-50/50 hover:bg-red-50"
+                        : "border-blue-200 bg-blue-50/50 hover:bg-blue-50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1.5 rounded-md ${
+                            e.isExam ? "bg-red-100" : "bg-blue-100"
+                          }`}>
+                            {e.isExam ? (
+                              <FileCheck className="h-4 w-4 text-red-600" />
+                            ) : (
+                              <Users className="h-4 w-4 text-blue-600" />
+                            )}
+                          </div>
+                          <span className="font-semibold text-gray-900">
+                            {e.title}
+                          </span>
+                          <Badge
+                            variant={e.isExam ? "destructive" : "secondary"}
+                            className="text-xs"
+                          >
+                            {e.isExam ? "Exam" : "Event"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2 ml-9">
+                          {formatDateRange(new Date(e.from), new Date(e.to))}
+                        </p>
+                        {e.description && (
+                          <p className="text-sm text-gray-500 mt-2 ml-9">
+                            {e.description}
+                          </p>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatDateRange(new Date(e.from), new Date(e.to))}
+                ))
+              ) : (
+                <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50/50">
+                  <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No events scheduled</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Add an event to get started
                   </p>
-                  {e.description && (
-                    <p className="text-xs mt-1">{e.description}</p>
-                  )}
                 </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground text-sm py-4">
-                No events
-              </p>
-            )}
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -315,50 +473,74 @@ function AcademicCalendar({ events, onAddEvent }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Event</DialogTitle>
-            <DialogDescription>For {date.toDateString()}</DialogDescription>
+            <DialogTitle className="text-gray-900">Add New Event</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Schedule for {date.toLocaleDateString("en-US", { 
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Title *</Label>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-gray-700">Title *</Label>
               <Input
+                id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Exam / Meeting"
+                placeholder="e.g., Math Final Exam"
+                className="bg-gray-50"
               />
             </div>
-            <div>
-              <Label>Description</Label>
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-gray-700">Description</Label>
               <Input
+                id="description"
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
-                placeholder="Optional"
+                placeholder="Optional details"
+                className="bg-gray-50"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>From *</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="from" className="text-gray-700">Start Time *</Label>
                 <Input
+                  id="from"
                   type="time"
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}
+                  className="bg-gray-50"
                 />
               </div>
-              <div>
-                <Label>To *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="to" className="text-gray-700">End Time *</Label>
                 <Input
+                  id="to"
                   type="time"
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
+                  className="bg-gray-50"
                 />
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setOpen(false)}
+              className="border-gray-300"
+            >
               Cancel
             </Button>
-            <Button onClick={handleAdd}>Add Event</Button>
+            <Button 
+              onClick={handleAdd}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Event
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -369,46 +551,127 @@ function AcademicCalendar({ events, onAddEvent }) {
 // Pending Evaluations
 function PendingEvaluationsList() {
   const data = [
-    { name: "Dr. Smith", dept: "Mathematics", pending: 15, priority: "high" },
-    { name: "Prof. Jones", dept: "Physics", pending: 8, priority: "medium" },
-    { name: "Ms. Taylor", dept: "Chemistry", pending: 22, priority: "high" },
-    { name: "Dr. Brown", dept: "Biology", pending: 5, priority: "low" },
+    { 
+      name: "Dr. Smith", 
+      dept: "Mathematics", 
+      pending: 15, 
+      priority: "high",
+      avatar: "DS"
+    },
+    { 
+      name: "Prof. Jones", 
+      dept: "Physics", 
+      pending: 8, 
+      priority: "medium",
+      avatar: "PJ"
+    },
+    { 
+      name: "Ms. Taylor", 
+      dept: "Chemistry", 
+      pending: 22, 
+      priority: "high",
+      avatar: "MT"
+    },
+    { 
+      name: "Dr. Brown", 
+      dept: "Biology", 
+      pending: 5, 
+      priority: "low",
+      avatar: "DB"
+    },
   ];
 
-  const priorityColor = {
-    high: "bg-red-100 text-red-700 border-red-200",
-    medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    low: "bg-green-100 text-green-700 border-green-200",
+  const priorityConfig = {
+    high: { 
+      color: "bg-red-100 text-red-700 border-red-200",
+      icon: AlertCircle,
+      label: "High Priority"
+    },
+    medium: { 
+      color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+      icon: Clock,
+      label: "Medium Priority"
+    },
+    low: { 
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      icon: CheckCircle2,
+      label: "Low Priority"
+    },
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pending Evaluations</CardTitle>
-        <CardDescription>Examiners with backlog</CardDescription>
+    <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Pending Evaluations
+            </CardTitle>
+            <CardDescription className="text-gray-500">
+              Examiners with evaluation backlog
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8">
+              <Filter className="h-3.5 w-3.5 mr-2" />
+              Filter
+            </Button>
+            <Button variant="outline" size="sm" className="h-8">
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {data.map((item) => (
-          <div
-            key={item.name}
-            className="flex items-center justify-between p-3 rounded-lg border"
-          >
-            <div>
-              <p className="font-medium text-sm">{item.name}</p>
-              <p className="text-xs text-muted-foreground">{item.dept}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className={priorityColor[item.priority]}>
-                {item.priority}
-              </Badge>
-              <div className="text-right">
-                <p className="font-semibold text-sm">{item.pending}</p>
-                <p className="text-xs text-muted-foreground">pending</p>
+      <CardContent className="space-y-4">
+        {data.map((item) => {
+          const PriorityIcon = priorityConfig[item.priority].icon;
+          return (
+            <div
+              key={item.name}
+              className="group flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10 border border-gray-200">
+                  <AvatarFallback className="bg-gray-100 text-gray-700">
+                    {item.avatar}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {item.name}
+                  </p>
+                  <p className="text-sm text-gray-500">{item.dept}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <Badge className={priorityConfig[item.priority].color}>
+                      <PriorityIcon className="h-3 w-3 mr-1" />
+                      {priorityConfig[item.priority].label}
+                    </Badge>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {item.pending}
+                    </p>
+                    <p className="text-xs text-gray-500">pending sheets</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
+      <CardFooter className="border-t border-gray-200 bg-gray-50/50">
+        <Button variant="ghost" size="sm" className="w-full text-gray-600 hover:text-gray-900">
+          View all examiners
+          <ChevronRight className="h-4 w-4 ml-2" />
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
@@ -425,26 +688,92 @@ function EvaluationProgress({ evaluations, users }) {
     const checked = e.progress?.checked || 0;
     const percent = total ? Math.round((checked / total) * 100) : 0;
     return {
+      id: e._id,
       name: e.name,
-      examiners: e.examiners.map(getName).join(", "),
+      examiners: e.examiners.map(getName),
       percent,
+      total,
+      checked,
+      color: percent === 100 ? "bg-emerald-500" : 
+             percent >= 75 ? "bg-blue-500" : 
+             percent >= 50 ? "bg-amber-500" : 
+             "bg-red-500"
     };
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Evaluation Progress</CardTitle>
-        <CardDescription>By evaluation task</CardDescription>
+    <Card className="border border-gray-200 hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Evaluation Progress
+            </CardTitle>
+            <CardDescription className="text-gray-500">
+              Real-time tracking by task
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select defaultValue="all">
+              <SelectTrigger className="h-8 w-32">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {transformed.map((item) => (
-          <div key={item.name} className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-medium">{item.examiners}</span>
-              <span>{item.percent}%</span>
+          <div key={item.id} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-gray-900 truncate">
+                    {item.name}
+                  </h4>
+                  <Badge variant="outline" className="text-xs">
+                    {item.examiners.length} {item.examiners.length === 1 ? 'examiner' : 'examiners'}
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-500 truncate">
+                  {item.examiners.join(", ")}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-gray-900">
+                  {item.percent}%
+                </div>
+                <div className="text-xs text-gray-500">
+                  {item.checked}/{item.total} sheets
+                </div>
+              </div>
             </div>
-            <Progress value={item.percent} className="h-2" />
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Progress</span>
+                <span className="font-medium text-gray-900">
+                  {item.percent === 100 ? "Completed" : 
+                   item.percent >= 75 ? "Almost Done" : 
+                   item.percent >= 50 ? "In Progress" : "Needs Attention"}
+                </span>
+              </div>
+              <Progress value={item.percent} className="h-2" indicatorClassName={item.color} />
+            </div>
+            {item.percent < 100 && (
+              <Button variant="outline" size="sm" className="w-full text-sm">
+                <UserCheck className="h-3.5 w-3.5 mr-2" />
+                Assign More Staff
+              </Button>
+            )}
+            <Separator />
           </div>
         ))}
       </CardContent>
@@ -457,27 +786,27 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState([
     {
       id: 1,
-      title: "Math Exam",
+      title: "Mathematics Final Exam",
       from: "2025-06-12T09:00",
       to: "2025-06-12T10:00",
       isExam: true,
-      description: "Calculus II Final",
+      description: "Calculus II - All sections",
     },
     {
       id: 2,
-      title: "Physics Exam",
+      title: "Physics Midterm",
       from: "2025-06-13T11:30",
       to: "2025-06-13T12:30",
       isExam: true,
-      description: "Quantum Midterm",
+      description: "Quantum Mechanics - Hall A",
     },
     {
       id: 3,
-      title: "Evaluation Meeting",
+      title: "Evaluation Committee Meeting",
       from: "2025-06-14T14:00",
       to: "2025-06-14T15:00",
       isExam: false,
-      description: "Progress Review",
+      description: "Quarterly progress review with department heads",
     },
   ]);
 
@@ -549,19 +878,26 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4 md:p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <Skeleton className="h-20 w-full rounded-xl" />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4 md:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+          {/* Header Skeleton */}
+          <Skeleton className="h-24 w-full rounded-xl" />
+          
+          {/* Stats Cards Skeleton */}
           <StatsSkeleton />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          
+          {/* Main Content Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+            <div className="lg:col-span-2 space-y-6 md:space-y-8">
               <ChartSkeleton />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Skeleton className="h-64 rounded-xl" />
-                <Skeleton className="h-64 rounded-xl" />
+              <div className="grid grid-cols-1 gap-6 md:gap-8">
+                <Skeleton className="h-80 rounded-xl" />
+                <Skeleton className="h-80 rounded-xl" />
               </div>
             </div>
-            <CalendarSkeleton />
+            <div className="lg:col-span-1">
+              <CalendarSkeleton />
+            </div>
           </div>
         </div>
       </div>
@@ -569,31 +905,78 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="bg-white p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         {/* Header */}
-        <Card className="bg-gray-100">
-          <CardContent className="p-5">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 md:p-8 shadow-lg">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <SidebarTrigger className="cursor-pointer h-9 w-9" />
+                <SidebarTrigger className="cursor-pointer h-10 w-10 bg-white/20 hover:bg-white/30 text-white rounded-xl transition-colors" />
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white">
                     {institute?.name || "Academic Portal"}
                   </h1>
-                  <p className="text-sm text-gray-600">
-                    95% evaluation completed this semester
+                  <p className="text-blue-100 text-sm md:text-base">
+                    Welcome to your evaluation management dashboard
                   </p>
                 </div>
               </div>
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> Excellent Progress
-              </Badge>
+              
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 bg-emerald-400 rounded-full animate-pulse" />
+                    <span className="text-white text-sm font-medium">
+                      System Status: <span className="font-bold">Active</span>
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-white text-blue-600 hover:bg-white/90 gap-2 py-1.5 px-3">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Excellent Progress
+                </Badge>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Report
+              </Button>
+              <Button className="bg-white text-blue-600 hover:bg-white/90">
+                <Plus className="h-4 w-4 mr-2" />
+                Quick Action
+              </Button>
+            </div>
+          </div>
+          
+          <div className="mt-6 pt-6 border-t border-white/20">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">95%</div>
+                <div className="text-sm text-blue-100">Evaluation Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">24</div>
+                <div className="text-sm text-blue-100">Active Examiners</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">8</div>
+                <div className="text-sm text-blue-100">Live Exams</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">12h</div>
+                <div className="text-sm text-blue-100">Avg. Processing Time</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        {/* Stats */}
+        {/* Stats Cards */}
         <StatsCards
           exams={qps.length}
           subjects={subjects.length}
@@ -601,23 +984,73 @@ export default function AdminDashboard() {
           uploaded={sheets.length}
         />
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Progress + Pending + Chart */}
-          <div className="lg:col-span-2 space-y-6">
+        {/* Tabs for Mobile */}
+        <div className="lg:hidden">
+          <Tabs defaultValue="progress">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="progress">Progress</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            </TabsList>
+            <TabsContent value="progress" className="space-y-6">
+              <EvaluationProgress evaluations={evaluations} users={users} />
+              <EvaluationDistributionChart />
+            </TabsContent>
+            <TabsContent value="pending">
+              <PendingEvaluationsList />
+            </TabsContent>
+            <TabsContent value="calendar">
+              <AcademicCalendar
+                events={events}
+                onAddEvent={(e) => setEvents((prev) => [...prev, e])}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Main Grid for Desktop */}
+        <div className="hidden lg:grid lg:grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
+          {/* Left Column - Progress & Pending */}
+          <div className="xl:col-span-2 space-y-6 md:space-y-8">
             <EvaluationProgress evaluations={evaluations} users={users} />
-            <PendingEvaluationsList />
-            {/* <EvaluationDistributionChart /> */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+              <PendingEvaluationsList />
+              <EvaluationDistributionChart />
+            </div>
           </div>
 
-          {/* Right: Calendar */}
-          <div className="lg:col-span-1">
+          {/* Right Column - Calendar */}
+          <div className="xl:col-span-1">
             <AcademicCalendar
-            className="w-full"
               events={events}
               onAddEvent={(e) => setEvents((prev) => [...prev, e])}
             />
           </div>
+        </div>
+
+        {/* Quick Actions Footer */}
+        <div className="mt-8">
+          <Card className="border border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Need assistance?</h3>
+                  <p className="text-sm text-gray-500">
+                    Contact support or explore our documentation
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="sm">
+                    <Search className="h-4 w-4 mr-2" />
+                    Search Help
+                  </Button>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                    Get Support
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

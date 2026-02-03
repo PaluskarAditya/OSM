@@ -181,6 +181,38 @@ export default function LoginPage() {
     }
   };
 
+  const handleCreateRequest = async () => {
+    if (!creds.uname) {
+      toast.error("Please enter your username/email to request password reset.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/requests/request-reset`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: creds.uname }),
+        }
+      );
+
+      if (res.ok) {
+        toast.success("Password reset request sent!");
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || "Failed to send password reset request");
+      }
+    } catch (error) {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const closePasswordDialog = () => {
     setShowChangePassword(false);
     setNewPassword("");
@@ -286,6 +318,12 @@ export default function LoginPage() {
               "Login"
             )}
           </Button>
+
+          {
+            creds.role !== 'Admin' && creds.uname !== "" && (
+              <Button onClick={handleCreateRequest} className="cursor-pointer text-xs" size={'sm'} variant={'link'}>Request Password Reset</Button>
+            )
+          }
         </div>
       </div>
 

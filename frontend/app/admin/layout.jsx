@@ -46,6 +46,7 @@ import {
   UserIcon,
   ViewIcon,
   WalletCardsIcon,
+  GitPullRequestIcon
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -116,6 +117,10 @@ const SidebarFooterMenu = () => {
                 <DropdownMenuItem>
                   <UserCircleIcon />
                   <Link href={"/admin/institute"}>Institute Management</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <GitPullRequestIcon />
+                  <Link href={"/admin/institute/requests"}>User Requests</Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

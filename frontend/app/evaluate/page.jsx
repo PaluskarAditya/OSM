@@ -1,153 +1,173 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import Cookies from "js-cookie";
-import { Loader2, LogIn, Mail, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { toast } from "sonner";
+import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function EvaluatorLogin() {
-  const [creds, setCreds] = useState({ uname: "", pass: "" });
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  /* ------------------------------------------------------------------ */
-  /*  Redirect if already logged in                                     */
-  /* ------------------------------------------------------------------ */
+  const [form, setForm] = useState({ identifier: "", password: "" });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Redirect if already logged in
   useEffect(() => {
     const token = Cookies.get("token");
     const role = Cookies.get("role");
 
     if (token && role) {
       if (!["Examiner", "Moderator"].includes(role)) {
-        toast.error("Invalid Permissions");
-        router.push("/admin");
+        toast.error("Access restricted", { description: "Redirecting..." });
+        router.replace("/admin");
         return;
       }
-      router.push("/evaluate/home");
+      router.replace("/evaluate/home");
     }
   }, [router]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Login handler with validation                                     */
-  /* ------------------------------------------------------------------ */
-  const handleLogin = async () => {
-    if (!creds.uname.trim() || !creds.pass.trim()) {
-      toast.error("Please fill in both fields");
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    if (error) setError("");
+  };
+
+  const handleSubmit = async () => {
+    const { identifier, password } = form;
+
+    if (!identifier.trim() || !password.trim()) {
+      setError("Please fill in both fields");
+      toast.error("Missing fields");
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
+    setError("");
+
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/eval`,
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ uname: creds.uname, pass: creds.pass }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uname: identifier.trim(),
+            pass: password,
+          }),
         }
       );
 
       const data = await res.json();
 
       if (res.ok) {
-        Cookies.set("token", data.token, { expires: 7 });
-        Cookies.set("role", data.role, { expires: 7 });
-        Cookies.set("mail", data.mail, { expires: 7 });
+        Cookies.set("token", data.token, { expires: 7, sameSite: "lax" });
+        Cookies.set("role", data.role, { expires: 7, sameSite: "lax" });
+        Cookies.set("mail", data.mail, { expires: 7, sameSite: "lax" });
 
-        toast.success(`Welcome, ${data.role}!`);
+        toast.success(`Welcome, ${data.role || "Evaluator"}!`);
         router.push("/evaluate/home");
       } else {
-        toast.error(data.message ?? "Invalid credentials");
+        const msg = data.message || "Invalid credentials";
+        setError(msg);
+        toast.error(msg);
       }
-    } catch (err) {
-      toast.error("Network error – try again later");
+    } catch {
+      const msg = "Cannot connect. Please try again.";
+      setError(msg);
+      toast.error("Network error", { description: msg });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const onEnter = (e) => {
+    if (e.key === "Enter" && !isLoading) handleSubmit();
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[url('/bg.jpg')] bg-cover bg-center p-4">
-      {/* Responsive Card */}
-      <div className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-xl bg-white p-6 sm:p-8 shadow-xl">
+    <div
+      className="min-h-screen flex items-center justify-end bg-cover bg-center bg-no-repeat px-20"
+      style={{ backgroundImage: "url(/eval-bg.jpg)" }}
+    >
+      {/* Card – exact compact style from screenshot */}
+      <div className="w-full max-w-[300px] bg-white/95 backdrop-blur-sm shadow-2xl overflow-hidden">
+        {/* Blue top accent bar */}
+        <div className="h-1.5 bg-blue-600" />
 
-        {/* Header */}
-        <div className="mb-6 text-center">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Evaluator Login</h1>
-          <p className="mt-1 text-xs sm:text-sm text-gray-500">
-            Login to continue evaluation
-            <span className="block text-xs text-gray-400 mt-1">only for evaluators</span>
-          </p>
-        </div>
-
-        {/* Username */}
-        <div className="mb-4">
-          <label htmlFor="uname" className="block text-sm font-medium text-gray-700 mb-1">
-            Username / Email
-          </label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              id="uname"
-              value={creds.uname}
-              onChange={(e) => setCreds({ ...creds, uname: e.target.value })}
-              placeholder="john.doe@example.com"
-              className="pl-10 text-sm sm:text-base"
-              autoComplete="username"
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
+        <div className="p-8 pb-10">
+          {/* Brand / Title */}
+          <div className="text-left mb-8">
+            <h1 className="text-lg font-bold text-blue-700 tracking-tight">
+              EVALUATOR LOGIN
+            </h1>
+            <p className="text-sm font-medium text-gray-700 mt-1">Sign In</p>
           </div>
-        </div>
 
-        {/* Password */}
-        <div className="mb-6">
-          <label htmlFor="pass" className="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              id="pass"
-              type="password"
-              value={creds.pass}
-              onChange={(e) => setCreds({ ...creds, pass: e.target.value })}
-              placeholder="••••••••"
-              className="pl-10 text-sm sm:text-base"
-              autoComplete="current-password"
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <Button
-          onClick={handleLogin}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm sm:text-base font-medium text-white transition hover:bg-blue-700 disabled:opacity-70"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Logging in…
-            </>
-          ) : (
-            <>
-              <LogIn className="h-4 w-4" />
-              Login
-            </>
+          {/* Error */}
+          {error && (
+            <div className="mb-6 text-red-600 text-sm text-center bg-red-50 py-2 px-4 rounded-lg border border-red-200">
+              {error}
+            </div>
           )}
-        </Button>
 
-        {/* Footer Note */}
-        <p className="mt-5 text-center text-xs text-gray-500">
-          Need help? Contact{" "}
-          <a href="mailto:support@xyzcollege.edu" className="underline hover:text-blue-600">
-            support@xyzcollege.edu
-          </a>
-        </p>
+          {/* Form */}
+          <div className="space-y-5">
+            <Input
+              type="text"
+              name="identifier"
+              value={form.identifier}
+              onChange={handleChange}
+              onKeyDown={onEnter}
+              placeholder="Username or Email"
+              disabled={isLoading}
+              className="border-0 test-xs border-b h-11 border-gray-300 shadow-none rounded-none"
+            />
+
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                onKeyDown={onEnter}
+                placeholder="Password"
+                disabled={isLoading}
+                className="border-0 test-xs border-b h-11 border-gray-300 shadow-none rounded-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+
+            {/* Sign In Button – floating circle arrow style */}
+            <div className="flex relative justify-end mt-8 ">
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="relative z-20 cursor-pointer h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center border-none"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-6 w-6" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

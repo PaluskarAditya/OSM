@@ -137,6 +137,9 @@ app.use("/api/v1/qp-key", require("./routes/qpKeyRoutes"));
 // Report Routes
 app.use("/api/v1/reports", authMiddleware, require("./routes/reportRoutes"));
 
+// Request Routes
+app.use("/api/v1/requests", require("./routes/requestRoutes"));
+
 app.listen(process.env.NODE_PORT, () =>
   console.log(`Server running on ${process.env.NODE_PORT}`)
 );
