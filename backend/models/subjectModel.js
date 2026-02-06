@@ -4,7 +4,7 @@ const subjectSchema = new mongoose.Schema({
   uuid: { type: String, unique: true },
   name: { type: String, required: true },
   code: { type: String, required: true },
-  combined: { type: String, required: true },
+  combined: { type: String },
   course: { type: String, required: true },
   exam: { type: String, required: true },
   semester: { type: String, required: true },

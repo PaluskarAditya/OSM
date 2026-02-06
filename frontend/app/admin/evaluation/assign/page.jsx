@@ -71,6 +71,7 @@ export default function EvaluationPage() {
   const [years, setYears] = useState([]);
   const [courses, setCourses] = useState([]);
   const [combineds, setCombineds] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [users, setUsers] = useState([]);
@@ -82,8 +83,16 @@ export default function EvaluationPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [targetDate, setTargetDate] = useState("");
+  // const [currEval, setCurrEval] = useState(null); // Removed as unused/buggy
 
-  // Filters
+  // Filters for main view
+  const [selectedCombined, setSelectedCombined] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedSemester, setSelectedSemester] = useState(null);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  // Filters for assigned view
   const [selectedAssignedCombined, setSelectedAssignedCombined] =
     useState(null);
   const [selectedAssignedCourse, setSelectedAssignedCourse] = useState(null);
@@ -91,15 +100,9 @@ export default function EvaluationPage() {
     useState(null);
   const [selectedAssignedSubject, setSelectedAssignedSubject] = useState(null);
 
-  const [selectedCombined, setSelectedCombined] = useState(null);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [selectedSemester, setSelectedSemester] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-
   const [assignedCandidates, setAssignedCandidates] = useState([]);
 
-  // Modals
+  // Modals - unused, but kept for now
   const [assignSubjectModal, setAssignSubjectModal] = useState(false);
   const [assignedSubject, setAssignedSubject] = useState(null);
 
@@ -115,264 +118,145 @@ export default function EvaluationPage() {
   }, []);
 
   // === Data Fetch ===
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [
-          streamsRes,
-          degreesRes,
-          yearsRes,
-          coursesRes,
-          combinedsRes,
-          subjectsRes,
-          candidatesRes,
-          userRes,
-          sheetRes,
-        ] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degree`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/course`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combined`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subject`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [
+        streamsRes,
+        degreesRes,
+        yearsRes,
+        coursesRes,
+        combinedsRes,
+        subjectsRes,
+        candidatesRes,
+        userRes,
+        sheetRes,
+        evalRes,
+      ] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/stream`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/degree`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/academic-years`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/course`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/combined`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/subject`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/candidate`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-        const [
-          streamsData,
-          degreesData,
-          yearsData,
-          coursesData,
-          combinedsData,
-          subjectsData,
-          candidatesData,
-          userData,
-          sheetData,
-        ] = await Promise.all([
-          streamsRes.json(),
-          degreesRes.json(),
-          yearsRes.json(),
-          coursesRes.json(),
-          combinedsRes.json(),
-          subjectsRes.json(),
-          candidatesRes.json(),
-          userRes.json(),
-          sheetRes.json(),
-        ]);
-
-        setStreams(streamsData);
-        setDegrees(degreesData);
-        setYears(yearsData);
-        setCourses(coursesData);
-        setCombineds(combinedsData);
-        setSubjects(subjectsData);
-        setCandidates(candidatesData);
-        setFilteredCandidates(candidatesData);
-        setSheets(sheetData);
-
-        const examiners = userData.filter((u) =>
-          ["Examiner", "Moderator"].includes(u.Role)
-        );
-        setUsers(examiners);
-      } catch (err) {
-        toast.error(err.message || "Failed to load data");
-      } finally {
-        setIsLoading(false);
+      if (
+        !streamsRes.ok ||
+        !degreesRes.ok ||
+        !yearsRes.ok ||
+        !coursesRes.ok ||
+        !combinedsRes.ok ||
+        !subjectsRes.ok ||
+        !candidatesRes.ok ||
+        !userRes.ok ||
+        !sheetRes.ok ||
+        !evalRes.ok
+      ) {
+        throw new Error("One or more API calls failed");
       }
-    };
 
+      const [
+        streamsData,
+        degreesData,
+        yearsData,
+        coursesData,
+        combinedsData,
+        subjectsData,
+        candidatesData,
+        userData,
+        sheetData,
+        evalData,
+      ] = await Promise.all([
+        streamsRes.json(),
+        degreesRes.json(),
+        yearsRes.json(),
+        coursesRes.json(),
+        combinedsRes.json(),
+        subjectsRes.json(),
+        candidatesRes.json(),
+        userRes.json(),
+        sheetRes.json(),
+        evalRes.json(),
+      ]);
+
+      setStreams(streamsData);
+      setDegrees(degreesData);
+      setYears(yearsData);
+      setCourses(coursesData);
+      setCombineds(combinedsData);
+      setSubjects(subjectsData);
+      setCandidates(candidatesData);
+      setFilteredCandidates(candidatesData);
+      setSheets(sheetData);
+      setEvaluations(evalData);
+
+      const examiners = userData.filter((u) =>
+        ["Examiner", "Moderator"].includes(u.Role),
+      );
+      setUsers(examiners);
+    } catch (err) {
+      toast.error(err.message || "Failed to load data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (token) fetchData();
   }, [token]);
 
-  // === Filtering Logic ===
-  useEffect(() => {
-    let data = candidates;
+  // === Helper Functions ===
+  const isCandidateAssignedForSubject = (candidate, subjectUuid) => {
+    if (!candidate?.assignmentId || !subjectUuid) return false;
 
-    if (search) {
-      const q = search.toLowerCase();
-      data = data.filter((c) => {
-        const name =
-          `${c.FirstName} ${c.MiddleName} ${c.LastName}`.toLowerCase();
-        return name.includes(q);
-      });
-    }
+    return evaluations.some((evaluation) => {
+      if (evaluation.subject !== subjectUuid) return false;
 
-    if (selectedCombined)
-      data = data.filter((c) => c.combined === selectedCombined.uuid);
-    if (selectedCourse)
-      data = data.filter((c) => c.course === selectedCourse.uuid);
-    if (selectedSemester) data = data.filter((c) => c.sem === selectedSemester);
-    if (selectedSubject)
-      data = data.filter((c) => c.subjects?.includes(selectedSubject.uuid));
-
-    setFilteredCandidates(data);
-    setSelectedRows([]);
-    setSelectAll(false);
-  }, [
-    candidates,
-    search,
-    selectedCombined,
-    selectedCourse,
-    selectedSemester,
-    selectedSubject,
-  ]);
-
-  useEffect(() => {
-    let data = candidates;
-
-    if (search) {
-      const q = search.toLowerCase();
-      data = data.filter((c) => {
-        const name =
-          `${c.FirstName} ${c.MiddleName} ${c.LastName}`.toLowerCase();
-        return name.includes(q);
-      });
-    }
-
-    if (selectedAssignedCombined)
-      data = data.filter((c) => c.combined === selectedAssignedCombined.uuid);
-    if (selectedAssignedCourse)
-      data = data.filter((c) => c.course === selectedAssignedCourse.uuid);
-    if (selectedAssignedSemester)
-      data = data.filter((c) => c.sem === selectedAssignedSemester);
-    if (selectedAssignedSubject)
-      data = data.filter((c) =>
-        c.subjects?.includes(selectedAssignedSubject.uuid)
+      return evaluation.sheets.some(
+        (sheet) => sheet.assignmentId === candidate.assignmentId,
       );
-
-    // console.log("Assigned Filtered Data:", data);
-    setAssignedCandidates(data);
-    // console.log("Assigned Filtered State Data:", filteredCandidates);
-    setSelectedRows([]);
-    setSelectAll(false);
-  }, [
-    candidates,
-    search,
-    selectedAssignedCombined,
-    selectedAssignedCourse,
-    selectedAssignedSemester,
-    selectedAssignedSubject,
-  ]);
-
-  useEffect(() => {
-    let data = candidates;
-
-    if (search) {
-      const q = search.toLowerCase();
-      data = data.filter((c) => {
-        const name =
-          `${c.FirstName} ${c.MiddleName} ${c.LastName}`.toLowerCase();
-        return name.includes(q);
-      });
-    }
-
-    if (selectedCombined)
-      data = data.filter((c) => c.combined === selectedCombined.uuid);
-    if (selectedCourse)
-      data = data.filter((c) => c.course === selectedCourse.uuid);
-    if (selectedSemester) data = data.filter((c) => c.sem === selectedSemester);
-    if (selectedSubject)
-      data = data.filter((c) => c.subjects?.includes(selectedSubject.uuid));
-
-    setFilteredCandidates(data);
-    setSelectedRows([]);
-    setSelectAll(false);
-  }, [
-    candidates,
-    search,
-    selectedCombined,
-    selectedCourse,
-    selectedSemester,
-    selectedSubject,
-  ]);
-
-  // === Selection Helpers ===
-  const getUploadedCandidates = () => {
-    if (!selectedSubject) return [];
-    return filteredCandidates.filter((c) =>
-      c.bookletNames?.[selectedSubject.uuid]?.trim()
-    );
+    });
   };
 
-  const uploadedCandidates = getUploadedCandidates();
-
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(
-        uploadedCandidates
-          .filter((c) => c.isEvaluationAssigned !== true)
-          .map((c) => c._id)
-      );
-    }
-    setSelectAll(!selectAll);
+  const formatDateForBackend = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  const handleRowSelect = (id) => {
-    setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedCombined(null);
-    setSelectedCourse(null);
-    setSelectedSemester(null);
-    setSelectedSubject(null);
-    setSelectedRows([]);
-    setSelectAll(false);
-  };
-
-  // === Export ===
-  const exportToExcel = () => {
-    const data = filteredCandidates.map((c) => ({
-      RollNo: c.RollNo,
-      PRN: c.PRNNumber,
-      Name: `${c.FirstName} ${c.MiddleName} ${c.LastName}`,
-      Email: c.Email,
-      Stream: combineds.find((cb) => cb.uuid === c.combined)?.name || "N/A",
-      Course: courses.find((co) => co.uuid === c.course)?.name || "N/A",
-      Subject: selectedSubject?.name || "N/A",
-      Booklet: c.bookletNames?.[selectedSubject?.uuid] || "N/A",
-      Uploaded: c.sheetUploaded ? "Yes" : "No",
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Candidates");
-    XLSX.writeFile(
-      wb,
-      `Candidates_${new Date().toISOString().split("T")[0]}.xlsx`
-    );
-  };
-
-  function format(date) {
-    if (!date) return "";
-    const d = new Date(date);
-    if (isNaN(d)) return "";
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
 
     const months = [
       "January",
@@ -389,36 +273,174 @@ export default function EvaluationPage() {
       "December",
     ];
 
-    const day = d.getDate();
-    const month = months[d.getMonth()];
-    const year = d.getFullYear();
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
 
-    // Add suffix to day (st, nd, rd, th)
     const suffix =
       day % 10 === 1 && day !== 11
         ? "st"
         : day % 10 === 2 && day !== 12
-        ? "nd"
-        : day % 10 === 3 && day !== 13
-        ? "rd"
-        : "th";
+          ? "nd"
+          : day % 10 === 3 && day !== 13
+            ? "rd"
+            : "th";
 
     return `${month} ${day}${suffix}, ${year}`;
-  }
+  };
 
-  // === Assign Examiner ===
-  const handleAssignExaminer = async () => {
-    if (!selectedUser || selectedRows.length === 0) {
-      toast.error("Select examiner and candidates");
+  // === Filtering Logic (Merged duplicates) ===
+  useEffect(() => {
+    let result = [...candidates];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((c) => {
+        const fullName =
+          `${c.FirstName || ""} ${c.MiddleName || ""} ${c.LastName || ""}`.toLowerCase();
+        return fullName.includes(q);
+      });
+    }
+
+    if (selectedCombined)
+      result = result.filter((c) => c.combined === selectedCombined.uuid);
+    if (selectedCourse)
+      result = result.filter((c) => c.course === selectedCourse.uuid);
+    if (selectedSemester)
+      result = result.filter((c) => c.sem === selectedSemester);
+    if (selectedSubject)
+      result = result.filter((c) => c.subjects?.includes(selectedSubject.uuid));
+
+    setFilteredCandidates(result);
+    setSelectedRows([]);
+    setSelectAll(false);
+  }, [
+    candidates,
+    search,
+    selectedCombined,
+    selectedCourse,
+    selectedSemester,
+    selectedSubject,
+  ]);
+
+  useEffect(() => {
+    let result = [...candidates];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((c) => {
+        const fullName =
+          `${c.FirstName || ""} ${c.MiddleName || ""} ${c.LastName || ""}`.toLowerCase();
+        return fullName.includes(q);
+      });
+    }
+
+    if (selectedAssignedCombined)
+      result = result.filter(
+        (c) => c.combined === selectedAssignedCombined.uuid,
+      );
+    if (selectedAssignedCourse)
+      result = result.filter((c) => c.course === selectedAssignedCourse.uuid);
+    if (selectedAssignedSemester)
+      result = result.filter((c) => c.sem === selectedAssignedSemester);
+    if (selectedAssignedSubject) {
+      result = result.filter((c) =>
+        c.subjects?.includes(selectedAssignedSubject.uuid),
+      );
+      // For "View Assigned", filter only assigned
+      result = result.filter((c) =>
+        isCandidateAssignedForSubject(c, selectedAssignedSubject.uuid),
+      );
+    }
+
+    setAssignedCandidates(result);
+  }, [
+    candidates,
+    search,
+    selectedAssignedCombined,
+    selectedAssignedCourse,
+    selectedAssignedSemester,
+    selectedAssignedSubject,
+  ]);
+
+  // === Selection Helpers ===
+  const getUploadedCandidates = () => {
+    if (!selectedSubject) return [];
+    return filteredCandidates.filter((c) =>
+      c.bookletNames?.[selectedSubject.uuid]?.trim(),
+    );
+  };
+
+  const uploadedCandidates = getUploadedCandidates();
+
+  const handleSelectAll = () => {
+    const assignable = uploadedCandidates
+      .filter((c) => !isCandidateAssignedForSubject(c, selectedSubject?.uuid))
+      .map((c) => c._id);
+
+    if (selectAll) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(assignable);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleRowSelect = (id) => {
+    const candidate = uploadedCandidates.find((c) => c._id === id);
+    if (
+      !candidate ||
+      isCandidateAssignedForSubject(candidate, selectedSubject?.uuid)
+    )
+      return;
+
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedCombined(null);
+    setSelectedCourse(null);
+    setSelectedSemester(null);
+    setSelectedSubject(null);
+    setSelectedRows([]);
+    setSelectAll(false);
+  };
+
+  // === Export ===
+  const exportToExcel = () => {
+    if (!filteredCandidates.length) {
+      toast.error("No data to export");
       return;
     }
 
-    function formatDate(dateString) {
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+    const data = filteredCandidates.map((c) => ({
+      RollNo: c.RollNo,
+      PRN: c.PRNNumber,
+      Name: `${c.FirstName || ""} ${c.MiddleName || ""} ${c.LastName || ""}`,
+      Email: c.Email,
+      Stream: combineds.find((cb) => cb.uuid === c.combined)?.name || "N/A",
+      Course: courses.find((co) => co.uuid === c.course)?.name || "N/A",
+      Subject: selectedSubject?.name || "N/A",
+      Booklet: c.bookletNames?.[selectedSubject?.uuid] || "N/A",
+      Uploaded: c.bookletNames?.[selectedSubject?.uuid] ? "Yes" : "No",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Candidates");
+    XLSX.writeFile(
+      wb,
+      `Candidates_${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
+  };
+
+  // === Assign Examiner ===
+  const handleAssignExaminer = async () => {
+    if (!selectedUser || selectedRows.length === 0 || !targetDate) {
+      toast.error("Select examiner, candidates, and target date");
+      return;
     }
 
     setIsLoading(true);
@@ -442,7 +464,7 @@ export default function EvaluationPage() {
         course: selectedCourse.uuid,
         subject: selectedSubject.uuid,
         examiners: [selectedUser._id],
-        endDate: format(targetDate),
+        endDate: formatDateForBackend(targetDate),
         semester: selectedSemester,
         iid: Cookies.get("iid"),
         progress: { uploaded: selectedRows.length, checked: 0 },
@@ -457,16 +479,45 @@ export default function EvaluationPage() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(payload),
-        }
+        },
       );
 
-      if (res.ok) {
-        toast.success("Assigned successfully");
-        setSelectedRows([]);
-        setSelectAll(false);
-      } else throw new Error("Failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Assignment failed");
+      }
+
+      const newEval = await res.json(); // Assume backend returns the created evaluation object
+
+      toast.success(
+        `Assigned ${selectedRows.length} candidate(s) successfully`,
+      );
+
+      // Update evaluations
+      setEvaluations((prev) => [...prev, newEval]);
+
+      // Optimistically update candidates
+      setCandidates((prev) =>
+        prev.map((cand) => {
+          if (selectedRows.includes(cand._id)) {
+            return {
+              ...cand,
+              assignedEvaluations: [
+                ...(cand.assignedEvaluations || []),
+                newEval.uuid,
+              ],
+            };
+          }
+          return cand;
+        }),
+      );
+
+      setSelectedRows([]);
+      setSelectAll(false);
+      setTargetDate("");
+      setSelectedUser(null);
     } catch (err) {
-      toast.error("Assignment failed");
+      toast.error(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -621,8 +672,8 @@ export default function EvaluationPage() {
                               (c) =>
                                 c.isActive &&
                                 selectedAssignedCombined?.course.includes(
-                                  c.uuid
-                                )
+                                  c.uuid,
+                                ),
                             )
                             .map((c) => (
                               <DropdownMenuItem
@@ -659,7 +710,8 @@ export default function EvaluationPage() {
                         <DropdownMenuContent className="max-h-60">
                           {Array.from(
                             {
-                              length: Number(selectedAssignedCourse?.semCount),
+                              length:
+                                Number(selectedAssignedCourse?.semCount) || 0,
                             },
                             (_, i) => (
                               <DropdownMenuItem
@@ -670,7 +722,7 @@ export default function EvaluationPage() {
                               >
                                 Semester {i + 1}
                               </DropdownMenuItem>
-                            )
+                            ),
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -699,7 +751,7 @@ export default function EvaluationPage() {
                             .filter(
                               (s) =>
                                 s.course === selectedAssignedCourse?.uuid &&
-                                s.semester === selectedAssignedSemester
+                                s.semester === selectedAssignedSemester,
                             )
                             .map((s) => (
                               <DropdownMenuItem
@@ -727,30 +779,43 @@ export default function EvaluationPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="max-h-[40vh] overflow-y-auto">
-                      {selectedAssignedSubject &&
+                      {assignedCandidates.length > 0 ? (
                         assignedCandidates.map((c, i) => (
                           <TableRow key={c._id} className="hover:bg-gray-50">
-                            <TableCell>{c._id.slice(0, 5)}</TableCell>
-                            <TableCell>{c.FirstName + c.LastName}</TableCell>
+                            <TableCell>{i + 1}</TableCell>
+                            <TableCell>
+                              {`${c.FirstName || ""} ${c.MiddleName || ""} ${c.LastName || ""}`}
+                            </TableCell>
                             <TableCell>{c.RollNo}</TableCell>
                             <TableCell>
                               {combineds.find(
-                                (combined) => combined.uuid === c.combined
+                                (combined) => combined.uuid === c.combined,
                               )?.name || "N/A"}
                             </TableCell>
                             <TableCell>
                               {courses.find(
-                                (course) => course.uuid === c.course
+                                (course) => course.uuid === c.course,
                               )?.name || "N/A"}
                             </TableCell>
                             <TableCell>
                               {subjects.find(
                                 (subject) =>
-                                  subject.uuid === selectedAssignedSubject.uuid
+                                  subject.uuid ===
+                                  selectedAssignedSubject?.uuid,
                               )?.name || "N/A"}
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center py-4 text-gray-500"
+                          >
+                            No assigned candidates found
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -835,7 +900,7 @@ export default function EvaluationPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="max-h-60 overflow-auto">
                   {courses
-                    .filter((c) => selectedCombined.course.includes(c.uuid))
+                    .filter((c) => selectedCombined.course?.includes(c.uuid))
                     .map((c) => (
                       <DropdownMenuItem
                         key={c.uuid}
@@ -868,7 +933,7 @@ export default function EvaluationPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {Array.from(
-                    { length: Number(selectedCourse.semCount) },
+                    { length: Number(selectedCourse.semCount) || 0 },
                     (_, i) => (
                       <DropdownMenuItem
                         key={i + 1}
@@ -876,7 +941,7 @@ export default function EvaluationPage() {
                       >
                         Semester {i + 1}
                       </DropdownMenuItem>
-                    )
+                    ),
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -905,7 +970,7 @@ export default function EvaluationPage() {
                     .filter(
                       (s) =>
                         s.course === selectedCourse?.uuid &&
-                        s.semester === selectedSemester
+                        s.semester === selectedSemester,
                     )
                     .map((s) => (
                       <DropdownMenuItem
@@ -927,9 +992,9 @@ export default function EvaluationPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Select Examiner */}
               <Select
-                value={selectedUser?._id}
+                value={selectedUser?._id || ""}
                 onValueChange={(v) =>
-                  setSelectedUser(users.find((u) => u._id === v))
+                  setSelectedUser(users.find((u) => u._id === v) || null)
                 }
               >
                 <SelectTrigger>
@@ -955,7 +1020,7 @@ export default function EvaluationPage() {
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {targetDate ? (
-                      format(targetDate)
+                      formatDateDisplay(targetDate)
                     ) : (
                       <span>Select target date</span>
                     )}
@@ -964,8 +1029,10 @@ export default function EvaluationPage() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={targetDate}
-                    onSelect={setTargetDate}
+                    selected={targetDate ? new Date(targetDate) : undefined}
+                    onSelect={(date) =>
+                      setTargetDate(date?.toISOString().split("T")[0] || "")
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -1030,11 +1097,15 @@ export default function EvaluationPage() {
                       type="checkbox"
                       checked={selectedRows.includes(c._id)}
                       onChange={() => handleRowSelect(c._id)}
+                      disabled={isCandidateAssignedForSubject(
+                        c,
+                        selectedSubject?.uuid,
+                      )}
                       className="rounded border-gray-300"
                     />
                     <div>
                       <p className="font-medium">
-                        {c.FirstName} {c.LastName}
+                        {`${c.FirstName || ""} ${c.MiddleName || ""} ${c.LastName || ""}`}
                       </p>
                       <p className="text-xs text-gray-600">
                         {c.RollNo} • {c.PRNNumber}
@@ -1042,12 +1113,12 @@ export default function EvaluationPage() {
                     </div>
                   </div>
                   <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-                    {c.bookletNames[selectedSubject.uuid]}
+                    {c.bookletNames?.[selectedSubject?.uuid] || "N/A"}
                   </span>
                 </div>
                 <div className="mt-2 text-xs text-gray-500">
-                  {courses.find((co) => co.uuid === c.course)?.name} •{" "}
-                  {selectedSubject.name}
+                  {courses.find((co) => co.uuid === c.course)?.name || "N/A"} •{" "}
+                  {selectedSubject?.name || "N/A"}
                 </div>
               </div>
             ))}
@@ -1080,37 +1151,55 @@ export default function EvaluationPage() {
               </TableHeader>
               <TableBody>
                 {uploadedCandidates
-                  .filter((c) => c.isEvaluationAssigned === false)
+                  .filter(
+                    (c) =>
+                      !isCandidateAssignedForSubject(c, selectedSubject?.uuid),
+                  )
                   .map((c, i) => (
                     <TableRow key={c._id} className="hover:bg-gray-50">
-                      {c.isEvaluationAssigned === false && (
-                        <TableCell className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedRows.includes(c._id)}
-                            onChange={() => handleRowSelect(c._id)}
-                            className="rounded border-gray-300"
-                          />
-                        </TableCell>
-                      )}
+                      <TableCell className="text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(c._id)}
+                          onChange={() => handleRowSelect(c._id)}
+                          disabled={isCandidateAssignedForSubject(
+                            c,
+                            selectedSubject?.uuid,
+                          )}
+                          className="rounded border-gray-300"
+                        />
+                      </TableCell>
                       <TableCell>{i + 1}</TableCell>
                       <TableCell className="font-medium">
-                        {c.FirstName} {c.LastName}
+                        {`${c.FirstName || ""} ${c.MiddleName || ""} ${c.LastName || ""}`}
                       </TableCell>
                       <TableCell className="font-mono">{c.RollNo}</TableCell>
                       <TableCell className="font-mono">{c.PRNNumber}</TableCell>
                       <TableCell>
-                        {courses.find((co) => co.uuid === c.course)?.name}
+                        {courses.find((co) => co.uuid === c.course)?.name ||
+                          "N/A"}
                       </TableCell>
-                      <TableCell>{selectedSubject.name}</TableCell>
+                      <TableCell>{selectedSubject?.name || "N/A"}</TableCell>
                       <TableCell>
                         <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          {c.bookletNames[selectedSubject.uuid]}
+                          {c.bookletNames?.[selectedSubject?.uuid] || "N/A"}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                          {c.isEvaluationAssigned === true
+                        <span
+                          className={`font-mono text-xs px-2 py-1 rounded ${
+                            isCandidateAssignedForSubject(
+                              c,
+                              selectedAssignedSubject?.uuid,
+                            )
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {isCandidateAssignedForSubject(
+                            c,
+                            selectedAssignedSubject?.uuid,
+                          )
                             ? "Assigned"
                             : "Not Assigned"}
                         </span>

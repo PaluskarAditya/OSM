@@ -44,6 +44,7 @@ const createEvaluation = async (req, res) => {
       for (const sheet of evalExist.sheets) {
         const candidate = await Candidate.findOne({
           assignmentId: sheet.assignmentId,
+          assignedEvaluations: { $ne: sheet.assignmentId }, // only update if this evaluation is not already assigned
         });
 
         if (!candidate) {

@@ -31,7 +31,8 @@ const candidateSchema = new mongoose.Schema(
     uuid: { type: String, required: true },
     attendance: { type: String, default: "absent" },
     assignmentId: { type: String, required: true },
-    isEvaluationAssigned: { type: Boolean, default: false },
+    assignedEvaluations: [{ type: String }], // evaluation UUIDs
+    // isEvaluationAssigned: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
