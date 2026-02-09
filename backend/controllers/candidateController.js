@@ -66,6 +66,7 @@ const upload = async (req, res) => {
         sem: req.body.sem,
         subjects: candidate.subjects,
         sheetUploaded,
+        IID: req.user.IID,
         uuid: generateCustomId(),
         bookletNames: candidate.subjects.reduce((acc, subj) => {
           acc[subj] = "";

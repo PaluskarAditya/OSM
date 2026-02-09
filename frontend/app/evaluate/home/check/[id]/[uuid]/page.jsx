@@ -84,7 +84,7 @@ const renderQuestionHierarchyTable = (
   data,
   onQuestionSelect,
   questionScores,
-  selectedQuestion
+  selectedQuestion,
 ) => {
   if (!data) return [];
 
@@ -152,7 +152,7 @@ const renderQuestionHierarchyTable = (
               {score}
             </span>
           </TableCell>
-        </motion.tr>
+        </motion.tr>,
       );
 
       processedQuestions.add(questionNo);
@@ -201,11 +201,18 @@ const getAllLeafQuestions = (data) => {
 };
 
 // Score Calculation Helper Function
-const calculateTotalScoreWithOptionals = (qpData, scores) => {
+// Update the calculateTotalScoreWithOptionals function to include rounding
+const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
   if (!qpData || !Array.isArray(qpData) || qpData.length === 0) return 0;
 
   const questionData = qpData[0];
-  let total = 0;
+  let entries = [];
+
+  const addEntry = (questionNo, score, max) => {
+    if (!isNaN(score)) {
+      entries.push({ questionNo, score, max });
+    }
+  };
 
   const processQuestion = (q) => {
     if (!q) return;
@@ -215,48 +222,279 @@ const calculateTotalScoreWithOptionals = (qpData, scores) => {
       q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
     const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
 
-    // Leaf question: has Marks, no sub/actual
+    // Leaf question
     if (no && typeof q.Marks !== "undefined" && !hasActual && !hasSub) {
       const score = parseFloat(scores[no]) || 0;
-      if (!isNaN(score)) total += score;
+      addEntry(no, score, q.Marks);
       return;
     }
 
-    // Handle actualQuestions (optional group)
+    // Optional group
     if (hasActual) {
       const actuals = Object.values(q.actualQuestions);
       const optional = q.Optional === 1;
       const totalToAttempt = q.TotalQuestions || actuals.length;
 
-      if (optional && totalToAttempt < actuals.length) {
-        // Get all attempted scores
-        const attemptedScores = actuals
-          .map((aq) => parseFloat(scores[aq.QuestionNo]) || 0)
-          .filter((s) => !isNaN(s));
+      const attempted = actuals
+        .map((aq) => ({
+          questionNo: aq.QuestionNo,
+          score: parseFloat(scores[aq.QuestionNo]) || 0,
+          max: aq.Marks,
+        }))
+        .filter((a) => !isNaN(a.score));
 
-        // Take top N
-        const topScores = attemptedScores
-          .sort((a, b) => b - a)
-          .slice(0, totalToAttempt);
-
-        total += topScores.reduce((sum, s) => sum + s, 0);
+      if (optional && totalToAttempt < attempted.length) {
+        attempted
+          .sort((a, b) => b.score - a.score)
+          .slice(0, totalToAttempt)
+          .forEach((a) => addEntry(a.questionNo, a.score, a.max));
       } else {
-        // Not optional → sum all
-        actuals.forEach((aq) => {
-          const score = parseFloat(scores[aq.QuestionNo]) || 0;
-          if (!isNaN(score)) total += score;
-        });
+        attempted.forEach((a) => addEntry(a.questionNo, a.score, a.max));
       }
     }
 
-    // Recurse into subQuestions
     if (hasSub) {
       Object.values(q.subQuestions).forEach(processQuestion);
     }
   };
 
   Object.values(questionData).forEach(processQuestion);
+
+  // ---- AUTO-CORRECTION PHASE ----
+  let total = entries.reduce((sum, e) => sum + e.score, 0);
+  let originalTotal = total;
+  let corrections = [];
+
+  if (maxTotal && total > maxTotal) {
+    let excess = total - maxTotal;
+
+    // Reduce from highest scores first
+    entries
+      .sort((a, b) => b.score - a.score)
+      .forEach((e) => {
+        if (excess <= 0) return;
+
+        const reducible = Math.min(e.score, excess);
+        e.score -= reducible;
+        excess -= reducible;
+
+        if (reducible > 0) {
+          corrections.push({
+            questionNo: e.questionNo,
+            original: e.score + reducible,
+            corrected: e.score,
+            reduction: reducible,
+          });
+        }
+      });
+
+    total = entries.reduce((sum, e) => sum + e.score, 0);
+  }
+
+  // Apply rounding if needed
+  if (maxTotal) {
+    const roundedTotal = Math.min(total, maxTotal);
+
+    // Round to nearest 0.5 if close to maxTotal
+    if (Math.abs(roundedTotal - maxTotal) < 0.5) {
+      total = maxTotal;
+    } else if (Math.abs(roundedTotal - maxTotal) < 1) {
+      total = Math.round(roundedTotal * 2) / 2;
+    }
+  }
+
+  // Log corrections if any
+  if (corrections.length > 0) {
+    console.log("Auto-corrections applied:", {
+      originalTotal,
+      correctedTotal: total,
+      maxTotal,
+      corrections,
+    });
+  }
+
   return total;
+};
+
+// Update the confirmFinish function to remove manual overscoring check
+const confirmFinish = async () => {
+  setLoading(true);
+  try {
+    // Auto-calculate final score with corrections
+    const finalTotal = calculateTotalScoreWithOptionals(
+      qp.data,
+      questionScores,
+      parseFloat(qp.totalMarks || 0),
+    );
+
+    // Update local state with corrected total
+    setTotalScore(finalTotal);
+
+    const leaves = getAllLeafQuestions(qp.data);
+    const unannotatedQuestions = leaves.filter(
+      (no) => questionScores[no] === undefined,
+    );
+
+    if (unannotatedQuestions.length > 0) {
+      setErrorDialog({
+        open: true,
+        title: "Missing Marks",
+        message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
+      });
+      return;
+    }
+
+    // Show summary of auto-corrections if any
+    if (
+      finalTotal <
+      Object.values(questionScores).reduce(
+        (sum, s) => sum + (parseFloat(s) || 0),
+        0,
+      )
+    ) {
+      toast.info(`Auto-adjusted total to ${finalTotal} (was overscored)`);
+    }
+
+    // Proceed with submission
+    const requests = [
+      fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            totalMarks: finalTotal, // Use auto-corrected total
+            annotations,
+            result: questionScores,
+            isEvaluated: true,
+          }),
+        },
+      ),
+      fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "Completed" }),
+        },
+      ),
+      fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "Completed",
+            isChecked: "Evaluated",
+            marks: finalTotal, // Use auto-corrected total
+          }),
+        },
+      ),
+    ];
+
+    const results = await Promise.all(requests);
+    const allSuccess = results.every((res) => res.ok);
+
+    if (allSuccess) {
+      toast.success(`Evaluation completed! Total: ${finalTotal}`);
+      setTimeout(() => router.back(), 1500);
+    } else {
+      throw new Error("Some requests failed");
+    }
+  } catch (error) {
+    console.error("Error finishing paper:", error);
+    toast.error("Failed to complete evaluation");
+  } finally {
+    setLoading(false);
+    setFinishDialogOpen(false);
+  }
+};
+
+// Remove the overscoring check from handlePaperFinish
+const handlePaperFinish = async () => {
+  if (visitedPages < totalPages) {
+    setErrorDialog({
+      open: true,
+      title: "Pages Not Visited",
+      message:
+        "NOT ALL PAGES VISITED, VISIT ALL THE PAGES TO FINISH EVALUATION",
+    });
+    return;
+  }
+
+  if (!qp?.data) {
+    setErrorDialog({
+      open: true,
+      title: "Data Error",
+      message: "Question paper data not loaded properly",
+    });
+    return;
+  }
+
+  const leaves = getAllLeafQuestions(qp.data);
+  const unannotatedQuestions = leaves.filter(
+    (no) => questionScores[no] === undefined,
+  );
+
+  if (unannotatedQuestions.length > 0) {
+    setErrorDialog({
+      open: true,
+      title: "Missing Marks",
+      message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
+    });
+    return;
+  }
+
+  setFinishDialogOpen(true);
+};
+
+// Add a helper function to show auto-correction summary
+const showAutoCorrectionSummary = (
+  originalScores,
+  correctedScores,
+  corrections,
+) => {
+  if (corrections.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 rounded-lg p-4 mb-4"
+    >
+      <div className="flex items-center gap-3">
+        <AlertCircleIcon className="h-5 w-5 text-amber-600" />
+        <div>
+          <h4 className="font-semibold text-amber-800">
+            Auto-correction Applied
+          </h4>
+          <p className="text-sm text-amber-700">
+            Total was adjusted from{" "}
+            {Object.values(originalScores)
+              .reduce((s, v) => s + (parseFloat(v) || 0), 0)
+              .toFixed(1)}
+            to {correctedScores} to match paper maximum.
+          </p>
+          <div className="mt-2 space-y-1">
+            {corrections.map((c, i) => (
+              <p key={i} className="text-xs text-amber-600">
+                Q{c.questionNo}: {c.original} → {c.corrected} (-{c.reduction})
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 };
 
 // Dialogs
@@ -388,7 +626,7 @@ export default function Page() {
     if (!qp?.data) return;
     const correctTotal = calculateTotalScoreWithOptionals(
       qp.data,
-      questionScores
+      questionScores,
     );
     setTotalScore(correctTotal);
   }, [questionScores, qp?.data]);
@@ -527,7 +765,7 @@ export default function Page() {
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/${uuid}`,
             {
               headers: { Authorization: `Bearer ${token}` },
-            }
+            },
           ),
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/${uuid}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -536,7 +774,7 @@ export default function Page() {
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/annotations/${uuid}`,
             {
               headers: { Authorization: `Bearer ${token}` },
-            }
+            },
           ).catch(() => ({ ok: false })),
         ]);
 
@@ -557,7 +795,7 @@ export default function Page() {
         if (annotData.annotations) {
           setAnnotations(annotData.annotations);
           const visited = Object.values(annotData.annotations).filter(
-            (a) => a?.length > 0
+            (a) => a?.length > 0,
           ).length;
           setVisitedPages(visited);
         }
@@ -568,7 +806,7 @@ export default function Page() {
 
         const initialTotalScore = Object.values(initialScores).reduce(
           (sum, score) => sum + (parseFloat(score) || 0),
-          0
+          0,
         );
         setTotalScore(initialTotalScore);
 
@@ -590,7 +828,7 @@ export default function Page() {
       try {
         await fetch(
           "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png",
-          { cache: "no-cache", mode: "no-cors" }
+          { cache: "no-cache", mode: "no-cors" },
         );
         const duration = (performance.now() - start) / 1000;
         setSpeed(((3 * 1024 * 8) / duration / 1_000_000).toFixed(2));
@@ -615,7 +853,7 @@ export default function Page() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         if (res.ok) {
@@ -672,6 +910,42 @@ export default function Page() {
     <TrashIcon className="h-5 w-5" />,
   ];
 
+  const autoPlaceMarkAnnotation = ({
+    page,
+    mark,
+    questionNo,
+    updateAnnotations,
+    canvasRef,
+  }) => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+
+    // base anchor (top-right area)
+    const baseX = canvas.width * 0.75;
+    const baseY = canvas.height * 0.15;
+
+    // vertical offset to avoid overlap
+    const offset = (parseInt(questionNo, 10) || 0) * 12;
+
+    updateAnnotations((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        type: "number",
+        value: mark.toString(),
+        position: {
+          x: baseX,
+          y: baseY + offset,
+        },
+        meta: {
+          questionNo,
+          autoPlaced: true,
+        },
+      },
+    ]);
+  };
+
   const handleAnnotationMap = (i) => {
     const tools = ["check", "cross", "text", "pencil", "number", null, null];
     if (i === 5) return updateAnnotations((p) => p.slice(0, -1));
@@ -714,7 +988,7 @@ export default function Page() {
       }
     } else if (selectedTool === "number" && selectedQuestion) {
       const mark = prompt(
-        `Enter marks for question ${selectedQuestion.QuestionNo} (0-${selectedQuestion.Marks} or type "NA"):`
+        `Enter marks for question ${selectedQuestion.QuestionNo} (0-${selectedQuestion.Marks} or type "NA"):`,
       );
       if (mark === null) return;
 
@@ -750,11 +1024,11 @@ export default function Page() {
             [selectedQuestion.QuestionNo]: num,
           }));
           toast.success(
-            `Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`
+            `Assigned ${num} marks to question ${selectedQuestion.QuestionNo}`,
           );
         } else {
           toast.error(
-            `Please enter a valid number between 0 and ${selectedQuestion.Marks} or "NA"`
+            `Please enter a valid number between 0 and ${selectedQuestion.Marks} or "NA"`,
           );
         }
       }
@@ -770,29 +1044,50 @@ export default function Page() {
     const no = selectedQuestion.QuestionNo;
     const max = selectedQuestion.Marks;
 
+    // Handle NA
     if (mark === "NA") {
       setQuestionScores((prev) => ({ ...prev, [no]: 0 }));
+
+      autoPlaceMarkAnnotation({
+        page: currentPage,
+        mark: "NA",
+        questionNo: no,
+        updateAnnotations,
+        canvasRef: drawCanvasRef,
+      });
+
       toast.success(`Marked ${no} as NA`);
       return;
     }
 
     const num = parseFloat(mark);
+
     if (isNaN(num) || num < 0 || num > max) {
-      toast.error(`Must be 0–${max} or NA`);
+      toast.error(`Must be between 0 and ${max}`);
       return;
     }
 
+    // Update score
     setQuestionScores((prev) => ({ ...prev, [no]: num }));
-    toast.success(`${num} marks → ${no}`);
+
+    // 🔥 AUTO PLACE ANNOTATION
+    autoPlaceMarkAnnotation({
+      page: currentPage,
+      mark: num,
+      questionNo: no,
+      updateAnnotations,
+      canvasRef: drawCanvasRef,
+    });
+
+    toast.success(`${num} marks → Q${no}`);
   };
 
-  const handlePaperFinish = async () => {
+  const handlePaperFinish = () => {
     if (visitedPages < totalPages) {
       setErrorDialog({
         open: true,
         title: "Pages Not Visited",
-        message:
-          "NOT ALL PAGES VISITED, VISIT ALL THE PAGES TO FINISH EVALUATION",
+        message: "VISIT ALL PAGES BEFORE FINISHING",
       });
       return;
     }
@@ -801,21 +1096,19 @@ export default function Page() {
       setErrorDialog({
         open: true,
         title: "Data Error",
-        message: "Question paper data not loaded properly",
+        message: "Question paper not loaded",
       });
       return;
     }
 
     const leaves = getAllLeafQuestions(qp.data);
-    const unannotatedQuestions = leaves.filter(
-      (no) => questionScores[no] === undefined
-    );
+    const unmarked = leaves.filter((q) => questionScores[q] === undefined);
 
-    if (unannotatedQuestions.length > 0) {
+    if (unmarked.length > 0) {
       setErrorDialog({
         open: true,
         title: "Missing Marks",
-        message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
+        message: "ANNOTATE ALL QUESTIONS",
       });
       return;
     }
@@ -825,7 +1118,33 @@ export default function Page() {
 
   const confirmFinish = async () => {
     setLoading(true);
+
     try {
+      // 🔐 SINGLE SOURCE OF TRUTH
+      const finalTotal = calculateTotalScoreWithOptionals(
+        qp.data,
+        questionScores,
+        parseFloat(qp.totalMarks || 0),
+      );
+
+      const rawTotal = Object.values(questionScores).reduce(
+        (s, v) => s + (parseFloat(v) || 0),
+        0,
+      );
+
+      if (rawTotal > finalTotal) {
+        toast.info(`Score auto-adjusted to ${finalTotal}`);
+      }
+
+      setTotalScore(finalTotal); // sync UI
+
+      const payload = {
+        totalMarks: finalTotal,
+        annotations,
+        result: questionScores,
+        isEvaluated: true,
+      };
+
       const requests = [
         fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`,
@@ -835,13 +1154,8 @@ export default function Page() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({
-              totalMarks: totalScore,
-              annotations,
-              result: questionScores,
-              isEvaluated: true,
-            }),
-          }
+            body: JSON.stringify(payload),
+          },
         ),
         fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
@@ -852,7 +1166,7 @@ export default function Page() {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({ status: "Completed" }),
-          }
+          },
         ),
         fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
@@ -865,54 +1179,23 @@ export default function Page() {
             body: JSON.stringify({
               status: "Completed",
               isChecked: "Evaluated",
-              marks: totalScore,
+              marks: finalTotal,
             }),
-          }
+          },
         ),
       ];
 
-      const leaves = getAllLeafQuestions(qp.data);
-      const unannotatedQuestions = leaves.filter(
-        (no) => questionScores[no] === undefined
-      );
-
-      if (unannotatedQuestions.length > 0) {
-        setErrorDialog({
-          open: true,
-          title: "Missing Marks",
-          message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
-        });
-        return;
-      }
-
-      // NEW: Prevent overscoring by re-calculating
-      const finalTotal = calculateTotalScoreWithOptionals(
-        qp.data,
-        questionScores
-      );
-      if (finalTotal > parseFloat(qp.totalMarks || 0)) {
-        setErrorDialog({
-          open: true,
-          title: "Overscoring Detected",
-          message: `Total score (${finalTotal}) exceeds paper total (${qp.totalMarks}). Check optional questions.`,
-        });
-        return;
-      }
-
-      setFinishDialogOpen(true);
-
       const results = await Promise.all(requests);
-      const allSuccess = results.every((res) => res.ok);
 
-      if (allSuccess) {
-        toast.success("Evaluation completed successfully!");
-        setTimeout(() => router.back(), 1500);
-      } else {
-        throw new Error("Some requests failed");
+      if (!results.every((r) => r.ok)) {
+        throw new Error("Submit failed");
       }
-    } catch (error) {
-      console.error("Error finishing paper:", error);
-      toast.error("Failed to complete evaluation");
+
+      toast.success(`Evaluation completed · Total ${finalTotal}`);
+      setTimeout(() => router.back(), 1200);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to submit evaluation");
     } finally {
       setLoading(false);
       setFinishDialogOpen(false);
@@ -1033,7 +1316,10 @@ export default function Page() {
                     <MenuIcon className="w-4 h-4" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="bg-white/95 backdrop-blur-lg">
+                <SheetContent
+                  side="left"
+                  className="bg-white/95 backdrop-blur-lg"
+                >
                   <SheetHeader>
                     <SheetTitle>Tools & Navigation</SheetTitle>
                     <SheetDescription>
@@ -1043,7 +1329,9 @@ export default function Page() {
                   <div className="mt-6 space-y-6">
                     {/* Mobile Quick Marks */}
                     <div>
-                      <h3 className="text-sm font-semibold mb-3">Quick Marks</h3>
+                      <h3 className="text-sm font-semibold mb-3">
+                        Quick Marks
+                      </h3>
                       <div className="grid grid-cols-4 gap-2">
                         {MARKS.map((m) => (
                           <Button
@@ -1058,10 +1346,12 @@ export default function Page() {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Mobile Annotations */}
                     <div>
-                      <h3 className="text-sm font-semibold mb-3">Annotations</h3>
+                      <h3 className="text-sm font-semibold mb-3">
+                        Annotations
+                      </h3>
                       <div className="grid grid-cols-4 gap-2">
                         {ANNOTATIONS.map((icon, i) => (
                           <Button
@@ -1118,8 +1408,10 @@ export default function Page() {
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
                 {MARKS.map((m) => {
-                  const isActive = selectedQuestion && 
-                    questionScores[selectedQuestion.QuestionNo] === (m === "NA" ? 0 : m);
+                  const isActive =
+                    selectedQuestion &&
+                    questionScores[selectedQuestion.QuestionNo] ===
+                      (m === "NA" ? 0 : m);
                   return (
                     <motion.div
                       key={m}
@@ -1151,7 +1443,9 @@ export default function Page() {
               </h3>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 {ANNOTATIONS.map((icon, i) => {
-                  const tool = ["check", "cross", "text", "pencil", "number"][i];
+                  const tool = ["check", "cross", "text", "pencil", "number"][
+                    i
+                  ];
                   const isActive = selectedTool === tool;
                   const isAction = i >= 5;
                   return (
@@ -1168,15 +1462,15 @@ export default function Page() {
                           isActive
                             ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
                             : isAction
-                            ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 border-rose-200 hover:bg-rose-200"
-                            : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
+                              ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 border-rose-200 hover:bg-rose-200"
+                              : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
                         }`}
                         title={
                           tool
                             ? `${tool.charAt(0).toUpperCase() + tool.slice(1)} Tool`
                             : i === 5
-                            ? "Undo last annotation"
-                            : "Clear all annotations"
+                              ? "Undo last annotation"
+                              : "Clear all annotations"
                         }
                       >
                         {icon}
@@ -1219,7 +1513,7 @@ export default function Page() {
                           qp.data,
                           setSelectedQuestion,
                           questionScores,
-                          selectedQuestion
+                          selectedQuestion,
                         )
                       ) : (
                         <TableRow>
@@ -1307,7 +1601,7 @@ export default function Page() {
                       }/api/v1/qp-key/view/qp/${qpKey?.qpPdfPath
                         .split("/")
                         .pop()}`,
-                      "_blank"
+                      "_blank",
                     )
                   }
                   className="gap-2 rounded-full bg-white/60 backdrop-blur-sm border-white/50"
@@ -1324,7 +1618,7 @@ export default function Page() {
                       }/api/v1/qp-key/view/key/${qpKey?.qpPdfPath
                         .split("/")
                         .pop()}`,
-                      "_blank"
+                      "_blank",
                     )
                   }
                   className="gap-2 rounded-full bg-white/60 backdrop-blur-sm border-white/50"
@@ -1359,8 +1653,8 @@ export default function Page() {
                       selectedTool === "pencil"
                         ? "crosshair"
                         : selectedTool
-                        ? "pointer"
-                        : "default",
+                          ? "pointer"
+                          : "default",
                   }}
                 />
               </div>
@@ -1398,7 +1692,9 @@ export default function Page() {
               {selectedQuestion ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">Marks Assigned</span>
+                    <span className="text-xs text-gray-600">
+                      Marks Assigned
+                    </span>
                     <Badge className="bg-gradient-to-r from-emerald-500 to-green-500 text-white text-sm">
                       {questionScores[selectedQuestion.QuestionNo] ?? 0} /{" "}
                       {selectedQuestion.Marks}
@@ -1530,9 +1826,7 @@ export default function Page() {
               <div className="mt-4 pt-4 border-t border-white/30">
                 <div className="flex items-center justify-between text-xs text-gray-600">
                   <span>Progress</span>
-                  <span>
-                    {Math.round((visitedPages / totalPages) * 100)}%
-                  </span>
+                  <span>{Math.round((visitedPages / totalPages) * 100)}%</span>
                 </div>
                 <Progress
                   value={(visitedPages / totalPages) * 100}

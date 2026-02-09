@@ -28,6 +28,7 @@ const candidateSchema = new mongoose.Schema(
     course: { type: String, required: true },
     sem: { type: String, required: true },
     isActive: { type: Boolean, default: true },
+    IID: { type: String, required: true },
     uuid: { type: String, required: true },
     attendance: { type: String, default: "absent" },
     assignmentId: { type: String, required: true },
