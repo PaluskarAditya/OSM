@@ -210,7 +210,12 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
 
   const addEntry = (questionNo, score, max) => {
     if (!isNaN(score)) {
-      entries.push({ questionNo, score, max });
+      entries.push({
+        questionNo,
+        score,
+        max,
+        isOptional: false,
+      });
     }
   };
 
@@ -247,9 +252,23 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
         attempted
           .sort((a, b) => b.score - a.score)
           .slice(0, totalToAttempt)
-          .forEach((a) => addEntry(a.questionNo, a.score, a.max));
+          .forEach((a) =>
+            entries.push({
+              questionNo: a.questionNo,
+              score: a.score,
+              max: a.max,
+              isOptional: true,
+            }),
+          );
       } else {
-        attempted.forEach((a) => addEntry(a.questionNo, a.score, a.max));
+        attempted.forEach((a) =>
+          entries.push({
+            questionNo: a.questionNo,
+            score: a.score,
+            max: a.max,
+            isOptional: true,
+          }),
+        );
       }
     }
 
@@ -268,25 +287,33 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
   if (maxTotal && total > maxTotal) {
     let excess = total - maxTotal;
 
-    // Reduce from highest scores first
-    entries
-      .sort((a, b) => b.score - a.score)
-      .forEach((e) => {
-        if (excess <= 0) return;
+    // PRIORITY 1: deduct from optional answers
+    const optionalEntries = entries
+      .filter((e) => e.isOptional)
+      .sort((a, b) => b.score - a.score);
+
+    for (const e of optionalEntries) {
+      if (excess <= 0) break;
+
+      const reducible = Math.min(e.score, excess);
+      e.score -= reducible;
+      excess -= reducible;
+    }
+
+    // PRIORITY 2: deduct from mandatory answers if needed
+    if (excess > 0) {
+      const mandatoryEntries = entries
+        .filter((e) => !e.isOptional)
+        .sort((a, b) => b.score - a.score);
+
+      for (const e of mandatoryEntries) {
+        if (excess <= 0) break;
 
         const reducible = Math.min(e.score, excess);
         e.score -= reducible;
         excess -= reducible;
-
-        if (reducible > 0) {
-          corrections.push({
-            questionNo: e.questionNo,
-            original: e.score + reducible,
-            corrected: e.score,
-            reduction: reducible,
-          });
-        }
-      });
+      }
+    }
 
     total = entries.reduce((sum, e) => sum + e.score, 0);
   }
@@ -602,6 +629,7 @@ export default function Page() {
   const [selectedTool, setSelectedTool] = useState(null);
   const [drawing, setDrawing] = useState(false);
   const [currentPath, setCurrentPath] = useState([]);
+  const [pendingMarkPlacement, setPendingMarkPlacement] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [questionScores, setQuestionScores] = useState({});
   const [totalScore, setTotalScore] = useState(0);
@@ -946,6 +974,17 @@ export default function Page() {
     ]);
   };
 
+  useEffect(() => {
+    const cancel = (e) => {
+      if (e.key === "Escape") {
+        setPendingMarkPlacement(null);
+        setSelectedTool(null);
+      }
+    };
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, []);
+
   const handleAnnotationMap = (i) => {
     const tools = ["check", "cross", "text", "pencil", "number", null, null];
     if (i === 5) return updateAnnotations((p) => p.slice(0, -1));
@@ -955,6 +994,35 @@ export default function Page() {
   };
 
   const handleCanvasClick = (e) => {
+    // HANDLE PENDING MARK PLACEMENT
+    if (pendingMarkPlacement && drawCanvasRef.current) {
+      const rect = drawCanvasRef.current.getBoundingClientRect();
+      const scaleX = drawCanvasRef.current.width / rect.width;
+      const scaleY = drawCanvasRef.current.height / rect.height;
+
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      updateAnnotations((p) => [
+        ...p,
+        {
+          id: Date.now(),
+          type: "number",
+          value: pendingMarkPlacement.value.toString(),
+          position: { x, y },
+          meta: {
+            questionNo: pendingMarkPlacement.questionNo,
+            placedByUser: true,
+          },
+        },
+      ]);
+
+      setPendingMarkPlacement(null);
+      setSelectedTool(null);
+
+      return;
+    }
+
     if (selectedTool === "pencil" || !drawCanvasRef.current) return;
 
     const rect = drawCanvasRef.current.getBoundingClientRect();
@@ -1044,19 +1112,17 @@ export default function Page() {
     const no = selectedQuestion.QuestionNo;
     const max = selectedQuestion.Marks;
 
-    // Handle NA
     if (mark === "NA") {
       setQuestionScores((prev) => ({ ...prev, [no]: 0 }));
 
-      autoPlaceMarkAnnotation({
-        page: currentPage,
-        mark: "NA",
+      setPendingMarkPlacement({
         questionNo: no,
-        updateAnnotations,
-        canvasRef: drawCanvasRef,
+        value: "NA",
       });
 
-      toast.success(`Marked ${no} as NA`);
+      setSelectedTool("number");
+
+      toast("Click on the paper to place the mark");
       return;
     }
 
@@ -1067,19 +1133,16 @@ export default function Page() {
       return;
     }
 
-    // Update score
     setQuestionScores((prev) => ({ ...prev, [no]: num }));
 
-    // 🔥 AUTO PLACE ANNOTATION
-    autoPlaceMarkAnnotation({
-      page: currentPage,
-      mark: num,
+    setPendingMarkPlacement({
       questionNo: no,
-      updateAnnotations,
-      canvasRef: drawCanvasRef,
+      value: num,
     });
 
-    toast.success(`${num} marks → Q${no}`);
+    setSelectedTool("number");
+
+    toast("Click on the paper to place the mark");
   };
 
   const handlePaperFinish = () => {
