@@ -12,15 +12,10 @@ import {
   UndoIcon,
   WifiIcon,
   TimerIcon,
-  FullscreenIcon,
   ArrowLeftIcon,
-  ArrowRightIcon,
   EyeIcon,
-  DownloadIcon,
   Maximize2,
   Minimize2,
-  SaveIcon,
-  SettingsIcon,
   RotateCw,
   ZoomIn,
   ZoomOut,
@@ -33,8 +28,6 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   MenuIcon,
-  XIcon,
-  LayoutIcon,
 } from "lucide-react";
 import {
   Table,
@@ -65,21 +58,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-// Render leaf questions
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
 const renderQuestionHierarchyTable = (
   data,
   onQuestionSelect,
@@ -96,7 +82,6 @@ const renderQuestionHierarchyTable = (
     if (!question) return;
 
     const questionNo = question.QuestionNo;
-
     if (processedQuestions.has(questionNo)) return;
 
     const hasActualQuestions =
@@ -161,7 +146,6 @@ const renderQuestionHierarchyTable = (
     if (hasActualQuestions) {
       Object.values(question.actualQuestions).forEach(extractLeafQuestions);
     }
-
     if (hasSubQuestions) {
       Object.values(question.subQuestions).forEach(extractLeafQuestions);
     }
@@ -180,7 +164,6 @@ const getAllLeafQuestions = (data) => {
 
   const extract = (q) => {
     if (!q) return;
-
     const no = q.QuestionNo;
     if (processed.has(no)) return;
     const hasActual =
@@ -200,8 +183,6 @@ const getAllLeafQuestions = (data) => {
   return leaves;
 };
 
-// Score Calculation Helper Function
-// Update the calculateTotalScoreWithOptionals function to include rounding
 const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
   if (!qpData || !Array.isArray(qpData) || qpData.length === 0) return 0;
 
@@ -210,31 +191,23 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
 
   const addEntry = (questionNo, score, max) => {
     if (!isNaN(score)) {
-      entries.push({
-        questionNo,
-        score,
-        max,
-        isOptional: false,
-      });
+      entries.push({ questionNo, score, max, isOptional: false });
     }
   };
 
   const processQuestion = (q) => {
     if (!q) return;
-
     const no = q.QuestionNo;
     const hasActual =
       q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
     const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
 
-    // Leaf question
     if (no && typeof q.Marks !== "undefined" && !hasActual && !hasSub) {
       const score = parseFloat(scores[no]) || 0;
       addEntry(no, score, q.Marks);
       return;
     }
 
-    // Optional group
     if (hasActual) {
       const actuals = Object.values(q.actualQuestions);
       const optional = q.Optional === 1;
@@ -279,28 +252,22 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
 
   Object.values(questionData).forEach(processQuestion);
 
-  // ---- AUTO-CORRECTION PHASE ----
   let total = entries.reduce((sum, e) => sum + e.score, 0);
-  let originalTotal = total;
-  let corrections = [];
 
   if (maxTotal && total > maxTotal) {
     let excess = total - maxTotal;
 
-    // PRIORITY 1: deduct from optional answers
     const optionalEntries = entries
       .filter((e) => e.isOptional)
       .sort((a, b) => b.score - a.score);
 
     for (const e of optionalEntries) {
       if (excess <= 0) break;
-
       const reducible = Math.min(e.score, excess);
       e.score -= reducible;
       excess -= reducible;
     }
 
-    // PRIORITY 2: deduct from mandatory answers if needed
     if (excess > 0) {
       const mandatoryEntries = entries
         .filter((e) => !e.isOptional)
@@ -308,7 +275,6 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
 
       for (const e of mandatoryEntries) {
         if (excess <= 0) break;
-
         const reducible = Math.min(e.score, excess);
         e.score -= reducible;
         excess -= reducible;
@@ -318,11 +284,8 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
     total = entries.reduce((sum, e) => sum + e.score, 0);
   }
 
-  // Apply rounding if needed
   if (maxTotal) {
     const roundedTotal = Math.min(total, maxTotal);
-
-    // Round to nearest 0.5 if close to maxTotal
     if (Math.abs(roundedTotal - maxTotal) < 0.5) {
       total = maxTotal;
     } else if (Math.abs(roundedTotal - maxTotal) < 1) {
@@ -330,201 +293,13 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
     }
   }
 
-  // Log corrections if any
-  if (corrections.length > 0) {
-    console.log("Auto-corrections applied:", {
-      originalTotal,
-      correctedTotal: total,
-      maxTotal,
-      corrections,
-    });
-  }
-
   return total;
 };
 
-// Update the confirmFinish function to remove manual overscoring check
-const confirmFinish = async () => {
-  setLoading(true);
-  try {
-    // Auto-calculate final score with corrections
-    const finalTotal = calculateTotalScoreWithOptionals(
-      qp.data,
-      questionScores,
-      parseFloat(qp.totalMarks || 0),
-    );
+// ─────────────────────────────────────────────────────────────
+// Dialog components — defined OUTSIDE Page to prevent re-creation on re-render
+// ─────────────────────────────────────────────────────────────
 
-    // Update local state with corrected total
-    setTotalScore(finalTotal);
-
-    const leaves = getAllLeafQuestions(qp.data);
-    const unannotatedQuestions = leaves.filter(
-      (no) => questionScores[no] === undefined,
-    );
-
-    if (unannotatedQuestions.length > 0) {
-      setErrorDialog({
-        open: true,
-        title: "Missing Marks",
-        message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
-      });
-      return;
-    }
-
-    // Show summary of auto-corrections if any
-    if (
-      finalTotal <
-      Object.values(questionScores).reduce(
-        (sum, s) => sum + (parseFloat(s) || 0),
-        0,
-      )
-    ) {
-      toast.info(`Auto-adjusted total to ${finalTotal} (was overscored)`);
-    }
-
-    // Proceed with submission
-    const requests = [
-      fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/update/${uuid}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            totalMarks: finalTotal, // Use auto-corrected total
-            annotations,
-            result: questionScores,
-            isEvaluated: true,
-          }),
-        },
-      ),
-      fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: "Completed" }),
-        },
-      ),
-      fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: "Completed",
-            isChecked: "Evaluated",
-            marks: finalTotal, // Use auto-corrected total
-          }),
-        },
-      ),
-    ];
-
-    const results = await Promise.all(requests);
-    const allSuccess = results.every((res) => res.ok);
-
-    if (allSuccess) {
-      toast.success(`Evaluation completed! Total: ${finalTotal}`);
-      setTimeout(() => router.back(), 1500);
-    } else {
-      throw new Error("Some requests failed");
-    }
-  } catch (error) {
-    console.error("Error finishing paper:", error);
-    toast.error("Failed to complete evaluation");
-  } finally {
-    setLoading(false);
-    setFinishDialogOpen(false);
-  }
-};
-
-// Remove the overscoring check from handlePaperFinish
-const handlePaperFinish = async () => {
-  if (visitedPages < totalPages) {
-    setErrorDialog({
-      open: true,
-      title: "Pages Not Visited",
-      message:
-        "NOT ALL PAGES VISITED, VISIT ALL THE PAGES TO FINISH EVALUATION",
-    });
-    return;
-  }
-
-  if (!qp?.data) {
-    setErrorDialog({
-      open: true,
-      title: "Data Error",
-      message: "Question paper data not loaded properly",
-    });
-    return;
-  }
-
-  const leaves = getAllLeafQuestions(qp.data);
-  const unannotatedQuestions = leaves.filter(
-    (no) => questionScores[no] === undefined,
-  );
-
-  if (unannotatedQuestions.length > 0) {
-    setErrorDialog({
-      open: true,
-      title: "Missing Marks",
-      message: "ANNOTATE ALL THE QUESTIONS TO FINISH EVALUATION",
-    });
-    return;
-  }
-
-  setFinishDialogOpen(true);
-};
-
-// Add a helper function to show auto-correction summary
-const showAutoCorrectionSummary = (
-  originalScores,
-  correctedScores,
-  corrections,
-) => {
-  if (corrections.length === 0) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 rounded-lg p-4 mb-4"
-    >
-      <div className="flex items-center gap-3">
-        <AlertCircleIcon className="h-5 w-5 text-amber-600" />
-        <div>
-          <h4 className="font-semibold text-amber-800">
-            Auto-correction Applied
-          </h4>
-          <p className="text-sm text-amber-700">
-            Total was adjusted from{" "}
-            {Object.values(originalScores)
-              .reduce((s, v) => s + (parseFloat(v) || 0), 0)
-              .toFixed(1)}
-            to {correctedScores} to match paper maximum.
-          </p>
-          <div className="mt-2 space-y-1">
-            {corrections.map((c, i) => (
-              <p key={i} className="text-xs text-amber-600">
-                Q{c.questionNo}: {c.original} → {c.corrected} (-{c.reduction})
-              </p>
-            ))}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// Dialogs
 const FinishPaperDialog = ({ isOpen, onClose, onConfirm, loading }) => {
   if (!isOpen) return null;
   return (
@@ -615,6 +390,64 @@ const ErrorDialog = ({ isOpen, onClose, title, message }) => {
   );
 };
 
+// ✅ FIX: Moved outside Page so it is not recreated on every render
+const RejectPaperDialog = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  reason,
+  setReason,
+  loading,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full"
+      >
+        <h2 className="text-xl font-bold mb-4 text-rose-700">Reject Paper</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Select a reason for rejection.
+        </p>
+        <select
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          className="w-full border rounded-lg p-2 mb-6"
+        >
+          <option value="">Select reason</option>
+          <option value="Document Blur (Reupload)">
+            Document Blur (Reupload)
+          </option>
+          <option value="Invalid Paper">Invalid Paper</option>
+        </select>
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={!reason || loading}
+            className="bg-rose-600 hover:bg-rose-700 text-white"
+          >
+            {loading ? "Rejecting..." : "Reject Paper"}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// Main Page
+// ─────────────────────────────────────────────────────────────
+
 export default function Page() {
   const { uuid, id } = useParams();
   const token = Cookies.get("token");
@@ -640,16 +473,17 @@ export default function Page() {
     title: "",
     message: "",
   });
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [revisitCount, setRevisitCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.6);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const canvasRef = useRef(null);
   const drawCanvasRef = useRef(null);
   const contextRef = useRef(null);
   const router = useRouter();
 
-  // Calculate total score whenever questionScores changes
+  // ── Recalculate total whenever scores change ──────────────────
   useEffect(() => {
     if (!qp?.data) return;
     const correctTotal = calculateTotalScoreWithOptionals(
@@ -659,7 +493,7 @@ export default function Page() {
     setTotalScore(correctTotal);
   }, [questionScores, qp?.data]);
 
-  // Canvas context
+  // ── Canvas context setup ──────────────────────────────────────
   useEffect(() => {
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
@@ -671,7 +505,7 @@ export default function Page() {
     contextRef.current = ctx;
   }, []);
 
-  // Drawing handlers
+  // ── Drawing handlers ──────────────────────────────────────────
   const handleMouseDown = (e) => {
     if (selectedTool !== "pencil") return;
     const rect = drawCanvasRef.current.getBoundingClientRect();
@@ -720,7 +554,6 @@ export default function Page() {
       const hadAnnots = pageAnnots.length > 0;
       const hasAnnots = newAnnots.length > 0;
 
-      // Update visited pages count
       if (hasAnnots && !hadAnnots) {
         setVisitedPages((p) => p + 1);
       } else if (!hasAnnots && hadAnnots) {
@@ -735,7 +568,7 @@ export default function Page() {
     });
   };
 
-  // Redraw annotations
+  // ── Redraw annotations when page changes ─────────────────────
   useEffect(() => {
     const canvas = drawCanvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -784,25 +617,21 @@ export default function Page() {
     ctx.lineWidth = 8;
   }, [annotations, currentPage]);
 
-  // Load data
+  // ── Load data ─────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
         const [sheetRes, qpRes, annotRes] = await Promise.all([
           fetch(
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/${uuid}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
+            { headers: { Authorization: `Bearer ${token}` } },
           ),
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp/${uuid}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/annotations/${uuid}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
+            { headers: { Authorization: `Bearer ${token}` } },
           ).catch(() => ({ ok: false })),
         ]);
 
@@ -828,7 +657,6 @@ export default function Page() {
           setVisitedPages(visited);
         }
 
-        // Initialize question scores and total score
         const initialScores = annotData.result || {};
         setQuestionScores(initialScores);
 
@@ -874,16 +702,12 @@ export default function Page() {
 
   useEffect(() => {
     const getQpKey = async () => {
+      if (!qp?.name) return;
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp-key/${qp.name}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
-
         if (res.ok) {
           const data = await res.json();
           setQpKey(data.data);
@@ -892,21 +716,17 @@ export default function Page() {
         toast.error(error.message);
       }
     };
-
     getQpKey();
   }, [qp]);
 
-  // Render page
+  // ── Render PDF page ───────────────────────────────────────────
   const renderPage = async (pdf, num) => {
     if (!pdf || !canvasRef.current) return;
-
     try {
       const page = await pdf.getPage(num);
       const viewport = page.getViewport({ scale: zoomLevel });
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-
-      // Set canvas dimensions
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
@@ -925,6 +745,19 @@ export default function Page() {
     if (pdfDOC) renderPage(pdfDOC, currentPage);
   }, [currentPage, pdfDOC, zoomLevel]);
 
+  // ── ESC to cancel pending placement ──────────────────────────
+  useEffect(() => {
+    const cancel = (e) => {
+      if (e.key === "Escape") {
+        setPendingMarkPlacement(null);
+        setSelectedTool(null);
+      }
+    };
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, []);
+
+  // ── Constants ─────────────────────────────────────────────────
   const MARKS = [0, 0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "NA"];
   const ANNOTATIONS = [
     <CheckIcon className="w-5 h-5" />,
@@ -938,68 +771,12 @@ export default function Page() {
     <TrashIcon className="h-5 w-5" />,
   ];
 
-  const autoPlaceMarkAnnotation = ({
-    page,
-    mark,
-    questionNo,
-    updateAnnotations,
-    canvasRef,
-  }) => {
-    if (!canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-
-    // base anchor (top-right area)
-    const baseX = canvas.width * 0.75;
-    const baseY = canvas.height * 0.15;
-
-    // vertical offset to avoid overlap
-    const offset = (parseInt(questionNo, 10) || 0) * 12;
-
-    updateAnnotations((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        type: "number",
-        value: mark.toString(),
-        position: {
-          x: baseX,
-          y: baseY + offset,
-        },
-        meta: {
-          questionNo,
-          autoPlaced: true,
-        },
-      },
-    ]);
-  };
-
-  useEffect(() => {
-    const cancel = (e) => {
-      if (e.key === "Escape") {
-        setPendingMarkPlacement(null);
-        setSelectedTool(null);
-      }
-    };
-    window.addEventListener("keydown", cancel);
-    return () => window.removeEventListener("keydown", cancel);
-  }, []);
-
-  const handleAnnotationMap = (i) => {
-    const tools = ["check", "cross", "text", "pencil", "number", null, null];
-    if (i === 5) return updateAnnotations((p) => p.slice(0, -1));
-    if (i === 6) return updateAnnotations([]);
-    const tool = tools[i];
-    setSelectedTool((prev) => (prev === tool ? null : tool));
-  };
-
+  // ── Canvas click handler ──────────────────────────────────────
   const handleCanvasClick = (e) => {
-    // HANDLE PENDING MARK PLACEMENT
     if (pendingMarkPlacement && drawCanvasRef.current) {
       const rect = drawCanvasRef.current.getBoundingClientRect();
       const scaleX = drawCanvasRef.current.width / rect.width;
       const scaleY = drawCanvasRef.current.height / rect.height;
-
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
 
@@ -1019,7 +796,6 @@ export default function Page() {
 
       setPendingMarkPlacement(null);
       setSelectedTool(null);
-
       return;
     }
 
@@ -1034,24 +810,14 @@ export default function Page() {
     if (["check", "cross"].includes(selectedTool)) {
       updateAnnotations((p) => [
         ...p,
-        {
-          id: Date.now(),
-          type: "icon",
-          value: selectedTool,
-          position: { x, y },
-        },
+        { id: Date.now(), type: "icon", value: selectedTool, position: { x, y } },
       ]);
     } else if (selectedTool === "text") {
       const text = prompt("Enter text:");
       if (text) {
         updateAnnotations((p) => [
           ...p,
-          {
-            id: Date.now(),
-            type: "text",
-            value: text,
-            position: { x, y },
-          },
+          { id: Date.now(), type: "text", value: text, position: { x, y } },
         ]);
       }
     } else if (selectedTool === "number" && selectedQuestion) {
@@ -1063,12 +829,7 @@ export default function Page() {
       if (mark === "NA") {
         updateAnnotations((p) => [
           ...p,
-          {
-            id: Date.now(),
-            type: "number",
-            value: "NA",
-            position: { x, y },
-          },
+          { id: Date.now(), type: "number", value: "NA", position: { x, y } },
         ]);
         setQuestionScores((prev) => ({
           ...prev,
@@ -1080,12 +841,7 @@ export default function Page() {
         if (!isNaN(num) && num >= 0 && num <= selectedQuestion.Marks) {
           updateAnnotations((p) => [
             ...p,
-            {
-              id: Date.now(),
-              type: "number",
-              value: mark,
-              position: { x, y },
-            },
+            { id: Date.now(), type: "number", value: mark, position: { x, y } },
           ]);
           setQuestionScores((prev) => ({
             ...prev,
@@ -1103,6 +859,7 @@ export default function Page() {
     }
   };
 
+  // ── Mark assignment ───────────────────────────────────────────
   const handleMarkAssignment = (mark) => {
     if (!selectedQuestion) {
       toast.error("Please select a question first");
@@ -1114,37 +871,34 @@ export default function Page() {
 
     if (mark === "NA") {
       setQuestionScores((prev) => ({ ...prev, [no]: 0 }));
-
-      setPendingMarkPlacement({
-        questionNo: no,
-        value: "NA",
-      });
-
+      setPendingMarkPlacement({ questionNo: no, value: "NA" });
       setSelectedTool("number");
-
       toast("Click on the paper to place the mark");
       return;
     }
 
     const num = parseFloat(mark);
-
     if (isNaN(num) || num < 0 || num > max) {
       toast.error(`Must be between 0 and ${max}`);
       return;
     }
 
     setQuestionScores((prev) => ({ ...prev, [no]: num }));
-
-    setPendingMarkPlacement({
-      questionNo: no,
-      value: num,
-    });
-
+    setPendingMarkPlacement({ questionNo: no, value: num });
     setSelectedTool("number");
-
     toast("Click on the paper to place the mark");
   };
 
+  // ── Annotation tool handler ───────────────────────────────────
+  const handleAnnotationMap = (i) => {
+    const tools = ["check", "cross", "text", "pencil", "number", null, null];
+    if (i === 5) return updateAnnotations((p) => p.slice(0, -1));
+    if (i === 6) return updateAnnotations([]);
+    const tool = tools[i];
+    setSelectedTool((prev) => (prev === tool ? null : tool));
+  };
+
+  // ── Paper finish ──────────────────────────────────────────────
   const handlePaperFinish = () => {
     if (visitedPages < totalPages) {
       setErrorDialog({
@@ -1181,9 +935,7 @@ export default function Page() {
 
   const confirmFinish = async () => {
     setLoading(true);
-
     try {
-      // 🔐 SINGLE SOURCE OF TRUTH
       const finalTotal = calculateTotalScoreWithOptionals(
         qp.data,
         questionScores,
@@ -1199,7 +951,7 @@ export default function Page() {
         toast.info(`Score auto-adjusted to ${finalTotal}`);
       }
 
-      setTotalScore(finalTotal); // sync UI
+      setTotalScore(finalTotal);
 
       const payload = {
         totalMarks: finalTotal,
@@ -1249,10 +1001,7 @@ export default function Page() {
       ];
 
       const results = await Promise.all(requests);
-
-      if (!results.every((r) => r.ok)) {
-        throw new Error("Submit failed");
-      }
+      if (!results.every((r) => r.ok)) throw new Error("Submit failed");
 
       toast.success(`Evaluation completed · Total ${finalTotal}`);
       setTimeout(() => router.back(), 1200);
@@ -1265,6 +1014,54 @@ export default function Page() {
     }
   };
 
+  // ── Paper reject ──────────────────────────────────────────────
+  const confirmReject = async () => {
+    if (!rejectReason) return;
+    setLoading(true);
+    try {
+      const requests = [
+        fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet/status/${uuid}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: "Rejected", reason: rejectReason }),
+          },
+        ),
+        fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: "Rejected", rejectReason }),
+          },
+        ),
+      ];
+
+      const results = await Promise.all(requests);
+      if (!results.every((r) => r.ok)) throw new Error("Reject failed");
+
+      toast.success("Paper rejected successfully");
+      setTimeout(() => router.back(), 1200);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to reject paper");
+    } finally {
+      setLoading(false);
+      setRejectDialogOpen(false);
+      setRejectReason("");
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50/50 via-white to-blue-50/30 backdrop-blur-sm overflow-hidden">
       {/* Background Elements */}
@@ -1272,6 +1069,19 @@ export default function Page() {
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-200/20 to-indigo-200/20 rounded-full blur-3xl" />
         <div className="absolute bottom-40 left-1/4 w-96 h-96 bg-gradient-to-br from-emerald-200/10 to-cyan-200/10 rounded-full blur-3xl" />
       </div>
+
+      {/* ✅ Reject dialog is now defined outside — no more re-creation bug */}
+      <RejectPaperDialog
+        isOpen={rejectDialogOpen}
+        onClose={() => {
+          setRejectDialogOpen(false);
+          setRejectReason("");
+        }}
+        onConfirm={confirmReject}
+        reason={rejectReason}
+        setReason={setRejectReason}
+        loading={loading}
+      />
 
       {/* Loading Overlay */}
       <AnimatePresence>
@@ -1390,7 +1200,6 @@ export default function Page() {
                     </SheetDescription>
                   </SheetHeader>
                   <div className="mt-6 space-y-6">
-                    {/* Mobile Quick Marks */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">
                         Quick Marks
@@ -1409,8 +1218,6 @@ export default function Page() {
                         ))}
                       </div>
                     </div>
-
-                    {/* Mobile Annotations */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">
                         Annotations
@@ -1437,7 +1244,7 @@ export default function Page() {
       </motion.header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Annotations */}
+        {/* Left Sidebar */}
         <motion.aside
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -1452,7 +1259,6 @@ export default function Page() {
           </div>
 
           <div className="flex-1 p-4 space-y-6">
-            {/* Annotations Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-gray-600 hidden xl:block">
@@ -1499,16 +1305,13 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Annotations Tools */}
             <div className="space-y-4">
               <h3 className="text-xs font-semibold text-gray-600 hidden xl:block">
                 ANNOTATION TOOLS
               </h3>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 {ANNOTATIONS.map((icon, i) => {
-                  const tool = ["check", "cross", "text", "pencil", "number"][
-                    i
-                  ];
+                  const tool = ["check", "cross", "text", "pencil", "number"][i];
                   const isActive = selectedTool === tool;
                   const isAction = i >= 5;
                   return (
@@ -1528,13 +1331,6 @@ export default function Page() {
                               ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 border-rose-200 hover:bg-rose-200"
                               : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
                         }`}
-                        title={
-                          tool
-                            ? `${tool.charAt(0).toUpperCase() + tool.slice(1)} Tool`
-                            : i === 5
-                              ? "Undo last annotation"
-                              : "Clear all annotations"
-                        }
                       >
                         {icon}
                       </Button>
@@ -1544,7 +1340,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Questions Section - Moved Below */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-gray-600 hidden xl:block">
@@ -1601,7 +1396,6 @@ export default function Page() {
 
         {/* Main PDF Viewer */}
         <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-gray-100/50 to-gray-200/30">
-          {/* PDF Controls */}
           <div className="bg-gradient-to-r from-white/70 to-white/40 backdrop-blur-lg border-b border-white/30 p-3">
             <div className="flex items-center justify-between max-w-6xl mx-auto">
               <div className="flex items-center gap-4">
@@ -1635,7 +1429,9 @@ export default function Page() {
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
+                    onClick={() =>
+                      setZoomLevel((z) => Math.max(0.5, z - 0.2))
+                    }
                     className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
                   >
                     <ZoomOut className="w-4 h-4" />
@@ -1659,9 +1455,7 @@ export default function Page() {
                   variant="outline"
                   onClick={() =>
                     window.open(
-                      `${
-                        process.env.NEXT_PUBLIC_BACKEND_URL
-                      }/api/v1/qp-key/view/qp/${qpKey?.qpPdfPath
+                      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp-key/view/qp/${qpKey?.qpPdfPath
                         .split("/")
                         .pop()}`,
                       "_blank",
@@ -1676,9 +1470,7 @@ export default function Page() {
                   variant="outline"
                   onClick={() =>
                     window.open(
-                      `${
-                        process.env.NEXT_PUBLIC_BACKEND_URL
-                      }/api/v1/qp-key/view/key/${qpKey?.qpPdfPath
+                      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/qp-key/view/key/${qpKey?.qpPdfPath
                         .split("/")
                         .pop()}`,
                       "_blank",
@@ -1692,7 +1484,6 @@ export default function Page() {
             </div>
           </div>
 
-          {/* PDF Canvas */}
           <div className="flex-1 overflow-auto p-4 bg-gradient-to-br from-gray-100/50 to-gray-200/30">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -1725,7 +1516,7 @@ export default function Page() {
           </div>
         </main>
 
-        {/* Right Sidebar - Score & Pages */}
+        {/* Right Sidebar */}
         <motion.aside
           initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -1740,7 +1531,6 @@ export default function Page() {
           </div>
 
           <div className="flex-1 p-4 space-y-6">
-            {/* Selected Question Details */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1755,28 +1545,23 @@ export default function Page() {
               {selectedQuestion ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">
-                      Marks Assigned
-                    </span>
+                    <span className="text-xs text-gray-600">Marks Assigned</span>
                     <Badge className="bg-gradient-to-r from-emerald-500 to-green-500 text-white text-sm">
                       {questionScores[selectedQuestion.QuestionNo] ?? 0} /{" "}
                       {selectedQuestion.Marks}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-700 line-clamp-3 bg-white/50 p-3 rounded-lg">
-                    {selectedQuestion.QuestionText ||
-                      "No description available"}
+                    {selectedQuestion.QuestionText || "No description available"}
                   </p>
                 </div>
               ) : (
                 <p className="text-xs text-gray-600">
-                  Click a question from the list to view details and assign
-                  marks.
+                  Click a question from the list to view details and assign marks.
                 </p>
               )}
             </motion.div>
 
-            {/* Total Score */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1800,7 +1585,6 @@ export default function Page() {
               />
             </motion.div>
 
-            {/* Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1828,6 +1612,7 @@ export default function Page() {
               <Button
                 size="lg"
                 variant="outline"
+                onClick={() => setRejectDialogOpen(true)}
                 className="w-full rounded-xl bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border-rose-200 hover:bg-rose-100"
               >
                 <AlertCircleIcon className="mr-2 h-5 w-5" />
@@ -1835,7 +1620,6 @@ export default function Page() {
               </Button>
             </motion.div>
 
-            {/* Pages Overview */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1864,11 +1648,14 @@ export default function Page() {
                   const hasAnnotations = !!annotations[pageNum]?.length;
                   const isCurrent = pageNum === currentPage;
 
-                  let bgClass = "bg-gradient-to-r from-amber-500 to-orange-500";
+                  let bgClass =
+                    "bg-gradient-to-r from-amber-500 to-orange-500";
                   if (hasAnnotations)
-                    bgClass = "bg-gradient-to-r from-emerald-500 to-green-500";
+                    bgClass =
+                      "bg-gradient-to-r from-emerald-500 to-green-500";
                   if (isCurrent)
-                    bgClass = "bg-gradient-to-r from-blue-500 to-indigo-600";
+                    bgClass =
+                      "bg-gradient-to-r from-blue-500 to-indigo-600";
 
                   return (
                     <motion.div
@@ -1889,7 +1676,9 @@ export default function Page() {
               <div className="mt-4 pt-4 border-t border-white/30">
                 <div className="flex items-center justify-between text-xs text-gray-600">
                   <span>Progress</span>
-                  <span>{Math.round((visitedPages / totalPages) * 100)}%</span>
+                  <span>
+                    {Math.round((visitedPages / totalPages) * 100)}%
+                  </span>
                 </div>
                 <Progress
                   value={(visitedPages / totalPages) * 100}

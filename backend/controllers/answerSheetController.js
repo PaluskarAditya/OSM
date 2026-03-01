@@ -41,7 +41,7 @@ const upload = async (req, res) => {
 
     // 🧠 Get semester from subject
     const semesterDoc = await Subject.findOne({ uuid: subject }).select(
-      "semester"
+      "semester",
     );
     if (!semesterDoc) {
       return res.status(400).json({ error: "Invalid subject UUID" });
@@ -53,6 +53,7 @@ const upload = async (req, res) => {
     // 🌀 Loop through uploaded files
     for (let file of files) {
       const roll = file.originalname.split(".")[0];
+
       const candidateFind = await Candidate.findOne({
         combined,
         course,
@@ -66,13 +67,48 @@ const upload = async (req, res) => {
       console.log("PRN Number: ", prn);
       const combinedKey = `${roll} [${prn}]`;
 
-      // 🧩 Build virtual path + IDs
-      const assignmentId = generateCustomId();
+      // 🔍 Check if an AnswerSheet already exists for this roll + subject + combined
+      const existingSheet = await AnswerSheet.findOne({
+        combined,
+        course,
+        subject,
+        name: roll,
+      });
+
+      let assignmentId;
+      let isOverwrite = false;
+
+      if (existingSheet) {
+        isOverwrite = true;
+        assignmentId = existingSheet.assignmentId; // ♻️ Reuse the same assignmentId
+
+        // 🗑️ Delete the old file from GridFS by filename (path field)
+        try {
+          const oldFileCursor = bucket.find({ filename: existingSheet.path });
+          const oldFiles = await oldFileCursor.toArray();
+
+          if (oldFiles.length > 0) {
+            await bucket.delete(oldFiles[0]._id);
+            console.log(`🗑️ Deleted old GridFS file: ${existingSheet.path}`);
+          } else {
+            console.warn(
+              `⚠️ Old GridFS file not found for deletion: ${existingSheet.path}`,
+            );
+          }
+        } catch (deleteErr) {
+          console.error("Error deleting old GridFS file:", deleteErr);
+          // Non-fatal — continue with overwrite
+        }
+      } else {
+        assignmentId = generateCustomId(); // 🆕 Fresh ID for new sheet
+      }
+
+      // 🧩 Build virtual path + new GridFS filename
       const randomName = `${uuidv4()}.pdf`;
       const virtualPath = `${course}/${semester}/${subject}`;
       const filename = randomName;
 
-      // 📂 Upload to GridFS
+      // 📂 Upload new file to GridFS
       const uploadStream = bucket.openUploadStream(filename, {
         contentType: file.mimetype,
         metadata: {
@@ -121,41 +157,78 @@ const upload = async (req, res) => {
             $addToSet: { subjects: subject },
             assignmentId,
           },
-          { new: true }
+          { new: true },
         );
       } else {
         console.warn(`⚠️ No matching candidate found for ${roll} [${prn}]`);
       }
 
-      // 📝 Save AnswerSheet
-      const answerSheet = new AnswerSheet({
-        name: existCandidate ? existCandidate.RollNo : "Unknown",
-        uuid: generateCustomId(),
-        assignmentId,
-        path: filename,
-        combined,
-        course,
-        subject,
-        rollPRN: combinedKey,
-        candidateId: combinedKey,
-        sheetUploaded: true,
-        attendance,
-        iid: req.user.IID,
-        originalName: file.originalname,
-      });
+      if (isOverwrite) {
+        // ✏️ Overwrite: update the existing AnswerSheet document in-place
+        // Reset all evaluation fields since the sheet content has changed
+        await AnswerSheet.findOneAndUpdate(
+          { _id: existingSheet._id },
+          {
+            $set: {
+              path: filename, // 🆕 New GridFS filename
+              originalName: file.originalname,
+              sheetUploaded: true,
+              attendance,
+              iid: req.user.IID,
+              // ♻️ Reset evaluation state — content has changed
+              status: "Pending",
+              isEvaluated: false,
+              totalMarks: 0,
+              annotations: {},
+              result: {},
+            },
+            $unset: {
+              // Clean up any stale top-level marks field if present
+              marks: "",
+            },
+          },
+          { new: true },
+        );
 
-      await answerSheet.save();
+        console.log(
+          `♻️ Overwritten AnswerSheet for roll ${roll} (assignmentId: ${assignmentId})`,
+        );
+      } else {
+        // 📝 Save fresh AnswerSheet
+        const answerSheet = new AnswerSheet({
+          name: existCandidate ? existCandidate.RollNo : "Unknown",
+          uuid: generateCustomId(),
+          assignmentId,
+          path: filename,
+          combined,
+          course,
+          subject,
+          rollPRN: combinedKey,
+          candidateId: combinedKey,
+          sheetUploaded: true,
+          attendance,
+          iid: req.user.IID,
+          originalName: file.originalname,
+          status: "Pending",
+          isEvaluated: false,
+          totalMarks: 0,
+          annotations: {},
+          result: {},
+        });
 
-      // 🔄 Update QP with assignment IDs
+        await answerSheet.save();
+      }
+
+      // 🔄 Update QP with assignment IDs (same for both new and overwrite)
       const ids = await AnswerSheet.find({ course, subject }).select(
-        "assignmentId"
+        "assignmentId",
       );
       const assignmentIds = ids.map((el) => el.assignmentId);
 
       await QP.findOneAndUpdate(
         { course, subject },
         { $addToSet: { assignmentId: { $each: assignmentIds } } },
-        { new: true }
+        { new: true },
       );
 
       savedFiles.push({
@@ -163,6 +236,7 @@ const upload = async (req, res) => {
         originalName: file.originalname,
         size: file.size,
         candidateLinked,
+        overwritten: isOverwrite, // 📢 Tell the client what happened
       });
     }
 
@@ -197,7 +271,7 @@ const getFile = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${answerSheet.originalName}"`
+      `attachment; filename="${answerSheet.originalName}"`,
     );
 
     downloadStream.pipe(res);
@@ -251,7 +325,7 @@ const status = async (req, res) => {
     const sheet = await AnswerSheet.findOneAndUpdate(
       { assignmentId },
       { status },
-      { new: true }
+      { new: true },
     );
 
     console.log("Sheet:", sheet);
@@ -269,7 +343,7 @@ const eval = async (req, res) => {
       { assignmentId },
       {
         ...req.body,
-      }
+      },
     );
 
     res.status(200).json({ success: true });
