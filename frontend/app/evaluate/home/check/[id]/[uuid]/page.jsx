@@ -187,113 +187,65 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
   if (!qpData || !Array.isArray(qpData) || qpData.length === 0) return 0;
 
   const questionData = qpData[0];
-  let entries = [];
-
-  const addEntry = (questionNo, score, max) => {
-    if (!isNaN(score)) {
-      entries.push({ questionNo, score, max, isOptional: false });
-    }
-  };
+  let grandTotal = 0;
 
   const processQuestion = (q) => {
-    if (!q) return;
-    const no = q.QuestionNo;
+    if (!q) return 0;
+
     const hasActual =
       q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
     const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
 
-    if (no && typeof q.Marks !== "undefined" && !hasActual && !hasSub) {
-      const score = parseFloat(scores[no]) || 0;
-      addEntry(no, score, q.Marks);
-      return;
+    // ── Leaf question (no children) ──────────────────────────
+    if (!hasActual && !hasSub) {
+      return parseFloat(scores[q.QuestionNo]) || 0;
     }
 
+    // ── Has actualQuestions (optional group) ─────────────────
     if (hasActual) {
       const actuals = Object.values(q.actualQuestions);
-      const optional = q.Optional === 1;
-      const totalToAttempt = q.TotalQuestions || actuals.length;
+      const isOptional = parseInt(q.Optional) > 0;
+      const totalToCount = parseInt(q.TotalQuestions) || actuals.length;
 
-      const attempted = actuals
-        .map((aq) => ({
-          questionNo: aq.QuestionNo,
-          score: parseFloat(scores[aq.QuestionNo]) || 0,
-          max: aq.Marks,
-        }))
-        .filter((a) => !isNaN(a.score));
+      // Collect scored actuals
+      const scored = actuals.map((aq) => ({
+        questionNo: aq.QuestionNo,
+        score: parseFloat(scores[aq.QuestionNo]) || 0,
+      }));
 
-      if (optional && totalToAttempt < attempted.length) {
-        attempted
+      if (isOptional && totalToCount < scored.length) {
+        // Keep only the best N scores
+        const best = [...scored]
           .sort((a, b) => b.score - a.score)
-          .slice(0, totalToAttempt)
-          .forEach((a) =>
-            entries.push({
-              questionNo: a.questionNo,
-              score: a.score,
-              max: a.max,
-              isOptional: true,
-            }),
-          );
-      } else {
-        attempted.forEach((a) =>
-          entries.push({
-            questionNo: a.questionNo,
-            score: a.score,
-            max: a.max,
-            isOptional: true,
-          }),
-        );
+          .slice(0, totalToCount);
+        return best.reduce((sum, s) => sum + s.score, 0);
       }
+
+      return scored.reduce((sum, s) => sum + s.score, 0);
     }
 
+    // ── Has subQuestions — recurse ────────────────────────────
     if (hasSub) {
-      Object.values(q.subQuestions).forEach(processQuestion);
+      return Object.values(q.subQuestions).reduce(
+        (sum, sq) => sum + processQuestion(sq),
+        0,
+      );
     }
+
+    return 0;
   };
 
-  Object.values(questionData).forEach(processQuestion);
+  grandTotal = Object.values(questionData).reduce(
+    (sum, q) => sum + processQuestion(q),
+    0,
+  );
 
-  let total = entries.reduce((sum, e) => sum + e.score, 0);
-
-  if (maxTotal && total > maxTotal) {
-    let excess = total - maxTotal;
-
-    const optionalEntries = entries
-      .filter((e) => e.isOptional)
-      .sort((a, b) => b.score - a.score);
-
-    for (const e of optionalEntries) {
-      if (excess <= 0) break;
-      const reducible = Math.min(e.score, excess);
-      e.score -= reducible;
-      excess -= reducible;
-    }
-
-    if (excess > 0) {
-      const mandatoryEntries = entries
-        .filter((e) => !e.isOptional)
-        .sort((a, b) => b.score - a.score);
-
-      for (const e of mandatoryEntries) {
-        if (excess <= 0) break;
-        const reducible = Math.min(e.score, excess);
-        e.score -= reducible;
-        excess -= reducible;
-      }
-    }
-
-    total = entries.reduce((sum, e) => sum + e.score, 0);
-  }
-
+  // Final cap against paper's total marks
   if (maxTotal) {
-    const roundedTotal = Math.min(total, maxTotal);
-    if (Math.abs(roundedTotal - maxTotal) < 0.5) {
-      total = maxTotal;
-    } else if (Math.abs(roundedTotal - maxTotal) < 1) {
-      total = Math.round(roundedTotal * 2) / 2;
-    }
+    grandTotal = Math.min(grandTotal, parseFloat(maxTotal));
   }
 
-  return total;
+  return grandTotal;
 };
 
 // ─────────────────────────────────────────────────────────────
