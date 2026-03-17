@@ -328,6 +328,8 @@ const status = async (req, res) => {
       { new: true },
     );
 
+    await sheet.save();
+
     console.log("Sheet:", sheet);
     res.json(sheet);
   } catch (error) {

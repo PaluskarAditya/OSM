@@ -182,7 +182,7 @@ export default function EvaluationPage() {
                 "content-type": "application/json",
                 Authorization: `Bearer ${token}`,
               },
-            }
+            },
           ),
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/course`, {
             headers: {
@@ -264,7 +264,7 @@ export default function EvaluationPage() {
         setEvals(evalsData);
 
         const examiners = userData.filter(
-          (el) => el.Role === "Examiner" || el.Role === "Moderator"
+          (el) => el.Role === "Examiner" || el.Role === "Moderator",
         );
         setUsers(examiners);
       } catch (error) {
@@ -311,18 +311,39 @@ export default function EvaluationPage() {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      "Pending": { color: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: Clock },
-      "Completed": { color: "bg-green-100 text-green-800 border-green-200", icon: CheckCircle },
-      "In Progress": { color: "bg-blue-100 text-blue-800 border-blue-200", icon: Clock },
-      "Evaluated": { color: "bg-green-100 text-green-800 border-green-200", icon: CheckCircle },
-      "Not Evaluated": { color: "bg-gray-100 text-gray-800 border-gray-200", icon: AlertCircle },
+      Pending: {
+        color: "bg-yellow-100 text-yellow-800 border-yellow-200",
+        icon: Clock,
+      },
+      Completed: {
+        color: "bg-green-100 text-green-800 border-green-200",
+        icon: CheckCircle,
+      },
+      "In Progress": {
+        color: "bg-blue-100 text-blue-800 border-blue-200",
+        icon: Clock,
+      },
+      Evaluated: {
+        color: "bg-green-100 text-green-800 border-green-200",
+        icon: CheckCircle,
+      },
+      "Not Evaluated": {
+        color: "bg-gray-100 text-gray-800 border-gray-200",
+        icon: AlertCircle,
+      },
+      Rejected: {
+        color: "bg-red-100 text-red-800 border-red-200",
+        icon: XIcon,
+      },
     };
 
     const config = statusConfig[status] || statusConfig["Pending"];
     const IconComponent = config.icon;
 
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${config.color}`}
+      >
         <IconComponent className="h-3 w-3" />
         {status}
       </span>
@@ -391,7 +412,7 @@ export default function EvaluationPage() {
 
     if (selectedSubject) {
       data = data.filter((el) =>
-        el.subjects?.find((sub) => selectedSubject.uuid === sub)
+        el.subjects?.find((sub) => selectedSubject.uuid === sub),
       );
     }
 
@@ -450,7 +471,7 @@ export default function EvaluationPage() {
               checked: 0,
             },
           }),
-        }
+        },
       );
 
       if (res.ok) {
@@ -475,7 +496,7 @@ export default function EvaluationPage() {
         el.isActive !== false &&
         el.bookletNames &&
         el.bookletNames[selectedSubject.uuid] &&
-        el.bookletNames[selectedSubject.uuid].trim() !== ""
+        el.bookletNames[selectedSubject.uuid].trim() !== "",
     );
   };
 
@@ -485,8 +506,10 @@ export default function EvaluationPage() {
 
   // Calculate statistics
   const totalEvaluations = evals.length;
-  const completedEvaluations = evals.filter(e => e.status === "Completed").length;
-  const pendingEvaluations = evals.filter(e => e.status === "Pending").length;
+  const completedEvaluations = evals.filter(
+    (e) => e.status === "Completed",
+  ).length;
+  const pendingEvaluations = evals.filter((e) => e.status === "Pending").length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6 w-full flex flex-col gap-4 md:gap-6 overflow-hidden">
@@ -502,7 +525,7 @@ export default function EvaluationPage() {
               Detailed view of answer sheets and evaluation progress
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedEvaluation && (
             <div className="space-y-6">
               {/* Evaluation Overview */}
@@ -510,30 +533,37 @@ export default function EvaluationPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="h-4 w-4 text-blue-600" />
-                    <span className="font-semibold text-blue-900">Total Sheets</span>
+                    <span className="font-semibold text-blue-900">
+                      Total Sheets
+                    </span>
                   </div>
                   <div className="text-2xl font-bold text-blue-600">
                     {selectedEvaluation.sheets.length}
                   </div>
                 </div>
-                
+
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="font-semibold text-green-900">Evaluated</span>
+                    <span className="font-semibold text-green-900">
+                      Evaluated
+                    </span>
                   </div>
                   <div className="text-2xl font-bold text-green-600">
                     {selectedEvaluation.progress.checked}
                   </div>
                 </div>
-                
+
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="h-4 w-4 text-orange-600" />
-                    <span className="font-semibold text-orange-900">Pending</span>
+                    <span className="font-semibold text-orange-900">
+                      Pending
+                    </span>
                   </div>
                   <div className="text-2xl font-bold text-orange-600">
-                    {selectedEvaluation.progress.uploaded - selectedEvaluation.progress.checked}
+                    {selectedEvaluation.progress.uploaded -
+                      selectedEvaluation.progress.checked}
                   </div>
                 </div>
               </div>
@@ -541,19 +571,27 @@ export default function EvaluationPage() {
               {/* Evaluation Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-900">Evaluation Information</h4>
+                  <h4 className="font-semibold text-gray-900">
+                    Evaluation Information
+                  </h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Course:</span>
-                      <span className="font-medium">{getCourseName(selectedEvaluation.course)}</span>
+                      <span className="font-medium">
+                        {getCourseName(selectedEvaluation.course)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Subject:</span>
-                      <span className="font-medium">{getSubjectName(selectedEvaluation.subject)}</span>
+                      <span className="font-medium">
+                        {getSubjectName(selectedEvaluation.subject)}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Semester:</span>
-                      <span className="font-medium">Semester {selectedEvaluation.semester}</span>
+                      <span className="font-medium">
+                        Semester {selectedEvaluation.semester}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>
@@ -563,12 +601,21 @@ export default function EvaluationPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-900">Assigned Examiners</h4>
+                  <h4 className="font-semibold text-gray-900">
+                    Assigned Examiners
+                  </h4>
                   <div className="space-y-2">
                     {selectedEvaluation.examiners.map((examinerId, index) => (
-                      <div key={examinerId} className="flex justify-between items-center">
-                        <span className="text-gray-600">Examiner {index + 1}:</span>
-                        <span className="font-medium">{getUserName(examinerId)}</span>
+                      <div
+                        key={examinerId}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-gray-600">
+                          Examiner {index + 1}:
+                        </span>
+                        <span className="font-medium">
+                          {getUserName(examinerId)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -582,10 +629,14 @@ export default function EvaluationPage() {
                   <Table>
                     <TableHeader className="bg-gray-50">
                       <TableRow>
-                        <TableHead className="font-semibold">Assignment ID</TableHead>
+                        <TableHead className="font-semibold">
+                          Assignment ID
+                        </TableHead>
                         <TableHead className="font-semibold">Status</TableHead>
                         <TableHead className="font-semibold">Marks</TableHead>
-                        <TableHead className="font-semibold">Attendance</TableHead>
+                        <TableHead className="font-semibold">
+                          Attendance
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -594,18 +645,18 @@ export default function EvaluationPage() {
                           <TableCell className="font-mono text-sm">
                             {sheet.assignmentId}
                           </TableCell>
-                          <TableCell>
-                            {getStatusBadge(sheet.isChecked)}
-                          </TableCell>
+                          <TableCell>{getStatusBadge(sheet.status)}</TableCell>
                           <TableCell className="font-semibold">
                             {sheet.marks}
                           </TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              sheet.attendance === "Present" 
-                                ? "bg-green-100 text-green-800" 
-                                : "bg-red-100 text-red-800"
-                            }`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                sheet.attendance === "Present"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
                               {sheet.attendance}
                             </span>
                           </TableCell>
@@ -655,7 +706,7 @@ export default function EvaluationPage() {
                       (el) =>
                         el.isActive == true &&
                         el.course === selectedCourse?.uuid &&
-                        el.semester === selectedSemester
+                        el.semester === selectedSemester,
                     )
                     .map((el) => (
                       <DropdownMenuItem
@@ -686,7 +737,7 @@ export default function EvaluationPage() {
 
                 try {
                   const all_subs = candidates.find(
-                    (el) => selectedRows[0] === el._id
+                    (el) => selectedRows[0] === el._id,
                   );
 
                   if (!all_subs) {
@@ -697,12 +748,12 @@ export default function EvaluationPage() {
                   const isExist = candidates.some(
                     (el) =>
                       selectedRows.includes(el._id) &&
-                      el.subjects?.includes(assignedSubject.uuid)
+                      el.subjects?.includes(assignedSubject.uuid),
                   );
 
                   if (isExist) {
                     toast.error(
-                      "Subject already exists in candidate's subjects!"
+                      "Subject already exists in candidate's subjects!",
                     );
                     return;
                   }
@@ -722,7 +773,7 @@ export default function EvaluationPage() {
                           assignedSubject.uuid,
                         ],
                       }),
-                    }
+                    },
                   );
 
                   if (res.ok) {
@@ -772,12 +823,16 @@ export default function EvaluationPage() {
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Evaluations</p>
-              <p className="text-2xl font-bold text-gray-900">{totalEvaluations}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Total Evaluations
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {totalEvaluations}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -785,11 +840,13 @@ export default function EvaluationPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{completedEvaluations}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {completedEvaluations}
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-orange-100 rounded-lg">
@@ -797,7 +854,9 @@ export default function EvaluationPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">{pendingEvaluations}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {pendingEvaluations}
+              </p>
             </div>
           </div>
         </div>
@@ -815,12 +874,24 @@ export default function EvaluationPage() {
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
-                <TableHead className="font-semibold text-gray-700">Evaluation Name</TableHead>
-                <TableHead className="font-semibold text-gray-700">Course</TableHead>
-                <TableHead className="font-semibold text-gray-700">Subject</TableHead>
-                <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                <TableHead className="font-semibold text-gray-700">Progress</TableHead>
-                <TableHead className="font-semibold text-gray-700">Actions</TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Evaluation Name
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Course
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Subject
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Status
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Progress
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -833,10 +904,10 @@ export default function EvaluationPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                          style={{ 
-                            width: `${(evalItem.progress.checked / evalItem.progress.uploaded) * 100}%` 
+                          style={{
+                            width: `${(evalItem.progress.checked / evalItem.progress.uploaded) * 100}%`,
                           }}
                         ></div>
                       </div>

@@ -810,7 +810,12 @@ export default function Page() {
     if (["check", "cross"].includes(selectedTool)) {
       updateAnnotations((p) => [
         ...p,
-        { id: Date.now(), type: "icon", value: selectedTool, position: { x, y } },
+        {
+          id: Date.now(),
+          type: "icon",
+          value: selectedTool,
+          position: { x, y },
+        },
       ]);
     } else if (selectedTool === "text") {
       const text = prompt("Enter text:");
@@ -1029,17 +1034,6 @@ export default function Page() {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({ status: "Rejected", reason: rejectReason }),
-          },
-        ),
-        fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/eval/status/${uuid}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ status: "Rejected", rejectReason }),
           },
         ),
       ];
@@ -1311,7 +1305,9 @@ export default function Page() {
               </h3>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 {ANNOTATIONS.map((icon, i) => {
-                  const tool = ["check", "cross", "text", "pencil", "number"][i];
+                  const tool = ["check", "cross", "text", "pencil", "number"][
+                    i
+                  ];
                   const isActive = selectedTool === tool;
                   const isAction = i >= 5;
                   return (
@@ -1429,9 +1425,7 @@ export default function Page() {
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() =>
-                      setZoomLevel((z) => Math.max(0.5, z - 0.2))
-                    }
+                    onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.2))}
                     className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
                   >
                     <ZoomOut className="w-4 h-4" />
@@ -1545,19 +1539,23 @@ export default function Page() {
               {selectedQuestion ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">Marks Assigned</span>
+                    <span className="text-xs text-gray-600">
+                      Marks Assigned
+                    </span>
                     <Badge className="bg-gradient-to-r from-emerald-500 to-green-500 text-white text-sm">
                       {questionScores[selectedQuestion.QuestionNo] ?? 0} /{" "}
                       {selectedQuestion.Marks}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-700 line-clamp-3 bg-white/50 p-3 rounded-lg">
-                    {selectedQuestion.QuestionText || "No description available"}
+                    {selectedQuestion.QuestionText ||
+                      "No description available"}
                   </p>
                 </div>
               ) : (
                 <p className="text-xs text-gray-600">
-                  Click a question from the list to view details and assign marks.
+                  Click a question from the list to view details and assign
+                  marks.
                 </p>
               )}
             </motion.div>
@@ -1648,14 +1646,11 @@ export default function Page() {
                   const hasAnnotations = !!annotations[pageNum]?.length;
                   const isCurrent = pageNum === currentPage;
 
-                  let bgClass =
-                    "bg-gradient-to-r from-amber-500 to-orange-500";
+                  let bgClass = "bg-gradient-to-r from-amber-500 to-orange-500";
                   if (hasAnnotations)
-                    bgClass =
-                      "bg-gradient-to-r from-emerald-500 to-green-500";
+                    bgClass = "bg-gradient-to-r from-emerald-500 to-green-500";
                   if (isCurrent)
-                    bgClass =
-                      "bg-gradient-to-r from-blue-500 to-indigo-600";
+                    bgClass = "bg-gradient-to-r from-blue-500 to-indigo-600";
 
                   return (
                     <motion.div
@@ -1676,9 +1671,7 @@ export default function Page() {
               <div className="mt-4 pt-4 border-t border-white/30">
                 <div className="flex items-center justify-between text-xs text-gray-600">
                   <span>Progress</span>
-                  <span>
-                    {Math.round((visitedPages / totalPages) * 100)}%
-                  </span>
+                  <span>{Math.round((visitedPages / totalPages) * 100)}%</span>
                 </div>
                 <Progress
                   value={(visitedPages / totalPages) * 100}
