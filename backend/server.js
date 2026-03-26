@@ -5,6 +5,8 @@ const conn = require("./lib/db");
 const authMiddleware = require("./middlewares/authMiddleware");
 const Combined = require("./models/combinedModel");
 const mongoose = require("mongoose");
+const dns = require("node:dns")
+dns.setServers(['8.8.8.8', '1.1.1.1'])
 
 //TEMP IMPORTS
 const path = require("path");

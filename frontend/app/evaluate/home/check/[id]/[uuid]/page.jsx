@@ -106,19 +106,17 @@ const renderQuestionHierarchyTable = (
           onClick={() => onQuestionSelect(question)}
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`cursor-pointer transition-all duration-200 ${
-            isSelected
-              ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500"
-              : "hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
-          }`}
+          className={`cursor-pointer transition-all duration-200 ${isSelected
+            ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500"
+            : "hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
+            }`}
         >
           <TableCell className="text-center p-3">
             <Badge
-              className={`transition-all duration-300 ${
-                isSelected
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-110"
-                  : "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 hover:shadow-md"
-              } font-semibold text-xs px-3 py-1.5 rounded-full`}
+              className={`transition-all duration-300 ${isSelected
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-110"
+                : "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 hover:shadow-md"
+                } font-semibold text-xs px-3 py-1.5 rounded-full`}
             >
               {questionNo}
             </Badge>
@@ -128,11 +126,10 @@ const renderQuestionHierarchyTable = (
           </TableCell>
           <TableCell className="text-center p-3 text-sm font-semibold">
             <span
-              className={`${
-                score > 0
-                  ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white px-3 py-1 rounded-full"
-                  : "text-rose-600"
-              }`}
+              className={`${score > 0
+                ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white px-3 py-1 rounded-full"
+                : "text-rose-600"
+                }`}
             >
               {score}
             </span>
@@ -187,44 +184,46 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
   if (!qpData || !Array.isArray(qpData) || qpData.length === 0) return 0;
 
   const questionData = qpData[0];
-  let grandTotal = 0;
 
   const processQuestion = (q) => {
     if (!q) return 0;
 
     const hasActual =
       q.actualQuestions && Object.keys(q.actualQuestions).length > 0;
-    const hasSub = q.subQuestions && Object.keys(q.subQuestions).length > 0;
+    const hasSub =
+      q.subQuestions && Object.keys(q.subQuestions).length > 0;
 
-    // ── Leaf question (no children) ──────────────────────────
+    // ── Leaf question (no children) ──────────────────────────────────
     if (!hasActual && !hasSub) {
       return parseFloat(scores[q.QuestionNo]) || 0;
     }
 
-    // ── Has actualQuestions (optional group) ─────────────────
+    // ── Has actualQuestions — this is the optional-group level ────────
+    // e.g. Q1.a: "Answer ANY TWO of the following 3"
+    //   q.Optional        = "2"  → keep this many
+    //   q.TotalQuestions  = "3"  → total questions available
     if (hasActual) {
       const actuals = Object.values(q.actualQuestions);
-      const isOptional = parseInt(q.Optional) > 0;
-      const totalToCount = parseInt(q.TotalQuestions) || actuals.length;
+      const keepCount = parseInt(q.Optional);      // how many student SHOULD answer
+      const isOptional = !isNaN(keepCount) && keepCount > 0;
 
-      // Collect scored actuals
-      const scored = actuals.map((aq) => ({
+      // Gather every leaf score under this group
+      const leafScores = actuals.map((aq) => ({
         questionNo: aq.QuestionNo,
-        score: parseFloat(scores[aq.QuestionNo]) || 0,
+        score: processQuestion(aq),   // recurse in case actuals have deeper nesting
       }));
 
-      if (isOptional && totalToCount < scored.length) {
-        // Keep only the best N scores
-        const best = [...scored]
-          .sort((a, b) => b.score - a.score)
-          .slice(0, totalToCount);
-        return best.reduce((sum, s) => sum + s.score, 0);
+      if (isOptional && keepCount < leafScores.length) {
+        // Student may have answered more than required — keep only the best N
+        const sorted = [...leafScores].sort((a, b) => b.score - a.score);
+        return sorted.slice(0, keepCount).reduce((sum, s) => sum + s.score, 0);
       }
 
-      return scored.reduce((sum, s) => sum + s.score, 0);
+      // No optional constraint — sum everything
+      return leafScores.reduce((sum, s) => sum + s.score, 0);
     }
 
-    // ── Has subQuestions — recurse ────────────────────────────
+    // ── Has subQuestions — recurse down ──────────────────────────────
     if (hasSub) {
       return Object.values(q.subQuestions).reduce(
         (sum, sq) => sum + processQuestion(sq),
@@ -235,14 +234,14 @@ const calculateTotalScoreWithOptionals = (qpData, scores, maxTotal) => {
     return 0;
   };
 
-  grandTotal = Object.values(questionData).reduce(
+  const grandTotal = Object.values(questionData).reduce(
     (sum, q) => sum + processQuestion(q),
     0,
   );
 
-  // Final cap against paper's total marks
+  // Cap against the paper's declared total marks
   if (maxTotal) {
-    grandTotal = Math.min(grandTotal, parseFloat(maxTotal));
+    return Math.min(grandTotal, parseFloat(maxTotal));
   }
 
   return grandTotal;
@@ -441,9 +440,10 @@ export default function Page() {
     const correctTotal = calculateTotalScoreWithOptionals(
       qp.data,
       questionScores,
+      parseFloat(qp.totalMarks || 0),  // ← add this so the cap applies live too
     );
     setTotalScore(correctTotal);
-  }, [questionScores, qp?.data]);
+  }, [questionScores, qp?.data, qp?.totalMarks]);
 
   // ── Canvas context setup ──────────────────────────────────────
   useEffect(() => {
@@ -1226,7 +1226,7 @@ export default function Page() {
                   const isActive =
                     selectedQuestion &&
                     questionScores[selectedQuestion.QuestionNo] ===
-                      (m === "NA" ? 0 : m);
+                    (m === "NA" ? 0 : m);
                   return (
                     <motion.div
                       key={m}
@@ -1237,11 +1237,10 @@ export default function Page() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleMarkAssignment(m)}
-                        className={`text-xs h-9 w-full transition-all duration-300 ${
-                          isActive
-                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
-                            : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
-                        }`}
+                        className={`text-xs h-9 w-full transition-all duration-300 ${isActive
+                          ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
+                          : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
+                          }`}
                       >
                         {m}
                       </Button>
@@ -1272,13 +1271,12 @@ export default function Page() {
                         size="icon"
                         variant="outline"
                         onClick={() => handleAnnotationMap(i)}
-                        className={`h-12 w-12 rounded-xl transition-all duration-300 ${
-                          isActive
-                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
-                            : isAction
-                              ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 border-rose-200 hover:bg-rose-200"
-                              : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
-                        }`}
+                        className={`h-12 w-12 rounded-xl transition-all duration-300 ${isActive
+                          ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg border-blue-500"
+                          : isAction
+                            ? "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 border-rose-200 hover:bg-rose-200"
+                            : "bg-white/60 backdrop-blur-sm border-white/50 hover:bg-white/80"
+                          }`}
                       >
                         {icon}
                       </Button>
