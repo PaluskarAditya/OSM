@@ -324,9 +324,8 @@ const createEvaluation = async (req, res) => {
         </div>
         
         <div class="email-body">
-            <div class="greeting">Dear ${
-              user.FirstName || user.name || "Evaluator"
-            },</div>
+            <div class="greeting">Dear ${user.FirstName || user.name || "Evaluator"
+          },</div>
             
             <p>You have been assigned a new evaluation role in the NEXA platform. Please find the assignment details below:</p>
             
@@ -342,20 +341,19 @@ const createEvaluation = async (req, res) => {
                 </div>
                 <div class="assignment-detail">
                     <span class="detail-label">Assigned By: &nbsp;</span>
-                    <span class="detail-value">${
-                      req.user?.name || req.user?.email || "NEXA Administrator"
-                    }</span>
+                    <span class="detail-value">${req.user?.name || req.user?.email || "NEXA Administrator"
+          }</span>
                 </div>
                 <div class="assignment-detail">
                     <span class="detail-label">Assignment Date: &nbsp;</span>
                     <span class="detail-value">${new Date().toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      }
-                    )}</span>
+            "en-US",
+            {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }
+          )}</span>
                 </div>
             </div>
             
@@ -591,72 +589,64 @@ const deleteEvaluation = async (req, res) => {
 
 const status = async (req, res) => {
   try {
-    const { uuid } = req.params; // this is assignmentId in your sheets
+    const { uuid } = req.params;
     const payload = req.body || {};
 
-    // only allow these sheet fields to be updated
+    console.log(`UUID & Payload: ${uuid}, ${payload}`);
+
     const allowedFields = ["status", "isChecked", "marks", "attendance"];
 
-    // build $set object dynamically for positional operator
+    // 1. Build the update object
     const setObj = {};
     for (const f of allowedFields) {
       if (Object.prototype.hasOwnProperty.call(payload, f)) {
-        setObj[`sheets.$.${f}`] = payload[f];
+        // Use the $[elem] syntax for more reliable updates
+        setObj[`sheets.$[elem].${f}`] = payload[f];
       }
     }
 
     if (Object.keys(setObj).length === 0) {
-      return res.status(400).json({ err: "No valid sheet fields provided" });
+      return res.status(400).json({ err: "No valid fields provided" });
     }
 
-    // 1) Update the matched sheet
+    // 2. Find and Update the document in one go
+    // We use arrayFilters to target the specific sheet inside the array
     const evaluation = await Evaluation.findOneAndUpdate(
-      { "sheets.assignmentId": uuid }, // find evaluation containing the sheet
+      { "sheets.assignmentId": uuid },
       { $set: setObj },
-      { new: true } // return the updated document
-    );
+      {
+        new: true,
+        arrayFilters: [{ "elem.assignmentId": uuid }]
+      }
+    ).populate("examiners", "FirstName LastName Email MobileNo");
 
     if (!evaluation) {
       return res.status(404).json({ err: "Sheet / Evaluation not found" });
     }
 
-    // 2) Recompute progress fields
+    // 3. Recompute progress (Now using the freshly updated 'evaluation' doc)
     const total = evaluation.sheets.length;
+
+    // Logic Fix: Ensure we compare correctly (trim/lowercase)
     const checkedCount = evaluation.sheets.filter(
-      (s) => String(s.isChecked).toLowerCase() === "evaluated"
+      (s) => String(s.isChecked).toLowerCase() === "evaluated" || s.isChecked === true
     ).length;
 
     evaluation.progress.uploaded = total;
     evaluation.progress.checked = checkedCount;
 
-    const prevStatus = evaluation.status;
-
-    // 3) Update overall evaluation status
-    // If none checked => Pending, some checked => In Progress, all checked => Completed
+    // 4. Update overall status
     if (checkedCount === 0) evaluation.status = "Pending";
     else if (checkedCount < total) evaluation.status = "In Progress";
     else evaluation.status = "Completed";
 
-    // Save the evaluation (we mutated the doc above)
+    // Save all progress/status changes once
     await evaluation.save();
 
-    // 🔹 Sync report with evaluation (every status update)
-    const populatedEval = await Evaluation.findById(evaluation._id).populate(
-      "examiners",
-      "FirstName LastName Email MobileNo"
-    );
-
-    const examinerNames = populatedEval.examiners
-      .map((e) => `${e.FirstName} ${e.LastName}`)
-      .join(", ");
-
-    const examinerEmails = populatedEval.examiners
-      .map((e) => e.Email)
-      .join(", ");
-
-    const examinerMobiles = populatedEval.examiners
-      .map((e) => e.MobileNo)
-      .join(", ");
+    // 5. Sync with Result collection
+    const examinerNames = evaluation.examiners.map(e => `${e.FirstName} ${e.LastName}`).join(", ");
+    const examinerEmails = evaluation.examiners.map(e => e.Email).join(", ");
+    const examinerMobiles = evaluation.examiners.map(e => e.MobileNo).join(", ");
 
     await Result.findOneAndUpdate(
       { evaluationId: evaluation._id },
@@ -665,22 +655,20 @@ const status = async (req, res) => {
           examinerName: examinerNames,
           email: examinerEmails,
           mobile: examinerMobiles,
-
-          totalCount: populatedEval.sheets.length,
-          uploadCount: populatedEval.progress.uploaded,
-          totalCheckCount: populatedEval.progress.checked,
-          presentCount: populatedEval.progress.checked,
-
-          status: populatedEval.status,
+          totalCount: total,
+          uploadCount: total,
+          totalCheckCount: checkedCount,
+          presentCount: checkedCount,
+          status: evaluation.status,
           updatedAt: new Date(),
         },
-      }
+      },
+      { upsert: true } // Create result if it doesn't exist
     );
 
-    // Extract the updated sheet to return (safe)
     const updatedSheet = evaluation.sheets.find((s) => s.assignmentId === uuid);
-
     return res.status(200).json({ evaluation, updatedSheet });
+
   } catch (error) {
     console.error("updateSheetStatus error:", error);
     return res.status(500).json({ err: "Internal Server Error" });

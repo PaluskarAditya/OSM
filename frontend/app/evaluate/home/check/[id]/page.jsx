@@ -31,6 +31,7 @@ import {
   Shield,
   CalendarDays,
   Loader2,
+  XIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -105,6 +106,7 @@ export default function EvaluationDetail() {
   const [checkedFilter, setCheckedFilter] = useState("all");
   const [attendanceFilter, setAttendanceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("id");
+  const [sheets, setSheets] = useState([]);
 
   const token = Cookies.get("token");
 
@@ -135,7 +137,33 @@ export default function EvaluationDetail() {
       }
     };
 
+    const fetchSheets = async () => {
+      if (!token) {
+        router.push("/evaluate");
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/answer-sheet`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch answer sheets");
+        const data = await res.json();
+        setSheets(data);
+      } catch (err) {
+        toast.error(err.message || "Failed to fetch answer sheets");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     fetchEval();
+    fetchSheets();
   }, [id, token, router]);
 
   const calculateStats = (sheets) => {
@@ -150,11 +178,11 @@ export default function EvaluationDetail() {
     const avgMarks =
       evaluatedSheets.length > 0
         ? (
-            evaluatedSheets.reduce(
-              (sum, s) => sum + (parseFloat(s.marks) || 0),
-              0,
-            ) / evaluatedSheets.length
-          ).toFixed(1)
+          evaluatedSheets.reduce(
+            (sum, s) => sum + (parseFloat(s.marks) || 0),
+            0,
+          ) / evaluatedSheets.length
+        ).toFixed(1)
         : 0;
 
     setStats({ total, evaluated, pending, inProgress, avgMarks });
@@ -235,6 +263,11 @@ export default function EvaluationDetail() {
         bg: "bg-gradient-to-r from-amber-500 to-orange-500",
         icon: Clock,
         text: "Pending",
+      },
+      Pending: {
+        bg: "bg-gradient-to-r from-orange-500 to-red-500",
+        icon: XIcon,
+        text: "Rejected",
       },
       default: {
         bg: "bg-gradient-to-r from-gray-400 to-gray-300",
@@ -833,11 +866,10 @@ export default function EvaluationDetail() {
                                           ? "default"
                                           : "secondary"
                                       }
-                                      className={`text-xs ${
-                                        sheet.attendance
-                                          ? "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200"
-                                          : "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-800 border-rose-200"
-                                      }`}
+                                      className={`text-xs ${sheet.attendance
+                                        ? "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200"
+                                        : "bg-gradient-to-r from-rose-100 to-pink-100 text-rose-800 border-rose-200"
+                                        }`}
                                     >
                                       {sheet.attendance ? "Present" : "Absent"}
                                     </Badge>

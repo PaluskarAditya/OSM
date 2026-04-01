@@ -9,6 +9,7 @@ const Subject = require("../models/subjectModel");
 const generateCustomId = require("../lib/generate");
 const syncEvaluation = require("../lib/sync");
 const forwardToUploadServer = require("../lib/fileSaver");
+const evalModel = require("../models/evalModel");
 require("dotenv").config();
 
 let bucket;
@@ -320,18 +321,21 @@ const status = async (req, res) => {
   try {
     const { assignmentId } = req.params;
     const { status } = req.body;
-    console.log("Assignment ID:", assignmentId, "Status:", status);
 
     const sheet = await AnswerSheet.findOneAndUpdate(
       { assignmentId },
-      { status },
-      { new: true },
+      { $set: { status } },
+      { new: true }
     );
 
-    await sheet.save();
+    const evalDoc = await evalModel.findOneAndUpdate(
+      { "sheets.assignmentId": assignmentId },
+      { $set: { "sheets.$.status": status } },
+      { new: true }
+    );
 
-    console.log("Sheet:", sheet);
-    res.json(sheet);
+    res.json({ sheet, evalDoc });
+
   } catch (error) {
     console.error("Error updating sheet:", error);
     res.status(500).json({ error: error.message });
