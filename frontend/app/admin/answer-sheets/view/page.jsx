@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import EvaluatedSheetViewer from "../components/EvaluatedsheetViewer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,11 +152,17 @@ export default function AnswerSheetsPage() {
 
       setIsSheetLoading(true);
       try {
+        console.log("Auth token:", auth_token);
+
+        const selectedAnswerData = answers.find((answer) => answer._id === selectedRow);
+        if (!selectedAnswerData) {
+          toast.error("Answer sheet not found");
+          return;
+        }
+
         const [res, blobres] = await Promise.all([
           fetch(
-            `${API_URL}/api/v1/answer-sheet/full/${
-              answers.find((answer) => answer._id === selectedRow)?.assignmentId
-            }`,
+            `${API_URL}/api/v1/answer-sheet/full/${selectedAnswerData.assignmentId}`,
             {
               headers: {
                 Authorization: `Bearer ${auth_token}`,
@@ -163,9 +170,7 @@ export default function AnswerSheetsPage() {
             }
           ),
           fetch(
-            `${API_URL}/api/v1/answer-sheet/${
-              answers.find((answer) => answer._id === selectedRow)?.assignmentId
-            }`,
+            `${API_URL}/api/v1/answer-sheet/${selectedAnswerData.assignmentId}`,
             {
               headers: {
                 Authorization: `Bearer ${auth_token}`,
@@ -179,10 +184,18 @@ export default function AnswerSheetsPage() {
             res.json(),
             blobres.json(),
           ]);
+
+          console.log("Evaluated Answer Data:", data);
+          console.log("Annotations:", data.annotations); // Should show the annotations object
+
           setSheetBlob(blobdata);
-          setEvaluatedAnswer(data);
+          setEvaluatedAnswer(data); // This sets the evaluated answer with annotations
+          setSelectedAnswer(selectedAnswerData); // Also set the selected answer
+        } else {
+          toast.error("Failed to fetch answer sheet data");
         }
       } catch (error) {
+        console.error("Error fetching sheet:", error);
         toast.error("Failed to load answer sheet");
       } finally {
         setIsSheetLoading(false);
@@ -190,10 +203,12 @@ export default function AnswerSheetsPage() {
     };
 
     getSheet();
-  }, [selectedRow, tabValue, API_URL, auth_token, answers]);
+  }, [selectedRow, tabValue, answers, API_URL, auth_token]);
 
   useEffect(() => {
     if (!evaluatedAnswer || !canvasRef.current) return;
+
+    console.log("Annotations:", evaluatedAnswer.annotations);
 
     const ctx = canvasRef.current.getContext("2d");
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -383,9 +398,8 @@ export default function AnswerSheetsPage() {
         Name: getCandidateName(el.RollNo),
         Stream: getStreamName(el.combined),
         Course: getCourseName(el.combined),
-        "Subject (Code)": `${selectedSubject?.name || "N/A"} (${
-          selectedSubject?.code || "N/A"
-        })`,
+        "Subject (Code)": `${selectedSubject?.name || "N/A"} (${selectedSubject?.code || "N/A"
+          })`,
         ExamAssignmentId: el.uuid,
         CandidateAttendance: el.attendance ? "PRESENT" : "ABSENT",
         AnswerSheetUploaded: el.sheetUploaded ? "Yes" : "No",
@@ -441,8 +455,7 @@ export default function AnswerSheetsPage() {
       if (blob) {
         saveAs(
           blob,
-          `evaluated-${
-            getFileName()?.replace(".pdf", "") || "answer-sheet"
+          `evaluated-${getFileName()?.replace(".pdf", "") || "answer-sheet"
           }.png`
         );
         toast.success("Evaluated sheet downloaded");
@@ -568,7 +581,7 @@ export default function AnswerSheetsPage() {
               value="evaluated"
               className="flex-1 flex flex-col gap-4 m-0"
             >
-              {isSheetLoading ? (
+              {/* {isSheetLoading ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <Skeleton className="h-8 w-8 mx-auto mb-2" />
@@ -643,7 +656,16 @@ export default function AnswerSheetsPage() {
                     </div>
                   </div>
                 </>
-              )}
+              )} */}
+              {console.log("Annotations:", evaluatedAnswer)}
+              <EvaluatedSheetViewer
+                pdfUrl={`${API_URL}/api/v1/answer-sheet/iframe/${getFileName()}`}
+                annotations={evaluatedAnswer?.annotations}
+                result={evaluatedAnswer?.result || {}}
+                totalMarks={evaluatedAnswer?.totalMarks || 0}
+                candidateName={getCandidateName(selectedAnswer?.name)}
+                fileName={getFileName()}
+              />
             </TabsContent>
           </Tabs>
 
@@ -1024,11 +1046,10 @@ export default function AnswerSheetsPage() {
                       filteredAnswers.map((el, i) => (
                         <TableRow
                           key={el.uuid}
-                          className={`cursor-pointer transition-colors ${
-                            selectedRow === el._id
-                              ? "bg-blue-50 border-l-4 border-l-blue-500"
-                              : "hover:bg-gray-50/80"
-                          }`}
+                          className={`cursor-pointer transition-colors ${selectedRow === el._id
+                            ? "bg-blue-50 border-l-4 border-l-blue-500"
+                            : "hover:bg-gray-50/80"
+                            }`}
                           onClick={() => handleRowSelect(el._id)}
                         >
                           <TableCell className="border-r">
