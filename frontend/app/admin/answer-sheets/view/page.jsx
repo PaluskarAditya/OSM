@@ -79,10 +79,6 @@ const Page = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
   ),
 });
 
-// PDF.js worker configuration
-const pdfjs = await import("pdfjs-dist");
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
 export default function AnswerSheetsPage() {
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
   const [combineds, setCombineds] = useState([]);
@@ -115,6 +111,13 @@ export default function AnswerSheetsPage() {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [windowWidth, setWindowWidth] = useState(1200); // Default width for SSR
+
+  // PDF.js worker configuration
+  useEffect(() => {
+    import("pdfjs-dist").then((pdfjs) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+    });
+  }, []);
 
   useEffect(() => {
     if (selectedRow) {
