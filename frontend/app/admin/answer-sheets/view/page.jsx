@@ -4,7 +4,10 @@ import React, { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import EvaluatedSheetViewer from "../components/EvaluatedsheetViewer";
+const EvaluatedSheetViewer = dynamic(
+  () => import("../components/EvaluatedsheetViewer"),
+  { ssr: false }
+);
 import {
   DropdownMenu,
   DropdownMenuContent,
