@@ -10,6 +10,7 @@ const generateCustomId = require("../lib/generate");
 const syncEvaluation = require("../lib/sync");
 const forwardToUploadServer = require("../lib/fileSaver");
 const evalModel = require("../models/evalModel");
+const pageAppend = require('../lib/pageAppend')
 require("dotenv").config();
 
 let bucket;
@@ -122,7 +123,9 @@ const upload = async (req, res) => {
         },
       });
 
-      uploadStream.end(file.buffer);
+      // modified buffer
+      const modifiedBuffer = await pageAppend(file.buffer)
+      uploadStream.end(modifiedBuffer);
 
       await new Promise((resolve, reject) => {
         uploadStream.on("finish", resolve);
