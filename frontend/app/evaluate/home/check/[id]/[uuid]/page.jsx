@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -424,6 +424,7 @@ export default function Page() {
     title: "",
     message: "",
   });
+
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [revisitCount, setRevisitCount] = useState(0);
@@ -433,6 +434,54 @@ export default function Page() {
   const drawCanvasRef = useRef(null);
   const contextRef = useRef(null);
   const router = useRouter();
+
+  // ── Extracted redraw helper (stable reference with useCallback) ──
+  const redrawAnnotations = useCallback((canvas, pageAnnots) => {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    pageAnnots.forEach((a) => {
+      if (a.type === "drawing") {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 8;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        if (a.value?.length > 0) {
+          ctx.moveTo(a.value[0].x, a.value[0].y);
+          a.value.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+        }
+        ctx.stroke();
+      } else if (a.type === "icon") {
+        ctx.strokeStyle = a.value === "check" ? "green" : "red";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        if (a.value === "check") {
+          ctx.moveTo(a.position.x - 30, a.position.y);
+          ctx.lineTo(a.position.x - 10, a.position.y + 25);
+          ctx.lineTo(a.position.x + 40, a.position.y - 30);
+        } else {
+          ctx.moveTo(a.position.x - 30, a.position.y - 30);
+          ctx.lineTo(a.position.x + 30, a.position.y + 30);
+          ctx.moveTo(a.position.x + 30, a.position.y - 30);
+          ctx.lineTo(a.position.x - 30, a.position.y + 30);
+        }
+        ctx.stroke();
+      } else if (a.type === "text") {
+        ctx.font = "bold 32px Arial";
+        ctx.fillStyle = "blue";
+        ctx.fillText(a.value, a.position.x, a.position.y);
+      } else if (a.type === "number") {
+        ctx.font = "bold 36px Arial";
+        ctx.fillStyle = "red";
+        ctx.fillText(a.value, a.position.x, a.position.y);
+      }
+    });
+
+    // Reset stroke style for future drawing
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 8;
+  }, []);
 
   // ── Recalculate total whenever scores change ──────────────────
   useEffect(() => {
@@ -445,17 +494,12 @@ export default function Page() {
     setTotalScore(correctTotal);
   }, [questionScores, qp?.data, qp?.totalMarks]);
 
-  // ── Canvas context setup ──────────────────────────────────────
   useEffect(() => {
-    const canvas = drawCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 8;
-    contextRef.current = ctx;
-  }, []);
+    if (!drawCanvasRef.current) return;
+    // Only redraw if canvas already has correct dimensions (PDF already rendered)
+    if (drawCanvasRef.current.width === 0) return;
+    redrawAnnotations(drawCanvasRef.current, annotations[currentPage] || []);
+  }, [annotations, currentPage, redrawAnnotations]);
 
   // ── Drawing handlers ──────────────────────────────────────────
   const handleMouseDown = (e) => {
@@ -672,29 +716,46 @@ export default function Page() {
   }, [qp]);
 
   // ── Render PDF page ───────────────────────────────────────────
-  const renderPage = async (pdf, num) => {
-    if (!pdf || !canvasRef.current) return;
+  const renderPage = useCallback(async (pdf, num, currentAnnotations) => {
+    if (!pdf || !canvasRef.current || !drawCanvasRef.current) return;
     try {
       const page = await pdf.getPage(num);
       const viewport = page.getViewport({ scale: zoomLevel });
+
+      // Resize both canvases together
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
+      const drawCanvas = drawCanvasRef.current;
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+      drawCanvas.width = viewport.width;
+      drawCanvas.height = viewport.height;
 
-      if (drawCanvasRef.current) {
-        drawCanvasRef.current.width = viewport.width;
-        drawCanvasRef.current.height = viewport.height;
-      }
+      // Render PDF
+      await page.render({
+        canvasContext: canvas.getContext("2d"),
+        viewport,
+      }).promise;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      // ✅ Redraw annotations IMMEDIATELY after PDF render completes
+      // canvas dimensions are correct at this point
+      const pageAnnots = currentAnnotations[num] || [];
+      redrawAnnotations(drawCanvas, pageAnnots);
+
+      // Re-setup drawing context after resize
+      const ctx = drawCanvas.getContext("2d");
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 8;
+      contextRef.current = ctx;
+
     } catch (error) {
       console.error("Error rendering page:", error);
     }
-  };
+  }, [zoomLevel, redrawAnnotations]);
 
   useEffect(() => {
-    if (pdfDOC) renderPage(pdfDOC, currentPage);
+    if (pdfDOC) renderPage(pdfDOC, currentPage, annotations);
   }, [currentPage, pdfDOC, zoomLevel]);
 
   // ── ESC to cancel pending placement ──────────────────────────
@@ -910,9 +971,35 @@ export default function Page() {
 
       setTotalScore(finalTotal);
 
+      const normalizeAnnotations = (annotations, scale) => {
+        const result = {};
+        Object.entries(annotations).forEach(([page, pageAnnots]) => {
+          result[page] = pageAnnots.map(ann => {
+            if (ann.type === "drawing") {
+              return {
+                ...ann,
+                value: ann.value.map(p => ({ x: p.x / scale, y: p.y / scale })),
+              };
+            }
+            if (ann.position) {
+              return {
+                ...ann,
+                position: { x: ann.position.x / scale, y: ann.position.y / scale },
+              };
+            }
+            return ann;
+          });
+        });
+        return result;
+      };
+
+      // In confirmFinish, before building payload:
+      const pdfScale = zoomLevel; // the scale used during evaluation
+      const normalizedAnnotations = normalizeAnnotations(annotations, pdfScale);
+
       const payload = {
         totalMarks: finalTotal,
-        annotations,
+        annotations: normalizedAnnotations, // ← normalized, not raw
         result: questionScores,
         isEvaluated: true,
       };

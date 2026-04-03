@@ -152,64 +152,33 @@ export default function AnswerSheetsPage() {
     }
   }, [auth_token, router]);
 
+  // The getSheet useEffect — fix the fetch logic
   useEffect(() => {
     const getSheet = async () => {
       if (!selectedRow) return;
-
       setIsSheetLoading(true);
       try {
-        console.log("Auth token:", auth_token);
+        const selectedAnswerData = answers.find(a => a._id === selectedRow);
+        if (!selectedAnswerData) { toast.error("Sheet not found"); return; }
 
-        const selectedAnswerData = answers.find((answer) => answer._id === selectedRow);
-        if (!selectedAnswerData) {
-          toast.error("Answer sheet not found");
-          return;
-        }
+        // Only need the full evaluated data — one fetch, not two
+        const res = await fetch(
+          `${API_URL}/api/v1/answer-sheet/full/${selectedAnswerData.assignmentId}`,
+          { headers: { Authorization: `Bearer ${auth_token}` } }
+        );
 
-        const [res, blobres] = await Promise.all([
-          fetch(
-            `${API_URL}/api/v1/answer-sheet/full/${selectedAnswerData.assignmentId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${auth_token}`,
-              },
-            }
-          ),
-          fetch(
-            `${API_URL}/api/v1/answer-sheet/${selectedAnswerData.assignmentId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${auth_token}`,
-              },
-            }
-          ),
-        ]);
-
-        if (res.ok && blobres.ok) {
-          const [data, blobdata] = await Promise.all([
-            res.json(),
-            blobres.json(),
-          ]);
-
-          console.log("Evaluated Answer Data:", data);
-          console.log("Annotations:", data.annotations); // Should show the annotations object
-
-          setSheetBlob(blobdata);
-          setEvaluatedAnswer(data); // This sets the evaluated answer with annotations
-          setSelectedAnswer(selectedAnswerData); // Also set the selected answer
-        } else {
-          toast.error("Failed to fetch answer sheet data");
-        }
-      } catch (error) {
-        console.error("Error fetching sheet:", error);
+        if (!res.ok) { toast.error("Failed to fetch answer sheet"); return; }
+        const data = await res.json();
+        setEvaluatedAnswer(data);
+        setSelectedAnswer(selectedAnswerData);
+      } catch (err) {
         toast.error("Failed to load answer sheet");
       } finally {
         setIsSheetLoading(false);
       }
     };
-
     getSheet();
-  }, [selectedRow, tabValue, answers, API_URL, auth_token]);
+  }, [selectedRow]); // ← only re-run when row changes, not tabValue
 
   useEffect(() => {
     if (!evaluatedAnswer || !canvasRef.current) return;

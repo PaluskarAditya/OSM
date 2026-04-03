@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const AnswerSheet = require("../models/answerSheetModel");
 const Candidate = require("../models/candidateModel");
+const Evaluation = require("../models/evalModel")
 const QP = require("../models/qpModel");
 const Subject = require("../models/subjectModel");
 const generateCustomId = require("../lib/generate");
@@ -194,9 +195,19 @@ const upload = async (req, res) => {
           { new: true },
         );
 
-        console.log(
-          `♻️ Overwritten AnswerSheet for roll ${roll} (assignmentId: ${assignmentId})`,
+        // ✅ Reset the linked eval record so it re-enters the evaluation queue
+        await Evaluation.findOneAndUpdate(
+          { "sheets.assignmentId": existingSheet.assignmentId },
+          {
+            $set: {
+              "sheets.$.status": "Pending",
+              "sheets.$.isChecked": "Not Evaluated",
+              "sheets.$.marks": 0,
+            },
+          }
         );
+
+        console.log(`♻️ Overwritten AnswerSheet + reset Eval for roll ${roll} (assignmentId: ${assignmentId})`);
       } else {
         // 📝 Save fresh AnswerSheet
         const answerSheet = new AnswerSheet({

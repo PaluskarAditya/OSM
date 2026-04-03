@@ -74,6 +74,72 @@ app.use(
   require("./routes/candidateRoutes")
 );
 
+// Custom API for Dashboard Stats
+app.get("/api/v1/dashboard/stats", authMiddleware, async (req, res) => {
+  try {
+    const iid = req.user.IID;
+
+    const [
+      totalSheets,
+      evaluatedSheets,
+      activeExaminers,
+      activeSubjects,
+      liveExams,
+    ] = await Promise.all([
+      AnswerSheet.countDocuments({ iid }),
+      AnswerSheet.countDocuments({ iid, status: "Completed" }),
+      User.countDocuments({ iid, role: "Examiner", isActive: true }),
+      Subject.countDocuments({ iid, isActive: true }),
+      QP.countDocuments({ iid, status: "Active" }),
+    ]);
+
+    const completionPercent = totalSheets
+      ? Math.round((evaluatedSheets / totalSheets) * 100)
+      : 0;
+
+    // Pending evaluations per examiner
+    const pending = await Evaluation.aggregate([
+      { $match: { iid } },
+      { $lookup: { from: "users", localField: "examinerId", foreignField: "_id", as: "examiner" } },
+      { $unwind: "$examiner" },
+      {
+        $project: {
+          name: { $concat: ["$examiner.FirstName", " ", "$examiner.LastName"] },
+          dept: "$examiner.department",
+          avatar: { $concat: [{ $substr: ["$examiner.FirstName", 0, 1] }, { $substr: ["$examiner.LastName", 0, 1] }] },
+          pending: { $subtract: [{ $size: "$sheets" }, { $ifNull: ["$progress.checked", 0] }] },
+        },
+      },
+      { $sort: { pending: -1 } },
+      { $limit: 5 },
+    ]);
+
+    // Subject-wise distribution for pie chart
+    const subjectDist = await AnswerSheet.aggregate([
+      { $match: { iid, status: "Completed" } },
+      { $group: { _id: "$subject", count: { $sum: 1 } } },
+      { $lookup: { from: "subjects", localField: "_id", foreignField: "uuid", as: "sub" } },
+      { $unwind: { path: "$sub", preserveNullAndEmpty: true } },
+      { $project: { name: { $ifNull: ["$sub.name", "Unknown"] }, value: "$count" } },
+      { $sort: { value: -1 } },
+      { $limit: 5 },
+    ]);
+
+    res.json({
+      completionPercent,
+      activeExaminers,
+      activeSubjects,
+      liveExams,
+      totalSheets,
+      evaluatedSheets,
+      pendingByExaminer: pending,
+      subjectDistribution: subjectDist,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Custom route to view sheets in iframe
 app.get("/api/v1/answer-sheet/iframe/:filename", async (req, res) => {
   try {
