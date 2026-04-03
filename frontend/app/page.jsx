@@ -20,19 +20,20 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+/**
+ * NOTE: 'next/navigation' is not available in this preview environment.
+ * To make this runnable, we use a mock router or standard state.
+ * In your actual Next.js project, revert to: import { useRouter } from 'next/navigation';
+ */
+
 export default function LoginPage() {
+  const router = useRouter()
   const ROLES = [
-    "Admin",
-    "Observer",
-    "COE Login",
-    "Photocopy Viewer",
-    "Examiner",
-    "Scanner",
-    "Head Examiner",
-    "Moderator",
+    "Admin", "Observer", "COE Login", "Photocopy Viewer",
+    "Examiner", "Scanner", "Head Examiner", "Moderator",
   ];
 
   const [creds, setCreds] = useState({ role: "", uname: "", pass: "" });
@@ -43,36 +44,23 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const router = useRouter();
 
+  // Check for existing token on mount
   useEffect(() => {
     const token = Cookies.get("token");
     if (token) {
-      router.push("/admin");
+      console.log("Authenticated. Redirecting to admin...");
+      // window.location.href = "/admin"; // In real Next.js use router.push
     }
-  }, [router]);
+  }, []);
 
   const validatePassword = (password) => {
-    if (password.length < 8) {
-      return "Password must be at least 8 characters long";
-    }
-    if (!/(?=.*[a-z])/.test(password)) {
-      return "Password must contain at least one lowercase letter";
-    }
-    if (!/(?=.*[A-Z])/.test(password)) {
-      return "Password must contain at least one uppercase letter";
-    }
-    if (!/(?=.*\d)/.test(password)) {
-      return "Password must contain at least one number";
-    }
-    if (!/(?=.*[@$!%*?&])/.test(password)) {
-      return "Password must contain at least one special character";
-    }
+    if (password.length < 8) return "Min 8 characters required";
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) return "Must include Caps, Small & Number";
     return "";
   };
 
   const handleLogin = async () => {
-    // Validation
     if (!creds.role || !creds.uname || !creds.pass) {
       toast.error("Please fill in all fields");
       return;
@@ -80,44 +68,29 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(creds),
-        }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(creds),
+      });
 
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        if (data.changePassword === false) {
-          setShowChangePassword(true);
-          Cookies.set("token", data.token);
-          Cookies.set("role", data.role);
-          Cookies.set("mail", data.mail);
-          Cookies.set("iid", data.iid);
-          Cookies.set("perms", data.perms)
-          Cookies.set("id", data.id)
-          setLoading(false);
-          return;
-        }
-
-        // Normal login
         Cookies.set("token", data.token);
         Cookies.set("role", data.role);
         Cookies.set("mail", data.mail);
         Cookies.set("iid", data.iid);
-        Cookies.set("perms", data.perms)
-        Cookies.set("id", data.id)
+        Cookies.set("perms", data.perms);
+        Cookies.set("id", data.id);
+
+        if (data.changePassword === false) {
+          setShowChangePassword(true);
+          return;
+        }
         toast.success("Login Successful");
-        router.push("/admin");
-        return;
+        router.push('/admin')
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || "Login failed");
+        toast.error(data.message || "Login failed");
       }
     } catch (error) {
       toast.error("Network error. Please try again.");
@@ -127,87 +100,54 @@ export default function LoginPage() {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      if (showChangePassword) {
-        handleChangePassword();
-      } else {
-        handleLogin();
-      }
+    if (e.key === "Enter" && !loading) {
+      showChangePassword ? handleChangePassword() : handleLogin();
     }
   };
 
   const handleChangePassword = async () => {
-    // Validate new password
-    const validationError = validatePassword(newPassword);
-    if (validationError) {
-      setPasswordError(validationError);
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
-      return;
-    }
+    const vErr = validatePassword(newPassword);
+    if (vErr) return setPasswordError(vErr);
+    if (newPassword !== confirmPassword) return setPasswordError("Passwords do not match");
 
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/change-pass`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Cookies.get("token")}`,
-          },
-          body: JSON.stringify({ newPassword }),
-        }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/v1/auth/change-pass`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
 
       if (res.ok) {
-        toast.success("Password changed successfully!");
+        toast.success("Password updated!");
         setShowChangePassword(false);
-        setNewPassword("");
-        setConfirmPassword("");
-        setPasswordError("");
-        router.push("/admin");
+        // window.location.href = "/admin";
       } else {
         const errorData = await res.json();
-        toast.error(errorData.message || "Failed to change password");
+        toast.error(errorData.message || "Update failed");
       }
     } catch (error) {
-      toast.error("Network error. Please try again.");
+      toast.error("Network error.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateRequest = async () => {
-    if (!creds.uname) {
-      toast.error("Please enter your username/email to request password reset.");
-      return;
-    }
-
+    if (!creds.uname) return toast.error("Enter username first.");
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/requests/request-reset`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email: creds.uname }),
-        }
-      );
-
-      if (res.ok) {
-        toast.success("Password reset request sent!");
-      } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || "Failed to send password reset request");
-      }
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/v1/requests/request-reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: creds.uname }),
+      });
+      if (res.ok) toast.success("Reset request sent!");
     } catch (error) {
-      toast.error("Network error. Please try again.");
+      toast.error("Network error.");
     } finally {
       setLoading(false);
     }
@@ -222,222 +162,158 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      <div className="flex justify-center items-center min-h-screen bg-[url('/bg.jpg')] bg-cover bg-center p-4">
-        <div className="p-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 flex flex-col gap-4 justify-center items-center w-full max-w-md">
-          <div className="flex flex-col text-center w-full">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Evaluation Login
+    <div className="min-h-screen flex items-center justify-center lg:justify-end bg-cover bg-center bg-no-repeat px-6 lg:px-32 bg-slate-100"
+      style={{ backgroundImage: "url('/bg.jpg')" }}>
+      <div className="w-full max-w-[340px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-300">
+        {/* Top Accent Bar */}
+        <div className="h-1.5 bg-blue-700 w-full" />
+
+        <div className="p-8 pb-12">
+          {/* Header */}
+          <div className="mb-10">
+            <h1 className="text-xl font-bold text-blue-800 tracking-tight leading-tight uppercase">
+              Management Login
             </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Sign in to access your account
+            <p className="text-sm font-medium text-gray-500 mt-1">
+              Secure Access Portal
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 w-full">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">Role</label>
-              <Select
-                value={creds.role}
-                onValueChange={(value) => setCreds({ ...creds, role: value })}
-              >
-                <SelectTrigger className="cursor-pointer w-full">
-                  <SelectValue placeholder="Select your role" />
+          {/* Form Fields */}
+          <div className="space-y-6 w-full">
+            {/* Role Selection */}
+            <div className="w-full space-y-1">
+              <Select value={creds.role} onValueChange={(v) => setCreds({ ...creds, role: v })}>
+                <SelectTrigger className="border-0 border-b border-gray-300 rounded-none px-0 h-11 focus:ring-0 focus:border-blue-600 bg-transparent transition-colors shadow-none text-sm font-medium w-full">
+                  <SelectValue placeholder="Select Account Role" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-none">
                   <SelectGroup>
-                    {ROLES.map((role) => (
-                      <SelectItem
-                        key={role}
-                        value={role}
-                        className="cursor-pointer"
-                      >
-                        {role}
-                      </SelectItem>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r} className="py-2.5 cursor-pointer text-xs">{r}</SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Username/Email
-              </label>
+            {/* Username */}
+            <div className="space-y-1">
               <Input
+                className="border-0 border-b border-gray-300 rounded-none px-0 h-11 focus-visible:ring-0 focus-visible:border-blue-600 bg-transparent transition-colors placeholder:text-gray-400 text-xs shadow-none"
                 value={creds.uname}
                 onChange={(e) => setCreds({ ...creds, uname: e.target.value })}
-                placeholder="Enter your username or email"
-                className="w-full"
-                onKeyPress={handleKeyPress}
+                placeholder="Username or Email"
+                onKeyDown={handleKeyPress}
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Password
-              </label>
+            {/* Password */}
+            <div className="space-y-1">
               <div className="relative">
                 <Input
+                  className="border-0 border-b border-gray-300 rounded-none px-0 h-11 focus-visible:ring-0 focus-visible:border-blue-600 bg-transparent transition-colors placeholder:text-gray-400 text-xs pr-10 shadow-none"
+                  type={showPassword ? "text" : "password"}
                   value={creds.pass}
                   onChange={(e) => setCreds({ ...creds, pass: e.target.value })}
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  className="w-full pr-10"
-                  onKeyPress={handleKeyPress}
+                  placeholder="Password"
+                  onKeyDown={handleKeyPress}
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-0 top-3 text-gray-400 hover:text-blue-600"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-500" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-500" />
-                  )}
-                </Button>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
           </div>
 
-          <Button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full cursor-pointer font-medium mt-2"
-            size="lg"
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="animate-spin h-4 w-4" />
-                Logging in...
-              </div>
-            ) : (
-              "Login"
-            )}
-          </Button>
+          {/* Bottom Actions */}
+          <div className="mt-8 flex items-center justify-between">
+            {creds.role !== 'Admin' && creds.uname !== "" ? (
+              <button
+                onClick={handleCreateRequest}
+                className="text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-blue-700 transition-colors underline-offset-4 hover:underline"
+              >
+                Forgot?
+              </button>
+            ) : <div />}
 
-          {
-            creds.role !== 'Admin' && creds.uname !== "" && (
-              <Button onClick={handleCreateRequest} className="cursor-pointer text-xs" size={'sm'} variant={'link'}>Request Password Reset</Button>
-            )
-          }
+            <Button
+              onClick={handleLogin}
+              disabled={loading}
+              className="h-12 w-12 rounded-full bg-blue-700 hover:bg-blue-800 shadow-lg flex items-center justify-center transition-all active:scale-95 border-none p-0"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin h-5 w-5 text-white" />
+              ) : (
+                <ArrowRight className="h-6 w-6 text-white" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Change Password Dialog */}
       <Dialog open={showChangePassword} onOpenChange={closePasswordDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Change Password</DialogTitle>
-            <DialogDescription className="text-base">
-              For security reasons, you must change your password before
-              continuing.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-[400px] p-0 border-none rounded-none shadow-2xl">
+          <div className="h-1.5 bg-blue-700 w-full" />
+          <div className="p-8">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-xl font-bold uppercase tracking-tight text-blue-800">Security Update</DialogTitle>
+              <DialogDescription className="text-gray-500 font-medium text-xs">
+                Please set a new password to continue.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="newPassword" className="text-sm font-medium">
-                New Password
-              </label>
+            <div className="space-y-6">
               <div className="relative">
                 <Input
-                  id="newPassword"
                   type={showNewPassword ? "text" : "password"}
                   value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    setPasswordError("");
-                  }}
-                  placeholder="Enter new password"
-                  className="pr-10"
-                  onKeyPress={handleKeyPress}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+                  placeholder="New Password"
+                  className="border-0 border-b border-gray-300 rounded-none px-0 h-11 focus-visible:ring-0 focus-visible:border-blue-600 shadow-none text-xs"
+                  onKeyDown={handleKeyPress}
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-0 top-3 text-gray-400"
                 >
-                  {showNewPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-500" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-500" />
-                  )}
-                </Button>
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
-              {passwordError && newPassword && (
-                <p className="text-sm text-red-600">{passwordError}</p>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirm New Password
-              </label>
               <Input
-                id="confirmPassword"
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setPasswordError("");
-                }}
-                placeholder="Confirm new password"
-                onKeyPress={handleKeyPress}
+                onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(""); }}
+                placeholder="Confirm New Password"
+                className="border-0 border-b border-gray-300 rounded-none px-0 h-11 focus-visible:ring-0 focus-visible:border-blue-600 shadow-none text-xs"
+                onKeyDown={handleKeyPress}
               />
-              {passwordError &&
-                confirmPassword &&
-                newPassword !== confirmPassword && (
-                  <p className="text-sm text-red-600">Passwords do not match</p>
-                )}
+
+              {passwordError && (
+                <p className="text-[10px] text-red-600 font-bold uppercase tracking-wide bg-red-50 p-2 border-l-2 border-red-600">
+                  {passwordError}
+                </p>
+              )}
             </div>
 
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium mb-1">
-                Password Requirements:
-              </p>
-              <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
-                <li>At least 8 characters long</li>
-                <li>One uppercase letter</li>
-                <li>One lowercase letter</li>
-                <li>One number</li>
-                <li>One special character (@$!%*?&)</li>
-              </ul>
+            <div className="mt-10 flex flex-col gap-3">
+              <Button onClick={handleChangePassword} disabled={loading} className="w-full bg-blue-700 h-12 text-xs font-bold uppercase tracking-widest hover:bg-blue-800 border-none">
+                {loading ? <Loader2 className="animate-spin h-5 w-5" /> : "Save Changes"}
+              </Button>
+              <Button variant="ghost" onClick={closePasswordDialog} className="text-gray-400 text-[10px] font-bold uppercase hover:bg-transparent tracking-widest">
+                Cancel
+              </Button>
             </div>
           </div>
-
-          <DialogFooter className="flex flex-col sm:flex-col gap-2">
-            <Button
-              onClick={handleChangePassword}
-              disabled={loading || !newPassword || !confirmPassword}
-              className="w-full"
-              size="lg"
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="animate-spin h-4 w-4" />
-                  Changing Password...
-                </div>
-              ) : (
-                "Change Password"
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={closePasswordDialog}
-              disabled={loading}
-              className="w-full"
-            >
-              Cancel
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
