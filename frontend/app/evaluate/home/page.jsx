@@ -204,14 +204,12 @@ export default function EvaluationDashboard() {
     return new Date(`${y}-${m}-${d}`) < new Date();
   };
 
-  const formatDate = (dateStr) => {
-    const [d, m, y] = dateStr.split("-");
-    return new Date(`${y}-${m}-${d}`).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+  function formatDate(dateStr) {
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      day: "numeric", month: "short", year: "numeric",
     });
-  };
+  }
 
   // Filtered & sorted evaluations
   const displayedEvaluations = useMemo(() => {
