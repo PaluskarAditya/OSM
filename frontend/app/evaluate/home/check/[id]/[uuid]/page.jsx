@@ -419,6 +419,7 @@ export default function Page() {
   const [totalScore, setTotalScore] = useState(0);
   const [loading, setLoading] = useState(false);
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
+  const [page1Masked, setPage1Masked] = useState(true); // true by default — masked from the first frame  
   const [errorDialog, setErrorDialog] = useState({
     open: false,
     title: "",
@@ -434,6 +435,11 @@ export default function Page() {
   const drawCanvasRef = useRef(null);
   const contextRef = useRef(null);
   const router = useRouter();
+
+  const goToPage = (num) => {
+    if (num === 1) setPage1Masked(true); // re-mask instantly on return to page 1
+    setCurrentPage(num);
+  };
 
   // ── Extracted redraw helper (stable reference with useCallback) ──
   const redrawAnnotations = useCallback((canvas, pageAnnots) => {
@@ -640,7 +646,20 @@ export default function Page() {
           annotRes.ok ? annotRes.json() : {},
         ]);
 
+        // ✅ pdf is defined FIRST
         const pdf = await pdfjsLib.getDocument({ data: sheetData }).promise;
+
+        // ✅ THEN patch getPage on the live pdf object
+        const originalGetPage = pdf.getPage.bind(pdf);
+        pdf.getPage = async (pageNum) => {
+          const page = await originalGetPage(pageNum);
+          if (pageNum === 1) {
+            page.getTextContent = async () => ({ items: [], styles: {} });
+          }
+          return page;
+        };
+
+        // ✅ Set state after both steps are done
         setPdfDOC(pdf);
         setQP(qpData);
         setTotalPages(pdf.numPages);
@@ -716,13 +735,13 @@ export default function Page() {
   }, [qp]);
 
   // ── Render PDF page ───────────────────────────────────────────
+  // ── Render PDF page ───────────────────────────────────────────
   const renderPage = useCallback(async (pdf, num, currentAnnotations) => {
     if (!pdf || !canvasRef.current || !drawCanvasRef.current) return;
     try {
       const page = await pdf.getPage(num);
       const viewport = page.getViewport({ scale: zoomLevel });
 
-      // Resize both canvases together
       const canvas = canvasRef.current;
       const drawCanvas = drawCanvasRef.current;
       canvas.width = viewport.width;
@@ -730,24 +749,120 @@ export default function Page() {
       drawCanvas.width = viewport.width;
       drawCanvas.height = viewport.height;
 
-      // Render PDF
+      // Render PDF to canvas normally
       await page.render({
         canvasContext: canvas.getContext("2d"),
         viewport,
       }).promise;
 
-      // ✅ Redraw annotations IMMEDIATELY after PDF render completes
-      // canvas dimensions are correct at this point
+      // ── PAGE 1 MASK: Destroy pixels, then overlay ─────────────────
+      if (num === 1) {
+        const ctx = canvas.getContext("2d");
+        const { width, height } = canvas;
+
+        // Step 1: Grab the rendered pixels
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
+
+        // Step 2: Apply box blur directly on pixel data (radius 18)
+        // This runs on the raw RGBA array — no DOM, no CSS, no bypass possible
+        const radius = 18;
+        const tempData = new Uint8ClampedArray(pixels);
+
+        // Horizontal blur pass
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let dx = -radius; dx <= radius; dx++) {
+              const nx = Math.min(width - 1, Math.max(0, x + dx));
+              const idx = (y * width + nx) * 4;
+              r += pixels[idx];
+              g += pixels[idx + 1];
+              b += pixels[idx + 2];
+              count++;
+            }
+            const i = (y * width + x) * 4;
+            tempData[i] = r / count;
+            tempData[i + 1] = g / count;
+            tempData[i + 2] = b / count;
+            tempData[i + 3] = 255;
+          }
+        }
+
+        // Vertical blur pass (on tempData result)
+        const finalData = new Uint8ClampedArray(tempData);
+        for (let x = 0; x < width; x++) {
+          for (let y = 0; y < height; y++) {
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let dy = -radius; dy <= radius; dy++) {
+              const ny = Math.min(height - 1, Math.max(0, y + dy));
+              const idx = (ny * width + x) * 4;
+              r += tempData[idx];
+              g += tempData[idx + 1];
+              b += tempData[idx + 2];
+              count++;
+            }
+            const i = (y * width + x) * 4;
+            finalData[i] = r / count;
+            finalData[i + 1] = g / count;
+            finalData[i + 2] = b / count;
+            finalData[i + 3] = 255;
+          }
+        }
+
+        // Step 3: Write blurred pixels back — original data is GONE from canvas
+        const blurredImageData = new ImageData(finalData, width, height);
+        ctx.putImageData(blurredImageData, 0, 0);
+
+        // Step 4: Frosted glass tint overlay
+        ctx.fillStyle = "rgba(220, 225, 240, 0.45)";
+        ctx.fillRect(0, 0, width, height);
+
+        // Step 5: "Document Masked" pill badge in center
+        const badgeW = 380, badgeH = 80, badgeX = width / 2 - badgeW / 2, badgeY = height / 2 - badgeH / 2;
+        const radius8 = 16;
+
+        // Draw rounded rect badge
+        ctx.beginPath();
+        ctx.moveTo(badgeX + radius8, badgeY);
+        ctx.lineTo(badgeX + badgeW - radius8, badgeY);
+        ctx.quadraticCurveTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + radius8);
+        ctx.lineTo(badgeX + badgeW, badgeY + badgeH - radius8);
+        ctx.quadraticCurveTo(badgeX + badgeW, badgeY + badgeH, badgeX + badgeW - radius8, badgeY + badgeH);
+        ctx.lineTo(badgeX + radius8, badgeY + badgeH);
+        ctx.quadraticCurveTo(badgeX, badgeY + badgeH, badgeX, badgeY + badgeH - radius8);
+        ctx.lineTo(badgeX, badgeY + radius8);
+        ctx.quadraticCurveTo(badgeX, badgeY, badgeX + radius8, badgeY);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(20, 20, 40, 0.85)";
+        ctx.fill();
+
+        // Main label
+        ctx.font = "bold 32px Inter, Helvetica, Arial, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Document Masked", width / 2, height / 2 - 6);
+
+        // Sub-label
+        ctx.font = "13px Inter, Helvetica, Arial, sans-serif";
+        ctx.fillStyle = "rgba(180, 185, 210, 0.95)";
+        ctx.fillText("Sensitive information has been hidden", width / 2, height / 2 + 22);
+
+        // Reset alignment for subsequent draws
+        setPage1Masked(false);
+      }
+      // ── END PAGE 1 MASK ───────────────────────────────────────────
+
       const pageAnnots = currentAnnotations[num] || [];
       redrawAnnotations(drawCanvas, pageAnnots);
 
-      // Re-setup drawing context after resize
-      const ctx = drawCanvas.getContext("2d");
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 8;
-      contextRef.current = ctx;
+      const ctx2 = drawCanvas.getContext("2d");
+      ctx2.lineCap = "round";
+      ctx2.lineJoin = "round";
+      ctx2.strokeStyle = "red";
+      ctx2.lineWidth = 8;
+      contextRef.current = ctx2;
 
     } catch (error) {
       console.error("Error rendering page:", error);
@@ -1130,11 +1245,62 @@ export default function Page() {
               animate={{ scale: 1 }}
               className="bg-gradient-to-br from-white to-gray-50/90 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/30 flex flex-col items-center"
             >
-              <div className="relative mb-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
-                  <RotateCw className="h-10 w-10 text-white animate-spin" />
-                </div>
-                <div className="absolute inset-0 border-4 border-blue-200/50 rounded-full animate-ping" />
+              <div className="relative">
+                <canvas
+                  ref={canvasRef}
+                  className="block w-full h-auto shadow-inner"
+                />
+                <canvas
+                  ref={drawCanvasRef}
+                  className="absolute inset-0 w-full h-full cursor-crosshair"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onClick={handleCanvasClick}
+                  style={{
+                    cursor:
+                      selectedTool === "pencil"
+                        ? "crosshair"
+                        : selectedTool
+                          ? "pointer"
+                          : "default",
+                  }}
+                />
+
+                {/* ✅ Instant React overlay — renders BEFORE any PDF loads */}
+                {currentPage === 1 && page1Masked && (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center"
+                    style={{ background: "rgba(200, 205, 220, 0.97)", backdropFilter: "blur(24px)" }}
+                  >
+                    {/* Pill badge */}
+                    <div
+                      style={{
+                        background: "rgba(20, 20, 40, 0.88)",
+                        borderRadius: "16px",
+                        padding: "18px 36px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "8px",
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                      }}
+                    >
+                      <span style={{ color: "#fff", fontWeight: 700, fontSize: "22px", letterSpacing: "0.01em" }}>
+                        Document Masked
+                      </span>
+                      <span style={{ color: "rgba(180,185,210,0.95)", fontSize: "13px" }}>
+                        Sensitive information has been hidden
+                      </span>
+                    </div>
+
+                    {/* Loading indicator — shown while PDF + blur is being painted */}
+                    <div className="mt-6 flex items-center gap-2 text-gray-500 text-sm">
+                      <RotateCw className="w-4 h-4 animate-spin" />
+                      Loading document...
+                    </div>
+                  </div>
+                )}
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Saving Evaluation
@@ -1436,7 +1602,7 @@ export default function Page() {
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    onClick={() => goToPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                     className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
                   >
@@ -1449,7 +1615,7 @@ export default function Page() {
                     size="icon"
                     variant="outline"
                     onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      goToPage(Math.min(totalPages, currentPage + 1))
                     }
                     disabled={currentPage === totalPages}
                     className="rounded-full bg-white/60 backdrop-blur-sm border-white/50 h-9 w-9"
@@ -1696,7 +1862,7 @@ export default function Page() {
                       whileTap={{ scale: 0.9 }}
                     >
                       <Badge
-                        onClick={() => setCurrentPage(pageNum)}
+                        onClick={() => goToPage(pageNum)}
                         className={`cursor-pointer text-xs h-8 w-8 flex items-center justify-center text-white ${bgClass} hover:shadow-lg transition-all duration-300 rounded-lg`}
                       >
                         {pageNum}

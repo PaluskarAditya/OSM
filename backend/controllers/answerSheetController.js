@@ -125,8 +125,8 @@ const upload = async (req, res) => {
       });
 
       // modified buffer
-      const modifiedBuffer = await pageAppend(file.buffer)
-      uploadStream.end(modifiedBuffer);
+      // const modifiedBuffer = await pageAppend(file.buffer)
+      uploadStream.end(file.buffer);
 
       await new Promise((resolve, reject) => {
         uploadStream.on("finish", resolve);
